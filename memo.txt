@@ -1,0 +1,46 @@
+memo.txt
+
+作者 goggle, mail: goggle1@163.com.
+
+2013-07-09 实现了HttpServer，端口号8080；
+
+编译说明
+只需在BaseServer目录下，make即可
+生成结果TeslaStreamingServer.
+执行./TeslaStreamingServer
+如果要编译select版本，请打开宏定义 //#define MIO_SELECT 1
+如果要编译epoll版本，请关闭宏定义 //#define MIO_SELECT 1
+
+测试用例
+1. http://192.168.160.96:8080/
+没有该文件，那么返回url not found。
+2. http://192.168.160.96:8080/index.html
+	a. 没有该文件，那么返回url not found。
+	b. cd /home/html # HttpServer工作的根目录
+	   wget http://www.baidu.com -O index.html 
+	   # wget 下载一个页面，生成index.html
+	   再次访问改地址，那么返回该页面。
+3. http://192.168.160.96:8080/1.mp4
+	a. 没有该文件，那么返回url not found。
+	b. 如果在/home/html目录下面放置1.mp4，视频文件，
+	使用chrome浏览器访问该页面，可以边下载边播放。
+	同样，也可以使用vlc测试。
+
+目录结构说明
+BaseServer目录下，放置了Http协议的相关实现；
+BaseServer/BaseServer目录下，
+放置了select/epoll的实现，
+事件线程EventThread, 
+任务线程TaskThread, 
+任务线程池TaskThreadPool，
+TimeoutThread,
+IdleThread,
+Task,
+小根堆OSHeap
+以及一些基础类, OSCond，OSMutex，OSQueue。
+(该目录代码，除epoll是作者实现外，其余的代码摘自DarwinStreamingServer.)
+
+
+
+
+
