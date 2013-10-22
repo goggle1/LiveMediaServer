@@ -435,5 +435,18 @@ int ChannelList::WriteConfig(char* config_file)
 	return 0;
 }
 
+int ChannelList::AddChannel(CHANNEL_T * channelp)
+{
+	DEQUE_NODE* nodep = (DEQUE_NODE*)malloc(sizeof(DEQUE_NODE));
+	if(nodep == NULL)
+	{
+	    fprintf(stderr, "%s: can not malloc for DEQUE_NODE\n", __FUNCTION__);
+	    return -1;
+	}
+	memset(nodep, 0, sizeof(DEQUE_NODE));
 
+	m_channel_list = deque_append(m_channel_list, nodep);
+			
+	return 0;
+}
 

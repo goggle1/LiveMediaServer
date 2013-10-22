@@ -10,6 +10,8 @@
 
 #include "HTTPProtocol.h"
 
+#include "deque.h"
+
 enum
 {
     QTSS_NoErr              = 0,
@@ -92,6 +94,15 @@ enum
 typedef UInt32 QTSS_RTSPStatusCode;
 
 
+class UriParam
+{
+	public:
+		UriParam(StrPtrLen* keyp, StrPtrLen* valuep);
+		~UriParam();
+	public:
+		char* key;
+		char* value;
+};
 
 class HTTPRequest
 {
@@ -104,6 +115,8 @@ public:
 public:
     QTSS_Error  ParseFirstLine(StringParser* parser);
     QTSS_Error  ParseURI(StringParser* parser);
+    QTSS_Error  ParseParams(StringParser* parser);
+    QTSS_Error  ParseParam(StrPtrLen* param);
     
     StrPtrLen                   fFullRequest;
     
@@ -111,8 +124,13 @@ public:
     HTTPVersion                 fVersion;
 
     // For the URI (fAbsoluteURI and fRelativeURI are the same if the URI is of the form "/path")
-    StrPtrLen           fAbsoluteURI;       // If it is of the form "http://foo.bar.com/path"
-    StrPtrLen           fRelativeURI;       // If it is of the form "/path"
+    StrPtrLen           fAbsoluteURI;       // If it is of the form "http://foo.bar.com/path?params"
+    StrPtrLen           fRelativeURI;       // If it is of the form "/path?params"
+
+	StrPtrLen           fURIPath;       	// If it is of the form "/path"
+    StrPtrLen			fURIParams;			// ?key1=value&key2=value2
+    DEQUE_NODE*			fParamPairs;		// key:value, key:value(UriParam) 
+    
                                             
                                             // If it is an absolute URI, these fields will be filled in
                                             // "http://foo.bar.com/path" => fAbsoluteURIScheme = "http", fHostHeader = "foo.bar.com",

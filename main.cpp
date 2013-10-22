@@ -6,8 +6,8 @@
 #include "BaseServer/TimeoutTask.h"
 #include "BaseServer/ev_epoll.h"
 
+#include "public.h"
 #include "HTTPListenerSocket.h"
-
 #include "channel.h"
 
 #define DEFAULT_HTTP_SERVER_IP          0
@@ -131,17 +131,16 @@ int start_server()
 	return 0;
 }
 
+
+ChannelList g_channels;
+
 int main(int argc, char* argv[])
 {
 	int ret = 0;
 
 	ChannelList channels;
-	char* config_file = "./channels.xml";
+	char* config_file = ROOT_PATH"/channels.xml";
 	ret = channels.ReadConfig(config_file);
-
-	char* config_file2 = "./channels2.xml";
-	ret = channels.WriteConfig(config_file2);
-	return ret;
 	
 	ret = start_server();
 	if(ret != 0)

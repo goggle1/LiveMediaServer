@@ -10,22 +10,23 @@
 
 #include "BaseServer/StringParser.h"
 
+#include "public.h"
 #include "HTTPSession.h"
+#include "channel.h"
 
 #define BASE_SERVER_NAME 	"TeslaStreamingServer"
 #define BASE_SERVER_VERSION "1.0"
-#define ROOT_PATH			"/home/html"
 
+#define CONTENT_TYPE_TEXT_XML	"text/xml"
 #define CONTENT_TYPE_TEXT_HTML	"text/html"
 #define CONTENT_TYPE_VIDEO_MP4	"video/mp4"
 
 #define CHARSET_UTF8		"utf-8"
 
-#define URI_CMD  "/cmd/"
-#define CMD_ADD_CHANNEL  "/cmd/add_channel/"
-#define CMD_DEL_CHANNEL  "/cmd/del_channel/"
-#define PARAM_LIVE_ID	 "liveid="
-
+#define URI_CMD  			"/cmd/"
+#define CMD_ADD_CHANNEL  	"/cmd/add_channel/"
+#define CMD_DEL_CHANNEL  	"/cmd/del_channel/"
+#define CMD_LIST_CHANNEL  	"/cmd/list_channel/"
 
 static char template_response_http_error[] = 
             "HTTP/1.0 %s %s\r\n" //error_code error_reason
@@ -47,7 +48,7 @@ Bool16 file_exist(char* abs_path)
 
 char* file_suffix(char* abs_path)
 {
-	char* suffix = strstr(abs_path, ".");
+	char* suffix = rindex(abs_path, '.');
 	return suffix;
 }
 
@@ -65,6 +66,10 @@ char* content_type_by_suffix(char* suffix)
 	else if(strcasecmp(suffix, ".html") == 0)
 	{
 		return CONTENT_TYPE_TEXT_HTML;
+	}
+	else if(strcasecmp(suffix, ".xml") == 0)
+	{
+		return CONTENT_TYPE_TEXT_XML;
 	}
 	else if(strcasecmp(suffix, ".mp4") == 0)
 	{
@@ -371,20 +376,25 @@ Bool16 HTTPSession::ResponseGet()
 	char absolute_uri[fRequest.fAbsoluteURI.Len + 1];
 	strncpy(absolute_uri, fRequest.fAbsoluteURI.Ptr, fRequest.fAbsoluteURI.Len);
 	absolute_uri[fRequest.fAbsoluteURI.Len] = '\0';
+	fprintf(stdout, "%s: absolute_uri=%s\n", __FUNCTION__, absolute_uri);
+
+	char* request_file = absolute_uri;
+	if(strcmp(absolute_uri, "/") == 0)
+	{
+		request_file = "/index.html";
+	}
 
 	char abs_path[PATH_MAX];
-	snprintf(abs_path, PATH_MAX-1, "%s%s", ROOT_PATH, absolute_uri);
-	abs_path[PATH_MAX-1] = '\0';
-
-	
+	snprintf(abs_path, PATH_MAX-1, "%s%s", ROOT_PATH, request_file);
+	abs_path[PATH_MAX-1] = '\0';		
 	if(file_exist(abs_path))
 	{
 		ret = ResponseFile(abs_path);
 	}
 	else
 	{
-		ret = ResponseFileNotFound(absolute_uri);
-	}
+		ret = ResponseFileNotFound(request_file);
+	}	
 
 	return ret;
 
@@ -428,26 +438,76 @@ Bool16 HTTPSession::ReadFileContent()
 Bool16 HTTPSession::ResponseCmdAddChannel()
 {
 	Bool16 ret = true;
-	StrPtrLen url_params(fRequest.fAbsoluteURI.Ptr+strlen(CMD_ADD_CHANNEL), fRequest.fAbsoluteURI.Len-strlen(CMD_ADD_CHANNEL));
-	if(url_params.Len <= 0)
+
+	if(fRequest.fParamPairs == NULL)
 	{
-		return false;
-	}
-	if(url_params.Ptr[0] == '?')
-	{
-		return false;
-	}
-	
-	// skip ?
-	StrPtrLen params(url_params.Ptr + 1, url_params.Len - 1);
-	// parse the parameters, todo:		
-	StrPtrLen liveid;
-	if(strncmp(params.Ptr, PARAM_LIVE_ID, strlen(PARAM_LIVE_ID)) == 0)
-	{
-		liveid.Ptr = params.Ptr + strlen(PARAM_LIVE_ID);
-		liveid.Len = params.Len - strlen(PARAM_LIVE_ID);
+		char* request_file = "/add_channel.html";
+		char abs_path[PATH_MAX];
+		snprintf(abs_path, PATH_MAX-1, "%s%s", ROOT_PATH, request_file);
+		abs_path[PATH_MAX-1] = '\0';	
+		
+		ret = ResponseFile(abs_path);
+		return ret;
 	}
 
+	CHANNEL_T* channelp = (CHANNEL_T*)malloc(sizeof(CHANNEL_T));
+	if(channelp == NULL)
+	{
+		return false;
+	}
+	memset(channelp, 0, sizeof(CHANNEL_T));
+
+	DEQUE_NODE* nodep = fRequest.fParamPairs;
+	while(nodep)
+	{
+		UriParam* paramp = (UriParam*)nodep->datap;
+		if(strcmp(paramp->key, "channel_id") == 0)
+		{
+			channelp->channel_id = atoi(paramp->value);
+		}
+		else if(strcmp(paramp->key, "liveid") == 0)
+		{
+			strncpy(channelp->liveid, paramp->value, HASH_LEN);
+		}
+		else if(strcmp(paramp->key, "bitrate") == 0)
+		{
+			channelp->bitrate = atoi(paramp->value);
+		}
+		else if(strcmp(paramp->key, "channel_name") == 0)
+		{
+			strncpy(channelp->channel_name, paramp->value, MAX_CHANNEL_NAME-1);
+		}
+		else if(strcmp(paramp->key, "codec_ts") == 0)
+		{
+			channelp->codec_ts = atoi(paramp->value);
+		}
+		else if(strcmp(paramp->key, "codec_flv") == 0)
+		{
+			channelp->codec_flv = atoi(paramp->value);
+		}
+		else if(strcmp(paramp->key, "codec_mp4") == 0)
+		{
+			channelp->codec_mp4 = atoi(paramp->value);
+		}
+		
+		
+		if(nodep->nextp == fRequest.fParamPairs)
+		{
+			break;
+		}
+		nodep = nodep->nextp;
+	}
+
+	int result = g_channels.AddChannel(channelp);
+	if(result != 0)
+	{
+		ResponseCmdResult("add_channel", "failure");
+		free(channelp);
+		channelp = NULL;
+		return false;
+	}
+
+	ResponseCmdResult("add_channel", "success");
 	return ret;
 }
 
@@ -457,6 +517,73 @@ Bool16 HTTPSession::ResponseCmdDelChannel()
 	// todo:
 	return ret;
 }
+
+Bool16 HTTPSession::ResponseCmdListChannel()
+{
+	Bool16 ret = true;
+	StrPtrLen url_params(fRequest.fAbsoluteURI.Ptr+strlen(CMD_LIST_CHANNEL), fRequest.fAbsoluteURI.Len-strlen(CMD_LIST_CHANNEL));
+
+	char* request_file = "/channels.xml";
+	char abs_path[PATH_MAX];
+	snprintf(abs_path, PATH_MAX-1, "%s%s", ROOT_PATH, request_file);
+	abs_path[PATH_MAX-1] = '\0';	
+	
+	ret = ResponseFile(abs_path);
+	
+	return ret;
+}
+
+Bool16 HTTPSession::ResponseCmdResult(char* cmd, char* result)
+{
+	char	buffer[1024];
+	StringFormatter content(buffer, sizeof(buffer));
+	
+	content.Put("<HTML>\n");
+	content.Put("<BODY>\n");
+	content.Put("<TABLE border=2>\n");
+
+	content.Put("<TR>\n");	
+	content.Put("<TD>\n");
+	content.Put("cmd:\n");
+	content.Put("</TD>\n");
+	content.Put("<TD>\n");
+	content.PutFmtStr("%s\n", cmd);
+	content.Put("</TD>\n");	
+	content.Put("</TR>\n");
+	
+	
+	content.Put("<TR>\n");	
+	content.Put("<TD>\n");
+	content.Put("result:\n");
+	content.Put("</TD>\n");
+	content.Put("<TD>\n");
+	content.PutFmtStr("%s\n", result);
+	content.Put("</TD>\n");	
+	content.Put("</TR>\n");
+
+	content.Put("</TABLE>\n");		
+	content.Put("</BODY>\n");
+	content.Put("</HTML>\n");
+        
+    fResponse.Set(fStrRemained.Ptr+fStrRemained.Len, kResponseBufferSizeInBytes-fStrRemained.Len);
+    fResponse.Put("HTTP/1.0 200 OK\r\n");
+    fResponse.PutFmtStr("Server: %s/%s\r\n", BASE_SERVER_NAME, BASE_SERVER_VERSION);
+    fResponse.PutFmtStr("Content-Length: %d\r\n", content.GetBytesWritten());
+    fResponse.PutFmtStr("Content-Type: %s;charset=%s\r\n", CONTENT_TYPE_TEXT_HTML, CHARSET_UTF8);
+    fResponse.Put("\r\n"); 
+    fResponse.Put(content.GetBufPtr(), content.GetBytesWritten());
+
+    fStrResponse.Set(fResponse.GetBufPtr(), fResponse.GetBytesWritten());
+    //append to fStrRemained
+    fStrRemained.Len += fStrResponse.Len;  
+    //clear previous response.
+    fStrResponse.Set(fResponseBuffer, 0);
+    
+    //SendData();
+    
+	return true;
+}
+
 
 
 Bool16 HTTPSession::ResponseCmd()
@@ -469,6 +596,10 @@ Bool16 HTTPSession::ResponseCmd()
 	else if(strncmp(fRequest.fAbsoluteURI.Ptr, CMD_DEL_CHANNEL, strlen(CMD_ADD_CHANNEL)) == 0)
 	{
 		ret = ResponseCmdDelChannel();
+	}	
+	else if(strncmp(fRequest.fAbsoluteURI.Ptr, CMD_LIST_CHANNEL, strlen(CMD_LIST_CHANNEL)) == 0)
+	{
+		ret = ResponseCmdListChannel();
 	}	
 	return ret;
 }

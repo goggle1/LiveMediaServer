@@ -3,6 +3,42 @@
 
 #include "HTTPRequest.h"
 
+UriParam::UriParam(StrPtrLen* keyp, StrPtrLen* valuep)
+{
+	key = (char*)malloc(keyp->Len + 1);
+	memcpy(key, keyp->Ptr, keyp->Len);
+	key[keyp->Len] = '\0';
+
+	value = (char*)malloc(valuep->Len + 1);
+	memcpy(value, valuep->Ptr, valuep->Len);
+	value[valuep->Len] = '\0';
+}
+
+UriParam::~UriParam()
+{
+	if(key != NULL)
+	{
+		free(key);
+		key = NULL;
+	}
+
+	if(value != NULL)
+	{
+		free(value);
+		value = NULL;
+	}
+}
+
+void UriParam_release(void* datap)
+{
+	if(datap == NULL)
+	{
+		return;
+	}
+	UriParam* paramp = (UriParam*)datap;
+	delete paramp;
+}
+
 UInt8 HTTPRequest::sURLStopConditions[] =
 {
   0, 0, 0, 0, 0, 0, 0, 0, 0, 1, //0-9      //'\t' is a stop condition
@@ -35,11 +71,14 @@ UInt8 HTTPRequest::sURLStopConditions[] =
 
 HTTPRequest::HTTPRequest()
 {
+	fParamPairs = NULL;
     Clear();
 }
 
 HTTPRequest::~HTTPRequest()
 {
+	deque_release(fParamPairs, UriParam_release);
+	fParamPairs = NULL;
 }
 
 void HTTPRequest::Clear()
@@ -142,6 +181,16 @@ QTSS_Error HTTPRequest::ParseURI(StringParser* parser)
     StrPtrLen relativeURI(urlParser.GetCurrentPosition(), urlParser.GetDataReceivedLen() - urlParser.GetDataParsedLen());
     // read this URI into fRequestRelURI
     fRelativeURI = relativeURI;
+
+    urlParser.ConsumeUntil(&fURIPath, '?');
+    
+    StrPtrLen UriParams(urlParser.GetCurrentPosition(), urlParser.GetDataReceivedLen() - urlParser.GetDataParsedLen());
+    fURIParams = UriParams;
+
+	if(fURIParams.Len > 0)
+	{
+    	ParseParams(&urlParser);    
+    }
     
     // Allocate memory for fRequestPath
     UInt32 len = fRelativeURI.Len;
@@ -171,5 +220,60 @@ QTSS_Error HTTPRequest::ParseURI(StringParser* parser)
     return QTSS_NoErr;
 }
 
+QTSS_Error HTTPRequest::ParseParams(StringParser* parser)
+{
+	Bool16 ret = parser->Expect('?');
+	if(!ret)
+	{
+		return QTSS_BadArgument;
+	}
+
+	while(1)
+	{
+		StrPtrLen param;
+		parser->ConsumeUntil(&param, '&');
+		if(param.Len == 0)
+		{
+			break;
+		}
+		ParseParam(&param);
+		parser->Expect('&');		
+	}
+	
+	
+	return QTSS_NoErr;
+}
+
+QTSS_Error HTTPRequest::ParseParam(StrPtrLen* param)
+{
+	StringParser parser(param);
+
+	StrPtrLen key;
+	parser.ConsumeUntil(&key, '=');
+	parser.Expect('=');	
+
+	StrPtrLen value(parser.GetCurrentPosition(), parser.GetDataReceivedLen()-parser.GetDataParsedLen());	
+
+	UriParam* paramp = new UriParam(&key, &value);
+	if(paramp == NULL)
+	{
+		return QTSS_RequestFailed;
+	}
+
+	
+	DEQUE_NODE* nodep = (DEQUE_NODE*)malloc(sizeof(DEQUE_NODE));
+	if(nodep == NULL)
+	{
+		delete paramp;
+		paramp = NULL;
+		return QTSS_RequestFailed;
+	}
+
+	memset(nodep, 0, sizeof(DEQUE_NODE));
+	nodep->datap = paramp;
+	fParamPairs = deque_append(fParamPairs, nodep);	
+
+	return QTSS_NoErr;
+}
 
 

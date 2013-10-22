@@ -53,4 +53,6 @@ class ChannelList
 		DEQUE_NODE*	m_channel_list;		
 };
 
+extern ChannelList g_channels;
+
 #endif
