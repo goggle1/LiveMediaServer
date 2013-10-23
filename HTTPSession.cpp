@@ -24,9 +24,14 @@
 #define CHARSET_UTF8		"utf-8"
 
 #define URI_CMD  			"/cmd/"
+#define CMD_LIST_CHANNEL  	"/cmd/list_channel/"
 #define CMD_ADD_CHANNEL  	"/cmd/add_channel/"
 #define CMD_DEL_CHANNEL  	"/cmd/del_channel/"
-#define CMD_LIST_CHANNEL  	"/cmd/list_channel/"
+#define CMD_LIST_SOURCE  	"/cmd/list_source/"
+#define CMD_ADD_SOURCE  	"/cmd/add_source/"
+#define CMD_DEL_SOURCE  	"/cmd/del_source/"
+
+#define MAX_REASON_LEN		256
 
 static char template_response_http_error[] = 
             "HTTP/1.0 %s %s\r\n" //error_code error_reason
@@ -502,7 +507,10 @@ Bool16 HTTPSession::ResponseCmdAddChannel()
 	findp = g_channels.FindChannelById(channelp->channel_id);
 	if(findp != NULL)
 	{
-		ResponseCmdResult("add_channel", "channel_id exist");
+		char reason[MAX_REASON_LEN] = "";
+		snprintf(reason, MAX_REASON_LEN-1, "channel_id [%d] exist", channelp->channel_id);
+		reason[MAX_REASON_LEN-1] = '\0';
+		ResponseCmdResult("add_channel", "failure", reason);
 		free(channelp);
 		channelp = NULL;
 		return true;
@@ -510,7 +518,10 @@ Bool16 HTTPSession::ResponseCmdAddChannel()
 	findp = g_channels.FindChannelByHash(channelp->liveid);
 	if(findp != NULL)
 	{
-		ResponseCmdResult("add_channel", "liveid exist");
+		char reason[MAX_REASON_LEN] = "";
+		snprintf(reason, MAX_REASON_LEN-1, "liveid [%s] exist", channelp->liveid);
+		reason[MAX_REASON_LEN-1] = '\0';
+		ResponseCmdResult("add_channel", "failure", reason);
 		free(channelp);
 		channelp = NULL;
 		return true;
@@ -519,7 +530,10 @@ Bool16 HTTPSession::ResponseCmdAddChannel()
 	int result = g_channels.AddChannel(channelp);
 	if(result != 0)
 	{
-		ResponseCmdResult("add_channel", "add failure");
+		char reason[MAX_REASON_LEN] = "";
+		snprintf(reason, MAX_REASON_LEN-1, "AddChannel() internal failure");
+		reason[MAX_REASON_LEN-1] = '\0';
+		ResponseCmdResult("add_channel", "failure", reason);
 		free(channelp);
 		channelp = NULL;
 		return true;
@@ -528,13 +542,16 @@ Bool16 HTTPSession::ResponseCmdAddChannel()
 	result = g_channels.WriteConfig(ROOT_PATH"/channels.xml");
 	if(result != 0)
 	{
-		ResponseCmdResult("add_channel", "write failure");
+		char reason[MAX_REASON_LEN] = "";
+		snprintf(reason, MAX_REASON_LEN-1, "WriteConfig() internal failure");
+		reason[MAX_REASON_LEN-1] = '\0';
+		ResponseCmdResult("add_channel", "failure", reason);
 		free(channelp);
 		channelp = NULL;
 		return true;
 	}
 	
-	ResponseCmdResult("add_channel", "success");
+	ResponseCmdResult("add_channel", "success", "");
 	
 	return ret;
 }
@@ -578,20 +595,19 @@ Bool16 HTTPSession::ResponseCmdDelChannel()
 	int result = g_channels.DeleteChannel(liveid);
 	if(result != 0)
 	{
-		ResponseCmdResult("del_channel", "failure");		
+		ResponseCmdResult("del_channel", "failure", "DeleteChannel() internal failure");		
 		return true;
 	}
 	
 	g_channels.WriteConfig(ROOT_PATH"/channels.xml");
-	ResponseCmdResult("del_channel", "success");
+	ResponseCmdResult("del_channel", "success", "");
 	
 	return ret;
 }
 
 Bool16 HTTPSession::ResponseCmdListChannel()
 {
-	Bool16 ret = true;
-	StrPtrLen url_params(fRequest.fAbsoluteURI.Ptr+strlen(CMD_LIST_CHANNEL), fRequest.fAbsoluteURI.Len-strlen(CMD_LIST_CHANNEL));
+	Bool16 ret = true;	
 
 	char* request_file = "/channels.xml";
 	char abs_path[PATH_MAX];
@@ -603,63 +619,183 @@ Bool16 HTTPSession::ResponseCmdListChannel()
 	return ret;
 }
 
-Bool16 HTTPSession::ResponseCmdResult(char* cmd, char* result)
+Bool16 HTTPSession::ResponseCmdAddSource()
+{
+	return true;
+}
+
+
+Bool16 HTTPSession::ResponseCmdDelSource()
+{
+	return true;
+}
+
+Bool16 HTTPSession::ResponseCmdListSource()
+{
+	Bool16 ret = true;
+	if(fRequest.fParamPairs == NULL)
+	{
+		char* request_file = "/list_source.html";
+		char abs_path[PATH_MAX];
+		snprintf(abs_path, PATH_MAX-1, "%s%s", ROOT_PATH, request_file);
+		abs_path[PATH_MAX-1] = '\0';	
+		
+		ret = ResponseFile(abs_path);
+		return ret;
+	}
+
+	int channel_id = 0;
+	char* liveid = NULL;
+	DEQUE_NODE* nodep = fRequest.fParamPairs;
+	while(nodep)
+	{
+		UriParam* paramp = (UriParam*)nodep->datap;
+		if(strcmp(paramp->key, "channel_id") == 0)
+		{
+			channel_id = atoi(paramp->value);
+		}
+		else if(strcmp(paramp->key, "liveid") == 0)
+		{
+			liveid = paramp->value;
+		}		
+		
+		if(nodep->nextp == fRequest.fParamPairs)
+		{
+			break;
+		}
+		nodep = nodep->nextp;
+	}
+
+	CHANNEL_T* channelp = g_channels.FindChannelByHash(liveid);
+	if(channelp == NULL)
+	{
+		char reason[MAX_REASON_LEN] = "";
+		snprintf(reason, MAX_REASON_LEN-1, "can not find channel by liveid[%s]", liveid);
+		reason[MAX_REASON_LEN-1] = '\0';
+		ResponseCmdResult("list_source", "failure", reason);
+		return true;
+	}
+
+	char buffer[1024];
+	StringFormatter content(buffer, sizeof(buffer));
+	content.Put("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n");
+	content.PutFmtStr("<channel channel_id=\"%d\" liveid=\"%s\" bitrate=\"%d\" channel_name=\"%s\" "
+			"codec_ts=\"%d\" codec_flv=\"%d\" codec_mp4=\"%d\">\n", 
+			channelp->channel_id, channelp->liveid, channelp->bitrate, channelp->channel_name,
+			channelp->codec_ts, channelp->codec_flv, channelp->codec_mp4);
+	content.Put("\t<sources>\n");
+	
+	DEQUE_NODE* node2p = channelp->source_list;
+	while(node2p)
+	{
+		SOURCE_T* sourcep = (SOURCE_T*)node2p->datap;
+
+		struct in_addr in;
+		in.s_addr = htonl(sourcep->ip);
+		char* str_ip = inet_ntoa(in);
+		
+		content.PutFmtStr("\t\t<source ip=\"%s\" port=\"%d\">\n",
+			str_ip, sourcep->port);
+		content.Put("\t\t</source>\n");
+		
+		if(node2p->nextp == channelp->source_list)
+		{
+			break;
+		}
+		node2p = node2p->nextp;
+	}
+	content.Put("\t</sources>\n");
+	content.Put("</channel>\n");
+
+	ResponseContent(content.GetBufPtr(), content.GetBytesWritten(), CONTENT_TYPE_TEXT_XML);
+	
+	return ret;
+}
+
+
+Bool16 HTTPSession::ResponseCmdResult(char* cmd, char* result, char* reason)
 {
 	char	buffer[1024];
 	StringFormatter content(buffer, sizeof(buffer));
 	
 	content.Put("<HTML>\n");
 	content.Put("<BODY>\n");
-	content.Put("<TABLE border=2>\n");
+	content.Put("<TABLE border=\"0\" cellspacing=\"2\">\n");
 
 	content.Put("<TR>\n");	
-	content.Put("<TD>\n");
+	content.Put("<TH align=\"right\">\n");
 	content.Put("cmd:\n");
-	content.Put("</TD>\n");
-	content.Put("<TD>\n");
+	content.Put("</TH>\n");
+	content.Put("<TD align=\"left\">\n");
 	content.PutFmtStr("%s\n", cmd);
 	content.Put("</TD>\n");	
-	content.Put("</TR>\n");
-	
+	content.Put("</TR>\n");	
 	
 	content.Put("<TR>\n");	
-	content.Put("<TD>\n");
+	content.Put("<TH align=\"right\">\n");
 	content.Put("result:\n");
-	content.Put("</TD>\n");
-	content.Put("<TD>\n");
+	content.Put("</TH>\n");
+	content.Put("<TD align=\"left\">\n");
 	content.PutFmtStr("%s\n", result);
+	content.Put("</TD>\n");	
+	content.Put("</TR>\n");
+
+	content.Put("<TR>\n");	
+	content.Put("<TH align=\"right\">\n");
+	content.Put("reason:\n");
+	content.Put("</TH>\n");
+	content.Put("<TD align=\"left\">\n");
+	content.PutFmtStr("%s\n", reason);
 	content.Put("</TD>\n");	
 	content.Put("</TR>\n");
 
 	content.Put("</TABLE>\n");		
 	content.Put("</BODY>\n");
 	content.Put("</HTML>\n");
-        
-    fResponse.Set(fStrRemained.Ptr+fStrRemained.Len, kResponseBufferSizeInBytes-fStrRemained.Len);
-    fResponse.Put("HTTP/1.0 200 OK\r\n");
-    fResponse.PutFmtStr("Server: %s/%s\r\n", BASE_SERVER_NAME, BASE_SERVER_VERSION);
-    fResponse.PutFmtStr("Content-Length: %d\r\n", content.GetBytesWritten());
-    fResponse.PutFmtStr("Content-Type: %s;charset=%s\r\n", CONTENT_TYPE_TEXT_HTML, CHARSET_UTF8);
-    fResponse.Put("\r\n"); 
-    fResponse.Put(content.GetBufPtr(), content.GetBytesWritten());
 
-    fStrResponse.Set(fResponse.GetBufPtr(), fResponse.GetBytesWritten());
-    //append to fStrRemained
-    fStrRemained.Len += fStrResponse.Len;  
-    //clear previous response.
-    fStrResponse.Set(fResponseBuffer, 0);
-    
-    //SendData();
+    ResponseContent(content.GetBufPtr(), content.GetBytesWritten(), CONTENT_TYPE_TEXT_HTML);
     
 	return true;
 }
 
-
+Bool16 HTTPSession::ResponseContent(char* content, int len, char* type)
+{			
+	fResponse.Set(fStrRemained.Ptr+fStrRemained.Len, kResponseBufferSizeInBytes-fStrRemained.Len);
+	fResponse.Put("HTTP/1.0 200 OK\r\n");
+	fResponse.PutFmtStr("Server: %s/%s\r\n", BASE_SERVER_NAME, BASE_SERVER_VERSION);
+	fResponse.PutFmtStr("Content-Length: %d\r\n", len);
+	//fResponse.PutFmtStr("Content-Type: %s; charset=utf-8\r\n", content_type);
+    fResponse.PutFmtStr("Content-Type: %s", type);
+    if(strcmp(type, CONTENT_TYPE_TEXT_HTML) == 0)
+    {
+    	fResponse.PutFmtStr(";charset=%s\r\n", CHARSET_UTF8);
+    }
+    else
+    {
+    	fResponse.Put("\r\n");
+    }
+	fResponse.Put("\r\n"); 
+	fResponse.Put(content, len);
+	
+	fStrResponse.Set(fResponse.GetBufPtr(), fResponse.GetBytesWritten());
+	//append to fStrRemained
+	fStrRemained.Len += fStrResponse.Len;  
+	//clear previous response.
+	fStrResponse.Set(fResponseBuffer, 0);
+	
+	//SendData();
+	
+	return true;
+}
 
 Bool16 HTTPSession::ResponseCmd()
 {
 	Bool16 ret = true;
-	if(strncmp(fRequest.fAbsoluteURI.Ptr, CMD_ADD_CHANNEL, strlen(CMD_ADD_CHANNEL)) == 0)
+	if(strncmp(fRequest.fAbsoluteURI.Ptr, CMD_LIST_CHANNEL, strlen(CMD_LIST_CHANNEL)) == 0)
+	{
+		ret = ResponseCmdListChannel();
+	}	
+	else if(strncmp(fRequest.fAbsoluteURI.Ptr, CMD_ADD_CHANNEL, strlen(CMD_ADD_CHANNEL)) == 0)
 	{
 		ret = ResponseCmdAddChannel();		
 	}
@@ -667,10 +803,19 @@ Bool16 HTTPSession::ResponseCmd()
 	{
 		ret = ResponseCmdDelChannel();
 	}	
-	else if(strncmp(fRequest.fAbsoluteURI.Ptr, CMD_LIST_CHANNEL, strlen(CMD_LIST_CHANNEL)) == 0)
+	else if(strncmp(fRequest.fAbsoluteURI.Ptr, CMD_LIST_SOURCE, strlen(CMD_LIST_SOURCE)) == 0)
 	{
-		ret = ResponseCmdListChannel();
+		ret = ResponseCmdListSource();
 	}	
+	else if(strncmp(fRequest.fAbsoluteURI.Ptr, CMD_ADD_SOURCE, strlen(CMD_ADD_SOURCE)) == 0)
+	{
+		ret = ResponseCmdAddSource();		
+	}
+	else if(strncmp(fRequest.fAbsoluteURI.Ptr, CMD_DEL_SOURCE, strlen(CMD_DEL_SOURCE)) == 0)
+	{
+		ret = ResponseCmdDelSource();
+	}	
+	
 	return ret;
 }
 

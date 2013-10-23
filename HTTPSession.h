@@ -28,10 +28,14 @@ protected:
         	Bool16          ResponseGet();
         	Bool16 			ReadFileContent();
         	Bool16 			ResponseCmd();
-        	Bool16 			ResponseCmdResult(char* cmd, char* result);
-        	Bool16 			ResponseCmdAddChannel();
-        	Bool16 			ResponseCmdDelChannel();
+        	Bool16 			ResponseCmdResult(char* cmd, char* result, char* reason);
         	Bool16 			ResponseCmdListChannel();
+        	Bool16 			ResponseCmdAddChannel();
+        	Bool16 			ResponseCmdDelChannel();  
+        	Bool16 			ResponseCmdListSource();
+        	Bool16 			ResponseCmdAddSource();
+        	Bool16 			ResponseCmdDelSource();  
+        	Bool16 			ResponseContent(char* content, int len, char* type);
         	Bool16 			ResponseFile(char* absolute_path);
         	Bool16 			ResponseFileNotFound(char* absolute_uri);
         	Bool16 			ResponseError(QTSS_RTSPStatusCode StatusCode);
