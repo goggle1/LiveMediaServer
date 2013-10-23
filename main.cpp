@@ -137,10 +137,9 @@ ChannelList g_channels;
 int main(int argc, char* argv[])
 {
 	int ret = 0;
-
-	ChannelList channels;
+	
 	char* config_file = ROOT_PATH"/channels.xml";
-	ret = channels.ReadConfig(config_file);
+	ret = g_channels.ReadConfig(config_file);
 	
 	ret = start_server();
 	if(ret != 0)

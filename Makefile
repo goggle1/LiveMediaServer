@@ -116,28 +116,28 @@ all : $(PROGRAM)
 objs : $(OBJS)
 
 %.o : %.c
-	$(CC) -c $(CPPFLAGS) $(CFLAGS) $<  -o $@
+	$(CC) -c $(CFLAGS) $<  -o $@
 
 %.o : %.C
-	$(CXX) -c $(CPPFLAGS) $(CXXFLAGS) $< -o $@
+	$(CXX) -c $(CXXFLAGS) $< -o $@
 
 %.o : %.cc
-	$(CXX) -c $(CPPFLAGS) $(CXXFLAGS) $< -o $@
+	$(CXX) -c $(CXXFLAGS) $< -o $@
 
 %.o : %.cpp
-	$(CXX) -c $(CPPFLAGS) $(CXXFLAGS) $< -o $@
+	$(CXX) -c $(CPPFLAGS) $< -o $@
 
 %.o : %.CPP
-	$(CXX) -c $(CPPFLAGS) $(CXXFLAGS) $< -o $@
+	$(CXX) -c $(CPPFLAGS) $< -o $@
 
 %.o : %.c++
-	$(CXX -c $(CPPFLAGS) $(CXXFLAGS) $< -o $@
+	$(CXX -c $(CPPFLAGS) $< -o $@
 
 %.o : %.cp
-	$(CXX) -c $(CPPFLAGS) $(CXXFLAGS) $< -o $@
+	$(CXX) -c $(CXXFLAGS) $< -o $@
 
 %.o : %.cxx
-	$(CXX) -c $(CPPFLAGS) $(CXXFLAGS) $< -o $@
+	$(CXX) -c $(CXXFLAGS) $< -o $@
 
 # Rules for producing the executable.
 #----------------------------------------------

@@ -444,9 +444,88 @@ int ChannelList::AddChannel(CHANNEL_T * channelp)
 	    return -1;
 	}
 	memset(nodep, 0, sizeof(DEQUE_NODE));
+	nodep->datap = channelp;
 
 	m_channel_list = deque_append(m_channel_list, nodep);
 			
 	return 0;
 }
+
+int ChannelList::DeleteChannel(char* liveid)
+{
+	DEQUE_NODE* findp = NULL;
+	DEQUE_NODE* nodep = m_channel_list;
+	while(nodep)
+	{
+		CHANNEL_T* channelp = (CHANNEL_T*)nodep->datap;
+		if(strcmp(channelp->liveid, liveid) == 0)
+		{
+			// find it
+			findp = nodep;
+			break;
+		}
+
+		if(nodep->nextp == m_channel_list)
+		{
+			break;
+		}
+		nodep = nodep->nextp;
+	}
+
+	if(findp != NULL)
+	{
+		m_channel_list = deque_remove_node(m_channel_list, findp);
+		return 0;
+	}
+			
+	return -1;
+}
+
+CHANNEL_T* ChannelList::FindChannelById(int channel_id)
+{	
+	DEQUE_NODE* nodep = m_channel_list;
+	while(nodep)
+	{
+		CHANNEL_T* channelp = (CHANNEL_T*)nodep->datap;
+		if(channelp->channel_id == channel_id)
+		{
+			// find it
+			return channelp;
+			break;
+		}
+
+		if(nodep->nextp == m_channel_list)
+		{
+			break;
+		}
+		nodep = nodep->nextp;
+	}
+
+	return NULL;
+}
+
+
+CHANNEL_T* ChannelList::FindChannelByHash(char* liveid)
+{	
+	DEQUE_NODE* nodep = m_channel_list;
+	while(nodep)
+	{
+		CHANNEL_T* channelp = (CHANNEL_T*)nodep->datap;
+		if(strcmp(channelp->liveid, liveid) == 0)
+		{
+			// find it
+			return channelp;
+			break;
+		}
+
+		if(nodep->nextp == m_channel_list)
+		{
+			break;
+		}
+		nodep = nodep->nextp;
+	}
+
+	return NULL;
+}
+
 

@@ -39,7 +39,8 @@ class ChannelList
 		int			ReadConfig(char* config_file);
 		int			WriteConfig(char* config_file);
 
-		CHANNEL_T* 	FindChannel(char* liveid);
+		CHANNEL_T* 	FindChannelById(int channel_id);
+		CHANNEL_T* 	FindChannelByHash(char* liveid);
 		int			AddChannel(CHANNEL_T* channelp);
 		int			DeleteChannel(char* liveid);
 		DEQUE_NODE* GetChannels() { return m_channel_list; };

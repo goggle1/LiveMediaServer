@@ -498,23 +498,93 @@ Bool16 HTTPSession::ResponseCmdAddChannel()
 		nodep = nodep->nextp;
 	}
 
+	CHANNEL_T* findp = NULL;
+	findp = g_channels.FindChannelById(channelp->channel_id);
+	if(findp != NULL)
+	{
+		ResponseCmdResult("add_channel", "channel_id exist");
+		free(channelp);
+		channelp = NULL;
+		return true;
+	}
+	findp = g_channels.FindChannelByHash(channelp->liveid);
+	if(findp != NULL)
+	{
+		ResponseCmdResult("add_channel", "liveid exist");
+		free(channelp);
+		channelp = NULL;
+		return true;
+	}
+	
 	int result = g_channels.AddChannel(channelp);
 	if(result != 0)
 	{
-		ResponseCmdResult("add_channel", "failure");
+		ResponseCmdResult("add_channel", "add failure");
 		free(channelp);
 		channelp = NULL;
-		return false;
+		return true;
 	}
-
+	
+	result = g_channels.WriteConfig(ROOT_PATH"/channels.xml");
+	if(result != 0)
+	{
+		ResponseCmdResult("add_channel", "write failure");
+		free(channelp);
+		channelp = NULL;
+		return true;
+	}
+	
 	ResponseCmdResult("add_channel", "success");
+	
 	return ret;
 }
 
 Bool16 HTTPSession::ResponseCmdDelChannel()
 {
 	Bool16 ret = true;
-	// todo:
+	if(fRequest.fParamPairs == NULL)
+	{
+		char* request_file = "/del_channel.html";
+		char abs_path[PATH_MAX];
+		snprintf(abs_path, PATH_MAX-1, "%s%s", ROOT_PATH, request_file);
+		abs_path[PATH_MAX-1] = '\0';	
+		
+		ret = ResponseFile(abs_path);
+		return ret;
+	}
+
+	int channel_id = 0;
+	char* liveid = NULL;
+	DEQUE_NODE* nodep = fRequest.fParamPairs;
+	while(nodep)
+	{
+		UriParam* paramp = (UriParam*)nodep->datap;
+		if(strcmp(paramp->key, "channel_id") == 0)
+		{
+			channel_id = atoi(paramp->value);
+		}
+		else if(strcmp(paramp->key, "liveid") == 0)
+		{
+			liveid = paramp->value;
+		}		
+		
+		if(nodep->nextp == fRequest.fParamPairs)
+		{
+			break;
+		}
+		nodep = nodep->nextp;
+	}
+
+	int result = g_channels.DeleteChannel(liveid);
+	if(result != 0)
+	{
+		ResponseCmdResult("del_channel", "failure");		
+		return true;
+	}
+	
+	g_channels.WriteConfig(ROOT_PATH"/channels.xml");
+	ResponseCmdResult("del_channel", "success");
+	
 	return ret;
 }
 
@@ -593,7 +663,7 @@ Bool16 HTTPSession::ResponseCmd()
 	{
 		ret = ResponseCmdAddChannel();		
 	}
-	else if(strncmp(fRequest.fAbsoluteURI.Ptr, CMD_DEL_CHANNEL, strlen(CMD_ADD_CHANNEL)) == 0)
+	else if(strncmp(fRequest.fAbsoluteURI.Ptr, CMD_DEL_CHANNEL, strlen(CMD_DEL_CHANNEL)) == 0)
 	{
 		ret = ResponseCmdDelChannel();
 	}	
