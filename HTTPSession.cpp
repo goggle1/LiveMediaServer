@@ -592,14 +592,29 @@ Bool16 HTTPSession::ResponseCmdDelChannel()
 		nodep = nodep->nextp;
 	}
 
+	if(liveid == NULL)
+	{
+		ResponseCmdResult("del_channel", "failure", "param[liveid] need");	
+		return true;
+	}
+
 	int result = g_channels.DeleteChannel(liveid);
 	if(result != 0)
 	{
 		ResponseCmdResult("del_channel", "failure", "DeleteChannel() internal failure");		
 		return true;
 	}
+		
+	result = g_channels.WriteConfig(ROOT_PATH"/channels.xml");
+	if(result != 0)
+	{
+		char reason[MAX_REASON_LEN] = "";
+		snprintf(reason, MAX_REASON_LEN-1, "WriteConfig() internal failure");
+		reason[MAX_REASON_LEN-1] = '\0';
+		ResponseCmdResult("del_channel", "failure", reason);
+		return true;
+	}
 	
-	g_channels.WriteConfig(ROOT_PATH"/channels.xml");
 	ResponseCmdResult("del_channel", "success", "");
 	
 	return ret;
@@ -621,14 +636,219 @@ Bool16 HTTPSession::ResponseCmdListChannel()
 
 Bool16 HTTPSession::ResponseCmdAddSource()
 {
-	return true;
+	Bool16 ret = true;
+	if(fRequest.fParamPairs == NULL)
+	{
+		char* request_file = "/add_source.html";
+		char abs_path[PATH_MAX];
+		snprintf(abs_path, PATH_MAX-1, "%s%s", ROOT_PATH, request_file);
+		abs_path[PATH_MAX-1] = '\0';	
+		
+		ret = ResponseFile(abs_path);
+		return ret;
+	}
+
+	int channel_id = 0;
+	char* liveid = NULL;
+	char* ip_str = NULL;
+	u_int32_t ip = 0;
+	u_int16_t port = 0;
+	DEQUE_NODE* nodep = fRequest.fParamPairs;
+	while(nodep)
+	{
+		UriParam* paramp = (UriParam*)nodep->datap;
+		if(strcmp(paramp->key, "channel_id") == 0)
+		{
+			channel_id = atoi(paramp->value);
+		}
+		else if(strcmp(paramp->key, "liveid") == 0)
+		{
+			liveid = paramp->value;
+		}
+		else if(strcmp(paramp->key, "ip") == 0)
+		{
+			ip_str = paramp->value;
+			ip = inet_network(ip_str);
+		}
+		else if(strcmp(paramp->key, "port") == 0)
+		{
+			port = atoi(paramp->value);
+		}
+		
+		if(nodep->nextp == fRequest.fParamPairs)
+		{
+			break;
+		}
+		nodep = nodep->nextp;
+	}
+
+	if(liveid == NULL)
+	{
+		ResponseCmdResult("add_source", "failure", "param[liveid] need");	
+		return true;
+	}
+	if(ip_str == NULL)
+	{
+		ResponseCmdResult("add_source", "failure", "param[ip] need");
+		return true;
+	}
+	if(ip == 0 || port == 0)
+	{
+		char reason[MAX_REASON_LEN] = "";
+		snprintf(reason, MAX_REASON_LEN-1, "check ip[0x%08X] and port[%d]", ip, port);
+		reason[MAX_REASON_LEN-1] = '\0';
+		ResponseCmdResult("add_source", "failure", reason);
+		return true;
+	}
+
+	CHANNEL_T* channelp = g_channels.FindChannelByHash(liveid);
+	if(channelp == NULL)
+	{
+		char reason[MAX_REASON_LEN] = "";
+		snprintf(reason, MAX_REASON_LEN-1, "can not find channel by liveid[%s]", liveid);
+		reason[MAX_REASON_LEN-1] = '\0';
+		ResponseCmdResult("add_source", "failure", reason);
+		return true;
+	}
+
+	DEQUE_NODE* findp = channel_find_source(channelp, ip);
+	if(findp != NULL)
+	{
+		char reason[MAX_REASON_LEN] = "";
+		snprintf(reason, MAX_REASON_LEN-1, "source exist[%s]", ip_str);
+		reason[MAX_REASON_LEN-1] = '\0';
+		ResponseCmdResult("add_source", "failure", reason);
+		return true;
+	}
+	
+	int result = channel_add_source(channelp, ip, port);
+	if(result != 0)
+	{
+		char reason[MAX_REASON_LEN] = "";
+		snprintf(reason, MAX_REASON_LEN-1, "channel_add_source() internal failure");
+		reason[MAX_REASON_LEN-1] = '\0';
+		ResponseCmdResult("add_source", "failure", reason);
+		free(channelp);
+		channelp = NULL;
+		return true;
+	}
+
+	result = g_channels.WriteConfig(ROOT_PATH"/channels.xml");
+	if(result != 0)
+	{
+		char reason[MAX_REASON_LEN] = "";
+		snprintf(reason, MAX_REASON_LEN-1, "WriteConfig() internal failure");
+		reason[MAX_REASON_LEN-1] = '\0';
+		ResponseCmdResult("add_source", "failure", reason);
+		free(channelp);
+		channelp = NULL;
+		return true;
+	}
+
+	ResponseCmdResult("add_source", "success", "");	
+
+	return ret;
 }
 
 
 Bool16 HTTPSession::ResponseCmdDelSource()
 {
-	return true;
+	Bool16 ret = true;
+	if(fRequest.fParamPairs == NULL)
+	{
+		char* request_file = "/del_source.html";
+		char abs_path[PATH_MAX];
+		snprintf(abs_path, PATH_MAX-1, "%s%s", ROOT_PATH, request_file);
+		abs_path[PATH_MAX-1] = '\0';	
+		
+		ret = ResponseFile(abs_path);
+		return ret;
+	}
+
+	int channel_id = 0;
+	char* liveid = NULL;
+	char* ip_str = NULL;
+	u_int32_t ip = 0;
+	u_int16_t port = 0;
+	DEQUE_NODE* nodep = fRequest.fParamPairs;
+	while(nodep)
+	{
+		UriParam* paramp = (UriParam*)nodep->datap;
+		if(strcmp(paramp->key, "channel_id") == 0)
+		{
+			channel_id = atoi(paramp->value);
+		}
+		else if(strcmp(paramp->key, "liveid") == 0)
+		{
+			liveid = paramp->value;
+		}
+		else if(strcmp(paramp->key, "ip") == 0)
+		{
+			ip_str = paramp->value;
+			ip = inet_network(ip_str);
+		}
+		else if(strcmp(paramp->key, "port") == 0)
+		{
+			port = atoi(paramp->value);
+		}
+		
+		if(nodep->nextp == fRequest.fParamPairs)
+		{
+			break;
+		}
+		nodep = nodep->nextp;
+	}
+
+	if(liveid == NULL)
+	{
+		ResponseCmdResult("del_source", "failure", "param[liveid] need");	
+		return true;
+	}
+	if(ip_str == NULL)
+	{
+		ResponseCmdResult("del_source", "failure", "param[ip] need");
+		return true;
+	}	
+
+	CHANNEL_T* channelp = g_channels.FindChannelByHash(liveid);
+	if(channelp == NULL)
+	{
+		char reason[MAX_REASON_LEN] = "";
+		snprintf(reason, MAX_REASON_LEN-1, "can not find channel by liveid[%s]", liveid);
+		reason[MAX_REASON_LEN-1] = '\0';
+		ResponseCmdResult("del_source", "failure", reason);
+		return true;
+	}
+
+	DEQUE_NODE* findp = channel_find_source(channelp, ip);
+	if(findp == NULL)
+	{
+		char reason[MAX_REASON_LEN] = "";
+		snprintf(reason, MAX_REASON_LEN-1, "source not exist[%s]", ip_str);
+		reason[MAX_REASON_LEN-1] = '\0';
+		ResponseCmdResult("del_source", "failure", reason);
+		return true;
+	}
+	
+	channelp->source_list = deque_remove_node(channelp->source_list, findp);
+
+	int result = g_channels.WriteConfig(ROOT_PATH"/channels.xml");
+	if(result != 0)
+	{
+		char reason[MAX_REASON_LEN] = "";
+		snprintf(reason, MAX_REASON_LEN-1, "WriteConfig() internal failure");
+		reason[MAX_REASON_LEN-1] = '\0';
+		ResponseCmdResult("del_source", "failure", reason);
+		free(channelp);
+		channelp = NULL;
+		return true;
+	}
+
+	ResponseCmdResult("del_source", "success", ""); 
+
+	return ret;
 }
+
 
 Bool16 HTTPSession::ResponseCmdListSource()
 {
@@ -664,6 +884,12 @@ Bool16 HTTPSession::ResponseCmdListSource()
 			break;
 		}
 		nodep = nodep->nextp;
+	}
+
+	if(liveid == NULL)
+	{
+		ResponseCmdResult("list_source", "failure", "param[liveid] need");	
+		return true;
 	}
 
 	CHANNEL_T* channelp = g_channels.FindChannelByHash(liveid);

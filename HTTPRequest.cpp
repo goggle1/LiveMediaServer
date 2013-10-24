@@ -1,5 +1,6 @@
 //file: HTTPRequest.cpp
 
+#include "BaseServer/StringTranslator.h"
 
 #include "HTTPRequest.h"
 
@@ -184,17 +185,10 @@ QTSS_Error HTTPRequest::ParseURI(StringParser* parser)
 
     urlParser.ConsumeUntil(&fURIPath, '?');
     
-    StrPtrLen UriParams(urlParser.GetCurrentPosition(), urlParser.GetDataReceivedLen() - urlParser.GetDataParsedLen());
-    fURIParams = UriParams;
-
-	if(fURIParams.Len > 0)
-	{
-    	ParseParams(&urlParser);    
-    }
-    
     // Allocate memory for fRequestPath
     UInt32 len = fRelativeURI.Len;
-    #if 0
+    #if 1
+    
     len++;    
     char* relativeURIDecoded = new char[len];
     
@@ -211,11 +205,28 @@ QTSS_Error HTTPRequest::ParseURI(StringParser* parser)
     fRequestPath = new char[theBytesWritten + 1];
     ::memcpy(fRequestPath, relativeURIDecoded + 1, theBytesWritten); 
     delete relativeURIDecoded;
-    #endif
-
+    
+    #else
+    
     fRequestPath = new char[len+1];
     ::memcpy(fRequestPath, fRelativeURI.Ptr, len); 
     fRequestPath[len] = '\0';
+    
+    #endif
+
+	{
+		StrPtrLen request_path(fRequestPath);
+		StringParser urlParser(&request_path);
+		urlParser.ConsumeUntil(&fURIPath, '?');
+		
+	    StrPtrLen UriParams(urlParser.GetCurrentPosition(), urlParser.GetDataReceivedLen() - urlParser.GetDataParsedLen());
+	    fURIParams = UriParams;
+
+		if(fURIParams.Len > 0)
+		{
+	    	ParseParams(&urlParser);    
+	    }
+    }
     
     return QTSS_NoErr;
 }

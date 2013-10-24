@@ -30,6 +30,9 @@ typedef struct channel_t
 	DEQUE_NODE* source_list;
 } CHANNEL_T;
 
+DEQUE_NODE* channel_find_source(CHANNEL_T* channelp, u_int32_t ip);
+int channel_add_source(CHANNEL_T* channelp, u_int32_t ip, u_int16_t port);
+
 class ChannelList
 {
 	public:

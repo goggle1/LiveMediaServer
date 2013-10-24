@@ -35,6 +35,54 @@ void channel_release(void* datap)
 	free(channelp);
 }
 
+DEQUE_NODE* channel_find_source(CHANNEL_T* channelp, u_int32_t ip)
+{
+	DEQUE_NODE* nodep = channelp->source_list;
+	while(nodep)
+	{
+		SOURCE_T* sourcep = (SOURCE_T*)nodep->datap;
+		if(sourcep->ip == ip)
+		{
+			return nodep;
+		}
+		
+		if(nodep->nextp == channelp->source_list)
+		{
+			break;
+		}
+		nodep = nodep->nextp;		
+	}
+
+	return NULL;
+}
+
+int channel_add_source(CHANNEL_T* channelp, u_int32_t ip, u_int16_t port)
+{
+	DEQUE_NODE* nodep = (DEQUE_NODE*)malloc(sizeof(DEQUE_NODE));
+	if(nodep == NULL)
+	{
+		return -1;
+	}
+	memset(nodep, 0, sizeof(DEQUE_NODE));
+	
+	SOURCE_T* sourcep = (SOURCE_T*)malloc(sizeof(SOURCE_T));
+	if(sourcep == NULL)
+	{
+		free(nodep);
+		return -1;
+	}
+	sourcep->ip = ip;
+	sourcep->port = port;
+
+	nodep->datap = sourcep;
+
+	channelp->source_list = deque_append(channelp->source_list, nodep);
+	
+	return 0;
+}
+
+
+
 ChannelList::ChannelList()
 {
 	m_channel_list = NULL;
