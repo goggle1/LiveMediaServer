@@ -209,6 +209,7 @@ OS_Error HTTPClient::ReceiveResponse()
             fStatus = 0;
             fContentLength = 0;
             fChunked = false;
+            fChunkTail = false;
         
             // Parse the response.
             StrPtrLen theData(fRecvHeaderBuffer, fHeaderLen);
