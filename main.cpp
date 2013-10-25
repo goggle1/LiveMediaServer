@@ -9,6 +9,7 @@
 #include "public.h"
 #include "HTTPListenerSocket.h"
 #include "channel.h"
+#include "HTTPClientSession.h"
 
 #define DEFAULT_HTTP_SERVER_IP          0
 #define DEFAULT_HTTP_SERVER_PORT        5050
@@ -146,6 +147,8 @@ int main(int argc, char* argv[])
 	{
 		return ret;
 	}
+
+	HTTPClientSession* sessionp = new HTTPClientSession();	
 	
 	while(1)
 	{
