@@ -5,14 +5,14 @@
 #include "BaseServer/ClientSocket.h"
 
 #define USER_AGENT	"LiveMediaServer"
+#define MAX_HOST_LEN	64
 
 class HTTPClient
 {
 	public:
 		HTTPClient(ClientSocket* inSocket);
-		~HTTPClient();		
-		void 		Set(const StrPtrLen& inURL);		
-		OS_Error    SendGetM3U8();
+		~HTTPClient();				
+		OS_Error    SendGetM3U8(char* url);
 		OS_Error    SendGetSegment(char* url);
 		//
         // Once you call all of the above functions, assuming they return an error, you
@@ -33,8 +33,8 @@ class HTTPClient
         UInt32      	fState;
 
         // Information we need to send the request
-        StrPtrLen   	fURL;
-        char*			fHost;
+        //StrPtrLen   	fURL;
+        char			fHost[MAX_HOST_LEN];
 
 		enum
         {

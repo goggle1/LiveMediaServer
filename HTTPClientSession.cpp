@@ -1,36 +1,62 @@
 
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
-       
+#include <sys/stat.h>
+#include <sys/types.h>
+//#include <sys/stat.h>
+#include <fcntl.h>
 
+
+#include "BaseServer/StringParser.h"
+
+#include "public.h"
 #include "HTTPClientSession.h"
 
-HTTPClientSession::HTTPClientSession()
+// 10 seconds
+#define MAX_SEMENT_TIME	10000	
+
+int make_dir(StrPtrLen& dir)
+{
+	char path[PATH_MAX] = {'\0'};
+	sprintf(path, "%s/", ROOT_PATH);
+	
+	int path_len = strlen(path);	
+	if(path_len+dir.Len >= PATH_MAX)
+	{
+		fprintf(stderr, "%s: dir is too long[%d][%s]\n", __FUNCTION__, dir.Len, dir.Ptr);
+		return -1;
+	}
+	strncpy(path+path_len, dir.Ptr, dir.Len);
+	path_len = path_len + dir.Len;
+	path[path_len] = '\0';
+
+	if(access(path, F_OK) == 0)
+	{
+		return 0;
+	}
+	
+	int ret = mkdir(path, 0755);
+	if(ret != 0)
+	{
+		fprintf(stderr, "%s: mkdir return %d, errno=[%d][%s]\n", __FUNCTION__, ret, errno, strerror(errno));
+		return -1;
+	}
+	
+	return 0;
+}
+
+HTTPClientSession::HTTPClientSession(UInt32 inAddr, UInt16 inPort, const StrPtrLen& inURL)
 	:fTimeoutTask(this, 60)
 {
-	//StrPtrLen 	inURL("http://192.168.8.197:1180/1100000000000000000000000000000000000000.m3u8");
-	StrPtrLen 	inURL("/1100000000000000000000000000000000000000.m3u8");
-	//StrPtrLen 	inURL("http://lv.funshion.com/livestream/fd5f6b86b836e38c8eed27c9e66e3e6dcf0a69b2.m3u8?codec=ts");
-	//StrPtrLen 	inURL("/livestream/fd5f6b86b836e38c8eed27c9e66e3e6dcf0a69b2.m3u8?codec=ts");
-	UInt32		inHTTPCookie = 0;
-	UInt32		inAddr = 0;
-	UInt16		inPort = 0;	
-	//todo: param set value
-	char* 	source_ip = "192.168.8.197";
-	//char* 	source_ip = "220.181.167.45";
-	inPort = 1180;
-	//inPort	= 80;
-	inAddr = inet_network(source_ip);
-	
-	//fSocket = new HTTPClientSocket(inURL, inHTTPCookie, Socket::kNonBlockingSocketType);
 	fSocket = new TCPClientSocket(Socket::kNonBlockingSocketType);
 	fSocket->Set(inAddr, inPort);
 	
-	fClient = new HTTPClient(fSocket);
-	fClient->Set(inURL);
-	
+	fClient = new HTTPClient(fSocket);	
+
+	this->Set(inURL);
 	this->Signal(Task::kStartEvent);
+
+	fDownloadIndex = 0;
+	fGetIndex	= 0;
+	memset(fDownloadSegments, 0, sizeof(fDownloadSegments));
 
 	fprintf(stdout, "%s\n", __PRETTY_FUNCTION__);
 }
@@ -38,6 +64,157 @@ HTTPClientSession::HTTPClientSession()
 HTTPClientSession::~HTTPClientSession()
 {
 	fprintf(stdout, "%s\n", __PRETTY_FUNCTION__);
+}
+
+void HTTPClientSession::Set(const StrPtrLen& inURL)
+{
+    delete [] fURL.Ptr;
+    fURL.Ptr = new char[inURL.Len + 2];
+    fURL.Len = inURL.Len;
+    char* destPtr = fURL.Ptr;
+    
+    // add a leading '/' to the url if it isn't a full URL and doesn't have a leading '/'
+    if ( !inURL.NumEqualIgnoreCase("rtsp://", strlen("rtsp://")) && inURL.Ptr[0] != '/')
+    {
+        *destPtr = '/';
+        destPtr++;
+        fURL.Len++;
+    }
+    ::memcpy(destPtr, inURL.Ptr, inURL.Len);
+    fURL.Ptr[fURL.Len] = '\0';
+}
+
+
+Bool16 HTTPClientSession::IsDownloaded(SEGMENT_T * segp)
+{
+	int index = 0;
+	for(index=0; index<MAX_SEGMENT_NUM; index++)
+	{
+		if(strcmp(fDownloadSegments[index].url, segp->url) == 0)
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+
+int HTTPClientSession::Log(char * url,char * datap, UInt32 len)
+{
+	StrPtrLen AbsoluteURI(url);
+	StringParser urlParser(&AbsoluteURI);
+  
+    // we always should have a slash before the URI
+    // If not, that indicates this is a full URI
+    if (AbsoluteURI.Ptr[0] != '/')
+    {
+            //if it is a full URL, store the scheme and host name
+            urlParser.ConsumeLength(NULL, 7); //consume "http://"
+            urlParser.ConsumeUntil(NULL, '/');
+    }    
+	urlParser.Expect('/');
+	
+	StrPtrLen path;
+	path.Ptr = urlParser.GetCurrentPosition();
+	while(urlParser.GetDataRemaining() > 0)
+	{
+		StrPtrLen seg;
+		urlParser.ConsumeUntil(&seg, '/');
+		urlParser.Expect('/');
+		if(seg.Ptr[seg.Len] == '/')
+		{
+			path.Len = urlParser.GetCurrentPosition()-path.Ptr;
+			make_dir(path);
+		}		
+	}
+	
+	path.Len = urlParser.GetCurrentPosition()-path.Ptr;
+	int ret = Write(path, datap, len);
+    
+	return ret;
+}
+
+int HTTPClientSession::RewriteM3U8(char* channel_name, M3U8Parser* parserp)
+{
+	char path[PATH_MAX] = {'\0'};
+	sprintf(path, "%s/%s.m3u8", ROOT_PATH, channel_name);
+	int fd = open(path, O_WRONLY|O_CREAT|O_TRUNC, 0666);
+	if(fd == -1)
+	{
+		fprintf(stderr, "%s: open return %d, errno=[%d][%s]\n", __FUNCTION__, fd, errno, strerror(errno));
+		return -1;
+	}
+	
+	int ret = 0;
+	/*
+	#EXTM3U
+	#EXT-X-TARGETDURATION:10
+	#EXT-X-MEDIA-SEQUENCE:2292
+	#EXTINF:10,
+	#EXT-X-PROGRAM-DATE-TIME:2013-10-28T15:34:11Z
+	http://192.168.8.197:1180/41111/jiangsu/2013/10/28/41111-jiangsu-20131028-153411-2292.ts
+	*/
+	ret = dprintf(fd, "#EXTM3U\n");	
+	ret = dprintf(fd, "#EXT-X-TARGETDURATION:%d\n", parserp->fTargetDuration);
+	ret = dprintf(fd, "#EXT-X-MEDIA-SEQUENCE:%d\n", parserp->fMediaSequence);
+	
+	int index = 0;
+	for(index=0; index<parserp->fSegmentsNum; index++)
+	{
+		SEGMENT_T* segp = &(parserp->fSegments[index]);
+		ret = dprintf(fd, "#EXTINF:%d,\n", segp->inf);
+
+		StrPtrLen AbsoluteURI(segp->url);
+		StringParser urlParser(&AbsoluteURI);
+	  
+	    // we always should have a slash before the URI
+	    // If not, that indicates this is a full URI
+	    if (AbsoluteURI.Ptr[0] != '/')
+	    {
+	            //if it is a full URL, store the scheme and host name
+	            urlParser.ConsumeLength(NULL, 7); //consume "http://"
+	            urlParser.ConsumeUntil(NULL, '/');
+	    }    
+		ret = dprintf(fd, "%s\n", urlParser.GetCurrentPosition());
+	}
+
+	close(fd);
+	
+	return 0;
+}
+
+int HTTPClientSession::Write(StrPtrLen& file_name, char * datap, UInt32 len)
+{
+	char path[PATH_MAX] = {'\0'};
+	sprintf(path, "%s/", ROOT_PATH);
+	
+	int path_len = strlen(path);	
+	if(path_len+file_name.Len >= PATH_MAX)
+	{
+		fprintf(stderr, "%s: file_name is too long[%d][%s]\n", __FUNCTION__, file_name.Len, file_name.Ptr);
+		return -1;
+	}
+	strncpy(path+path_len, file_name.Ptr, file_name.Len);
+	path_len = path_len + file_name.Len;
+	path[path_len] = '\0';
+
+	int fd = open(path, O_WRONLY|O_CREAT|O_TRUNC, 0666);
+	if(fd == -1)
+	{
+		fprintf(stderr, "%s: open return %d, errno=[%d][%s]\n", __FUNCTION__, fd, errno, strerror(errno));
+		return -1;
+	}
+
+	ssize_t ret = write(fd, datap, len);
+	close(fd);
+
+	if(ret != len)
+	{
+		fprintf(stderr, "%s: open return %lu, errno=[%d][%s]\n", __FUNCTION__, ret, errno, strerror(errno));
+		return -1;
+	}
+
+	return 0;
 }
 
 SInt64 HTTPClientSession::Run()
@@ -49,6 +226,7 @@ SInt64 HTTPClientSession::Run()
     	// todo:
     }
 
+	/*
     if (theEvents & Task::kTimeoutEvent)
     {
 		if(fState == kDone)
@@ -58,6 +236,7 @@ SInt64 HTTPClientSession::Run()
         fState = kDone;
         return 0;
     }
+    */
 
     // We have been told to delete ourselves. Do so... NOW!!!!!!!!!!!!!!!
     if (theEvents & Task::kKillEvent)
@@ -77,7 +256,8 @@ SInt64 HTTPClientSession::Run()
         {
             case kSendingGetM3U8:
             {
-            	theErr = fClient->SendGetM3U8();
+            	fGetIndex = 0;
+            	theErr = fClient->SendGetM3U8(fURL.Ptr);
             	if (theErr == OS_NoErr)
                 {   
                     if (fClient->GetStatus() != 200)
@@ -87,8 +267,10 @@ SInt64 HTTPClientSession::Run()
                     }
                     else
                     {
+                    	Log(fURL.Ptr, fClient->GetContentBody(), fClient->GetContentLength());
                         fM3U8Parser.Parse(fClient->GetContentBody(), fClient->GetContentLength());
-                        fGetSegmentNum = 0;
+                        RewriteM3U8("jiangsu", &fM3U8Parser);
+                        fGetIndex = 0;
                         fState = kSendingGetSegment;
                     }
                 }
@@ -97,33 +279,66 @@ SInt64 HTTPClientSession::Run()
             }
             case kSendingGetSegment:
             {
-            	char* url = fM3U8Parser.fSegments[fGetSegmentNum].url;
+            	if(fM3U8Parser.fSegmentsNum <= 0)
+            	{
+            		fState = kSendingGetM3U8;
+            		return MAX_SEMENT_TIME;
+            	}
+				
+            	while(1)
+            	{
+	            	if(IsDownloaded(&(fM3U8Parser.fSegments[fGetIndex])))
+	            	{
+	            		fprintf(stdout, "%s: %s downloaded\n", __PRETTY_FUNCTION__, fM3U8Parser.fSegments[fGetIndex].url);
+	            		fGetIndex ++;
+	            		if(fGetIndex >= fM3U8Parser.fSegmentsNum)
+		            	{
+		            		fState = kSendingGetM3U8;
+		            		return MAX_SEMENT_TIME;
+		            	}
+	            	}
+	            	else
+	            	{	            		
+	            		break;
+	            	}
+            	}            	
             	
-            	theErr = fClient->SendGetSegment(url);
+            	theErr = fClient->SendGetSegment(fM3U8Parser.fSegments[fGetIndex].url);
             	if (theErr == OS_NoErr)
                 {   
-                	if (fClient->GetStatus() == 404)
+                	if (fClient->GetStatus() != 200)
                     {
-                        fGetSegmentNum ++;
-                        // if all the segments downloaded, get m3u8 again
-                        if(fGetSegmentNum >= 3)
-                        {
-                        	fState = kSendingGetM3U8;
-                        }
-                    }
-                    else if (fClient->GetStatus() != 200)
-                    {
+                    	if (fClient->GetStatus() == 404)
+	                    {
+	                        fGetIndex ++;
+	                        // if all the segments downloaded, get m3u8 again
+	                        if(fGetIndex >= fM3U8Parser.fSegmentsNum)
+			            	{
+			            		fState = kSendingGetM3U8;
+			            		return MAX_SEMENT_TIME;
+			            	}
+	                    }
+
                         theErr = ENOTCONN; // Exit the state machine
                         break;
                     }
                     else
                     {
-                    	fGetSegmentNum ++;
+                    	Log(fM3U8Parser.fSegments[fGetIndex].url, fClient->GetContentBody(), fClient->GetContentLength());
+                    	memcpy(&(fDownloadSegments[fDownloadIndex]), &(fM3U8Parser.fSegments[fGetIndex]), sizeof(SEGMENT_T));
+                    	fDownloadIndex ++;
+                    	if(fDownloadIndex >= MAX_SEGMENT_NUM)
+                    	{
+                    		fDownloadIndex = 0;
+                    	}
+                    	
+                    	fGetIndex ++;
                         // if all the segments downloaded, get m3u8 again
-                        if(fGetSegmentNum >= 3)
-                        {
-                        	fState = kSendingGetM3U8;
-                        }
+                        if(fGetIndex >= fM3U8Parser.fSegmentsNum)
+		            	{
+		            		fState = kSendingGetM3U8;
+		            		return MAX_SEMENT_TIME;
+		            	}
                     }
                 }
                 
@@ -139,6 +354,7 @@ SInt64 HTTPClientSession::Run()
         fSocket->GetSocket()->SetTask(this);
         fSocket->GetSocket()->RequestEvent(fSocket->GetEventMask());
     }
+    
     else if (theErr != OS_NoErr)
     {
         //
@@ -148,8 +364,9 @@ SInt64 HTTPClientSession::Run()
         else
             fDeathReason = kConnectionFailed;
 
-        fState = kDone;
-    }
+        //fState = kDone;
+        return MAX_SEMENT_TIME;
+    }    
 	
 	return 0;
 }

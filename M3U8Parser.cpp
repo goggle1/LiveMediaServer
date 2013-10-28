@@ -41,15 +41,25 @@ int M3U8Parser::Parse(char * datap, UInt32 len)
 	#EXT-X-BYTERANGE:1101492
 	http://lm.funshion.com/livestream/3702892333/fd5f6b86b836e38c8eed27c9e66e3e6dcf0a69b2/ts/2013/10/25/20131017T174027_03_20131024_155821_565633.ts
 	*/
+	
+	/*
+	#EXTM3U
+	#EXT-X-TARGETDURATION:10
+	#EXT-X-MEDIA-SEQUENCE:-1
+	*/
 
-	int segment_num = 0;
+	fSegmentsNum = 0;
+	memset(fSegments, 0, sizeof(fSegments));
+	
 	StrPtrLen oneLine;
 	StringParser dataParser(&fData);		
 	while (dataParser.GetDataRemaining() > 0)
 	{
 		dataParser.GetThruEOL(&oneLine);
 		if (oneLine.Len == 0)
-			continue;//skip over any blank lines
+			continue; //skip over any blank lines
+		if (oneLine.Ptr[0] == '\0')
+			continue; // skip '\0'
 	
 		if(strncasecmp(oneLine.Ptr, "#EXTM3U", strlen("#EXTM3U")) == 0)
 		{
@@ -65,28 +75,32 @@ int M3U8Parser::Parse(char * datap, UInt32 len)
 		}
 		else if(strncasecmp(oneLine.Ptr, "#EXTINF:", strlen("#EXTINF:")) == 0)
 		{
-			segment_num ++;
-			fSegments[segment_num-1].inf = atoi(oneLine.Ptr+strlen("#EXTINF:"));
+			fSegmentsNum ++;
+			fSegments[fSegmentsNum-1].inf = atoi(oneLine.Ptr+strlen("#EXTINF:"));
 		}
 		else if(strncasecmp(oneLine.Ptr, "#EXT-X-BYTERANGE:", strlen("#EXT-X-BYTERANGE:")) == 0)
 		{			
-			fSegments[segment_num-1].byte_range = atoi(oneLine.Ptr+strlen("#EXT-X-BYTERANGE:"));
+			fSegments[fSegmentsNum-1].byte_range = atoi(oneLine.Ptr+strlen("#EXT-X-BYTERANGE:"));
 		}
-		else 
+		else if(strncasecmp(oneLine.Ptr, "#EXT-X-PROGRAM-DATE-TIME:", strlen("#EXT-X-PROGRAM-DATE-TIME:")) == 0)
 		{			
-			if(segment_num > 0)
+			// do nothing.
+		}
+		else if(oneLine.Ptr[0] != '#')
+		{			
+			if(fSegmentsNum > 0)
 			{
 				int len = oneLine.Len;
 				if(len < MAX_URL_LEN)
 				{
-					strncpy(fSegments[segment_num-1].url, oneLine.Ptr, len);
-					fSegments[segment_num-1].url[len] = '\0';
+					strncpy(fSegments[fSegmentsNum-1].url, oneLine.Ptr, len);
+					fSegments[fSegmentsNum-1].url[len] = '\0';
 				}
 				else
 				{
 					fprintf(stderr, "%s: url len[%d] > MAX_URL_LEN[%d]\n", __PRETTY_FUNCTION__, len, MAX_URL_LEN);
-					strncpy(fSegments[segment_num-1].url, oneLine.Ptr, MAX_URL_LEN-1);
-					fSegments[segment_num-1].url[MAX_URL_LEN-1] = '\0';
+					strncpy(fSegments[fSegmentsNum-1].url, oneLine.Ptr, MAX_URL_LEN-1);
+					fSegments[fSegmentsNum-1].url[MAX_URL_LEN-1] = '\0';
 				}
 			}
 		}		

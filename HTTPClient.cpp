@@ -21,11 +21,14 @@ HTTPClient::HTTPClient(ClientSocket* inSocket)
     fPacketDataInHeaderBuffer(NULL)
 {
 	UInt32  ip = fSocket->GetHostAddr();
+	UInt16  port = fSocket->GetHostPort();
 	UInt32	ip_net = htonl(ip);
 	struct in_addr in;
 	in.s_addr = ip_net;
-	char* 	ip_str = inet_ntoa(in);
-	fHost = strdup(ip_str);
+	char* 	ip_str = inet_ntoa(in);	
+	snprintf(fHost, MAX_HOST_LEN-1, "%s:%d", ip_str, port);
+	fHost[MAX_HOST_LEN-1] = '\0';
+	fprintf(stdout, "%s: fHost=%s\n", __PRETTY_FUNCTION__, fHost);
 
 	::memset(fSendBuffer, 0,kReqBufSize + 1);
     ::memset(fRecvHeaderBuffer, 0,kReqBufSize + 1);
@@ -33,22 +36,21 @@ HTTPClient::HTTPClient(ClientSocket* inSocket)
 
 HTTPClient::~HTTPClient()
 {
-	delete [] fRecvContentBuffer;
-	delete [] fURL.Ptr;
+	delete [] fRecvContentBuffer;	
 }
 
-OS_Error HTTPClient::SendGetM3U8()
+OS_Error HTTPClient::SendGetM3U8(char* url)
 {
 	if (!IsTransactionInProgress())
     {    	
 		StringFormatter fmt(fSendBuffer, kReqBufSize);
         fmt.PutFmtStr(
             	"GET %s HTTP/1.1\r\n"
-				"User-Agent: LiveMediaServer\r\n"
+				"User-Agent: %s\r\n"
 				"HOST: %s\r\n"
 				"Accept: */*\r\n"
 				"\r\n", 
-				fURL.Ptr, USER_AGENT, fHost);
+				url, USER_AGENT, fHost);
 		fmt.PutTerminator();
     }
     
@@ -62,7 +64,7 @@ OS_Error HTTPClient::SendGetSegment(char* url)
 		StringFormatter fmt(fSendBuffer, kReqBufSize);
         fmt.PutFmtStr(
             	"GET %s HTTP/1.1\r\n"
-				"User-Agent: LiveMediaServer\r\n"
+				"User-Agent: %s\r\n"
 				"HOST: %s\r\n"
 				"Accept: */*\r\n"
 				"\r\n", 
@@ -72,25 +74,6 @@ OS_Error HTTPClient::SendGetSegment(char* url)
     
     return this->DoTransaction();
 
-}
-
-
-void HTTPClient::Set(const StrPtrLen& inURL)
-{
-    delete [] fURL.Ptr;
-    fURL.Ptr = new char[inURL.Len + 2];
-    fURL.Len = inURL.Len;
-    char* destPtr = fURL.Ptr;
-    
-    // add a leading '/' to the url if it isn't a full URL and doesn't have a leading '/'
-    if ( !inURL.NumEqualIgnoreCase("rtsp://", strlen("rtsp://")) && inURL.Ptr[0] != '/')
-    {
-        *destPtr = '/';
-        destPtr++;
-        fURL.Len++;
-    }
-    ::memcpy(destPtr, inURL.Ptr, inURL.Len);
-    fURL.Ptr[fURL.Len] = '\0';
 }
 
 OS_Error HTTPClient::DoTransaction()
@@ -135,8 +118,8 @@ OS_Error HTTPClient::DoTransaction()
 			case kHeaderReceived:
         		theErr = this->ReceiveResponse();  //note that this function can change the fState
 
-        		fprintf(stdout, "%s: ReceiveResponse fStatus=%"_U32BITARG_" len=%"_U32BITARG_" err = %"_S32BITARG_"\n",
-        			__PRETTY_FUNCTION__, fStatus, fHeaderRecvLen, theErr);
+        		fprintf(stdout, "%s: ReceiveResponse fStatus=%"_U32BITARG_" len=%"_U32BITARG_" err = %"_S32BITARG_", %s\n",
+        			__PRETTY_FUNCTION__, fStatus, fHeaderRecvLen, theErr, strerror(theErr));
     
         		if (theErr != OS_NoErr)
             		return theErr;
@@ -215,8 +198,9 @@ OS_Error HTTPClient::ReceiveResponse()
             StrPtrLen theData(fRecvHeaderBuffer, fHeaderLen);
             StringParser theParser(&theData);
             
-            theParser.ConsumeLength(NULL, 9); //skip past HTTP/1.1
+            theParser.ConsumeLength(NULL, 9); //skip past HTTP/1.1[ ]
             fStatus = theParser.ConsumeInteger(NULL);
+            theParser.GetThruEOL(NULL);	// skip ok\r\n
                         
             while (theParser.GetDataRemaining() > 0)
             {
@@ -241,6 +225,10 @@ OS_Error HTTPClient::ReceiveResponse()
                                
                 StrPtrLen theKey;
                 theParser.GetThruEOL(&theKey);
+                if(theKey.Ptr == NULL)
+                {
+                	break;
+                }
                 
                 if (theKey.NumEqualIgnoreCase(sServerHeader.Ptr, sServerHeader.Len))
                 {
@@ -309,9 +297,9 @@ OS_Error HTTPClient::ReceiveResponse()
             	while(chunkParser.GetDataRemaining() > 0)
             	{               		
             		StrPtrLen chunk_head;
-            		chunkParser.ConsumeEOL(&chunk_head);
+            		chunkParser.GetThruEOL(&chunk_head);
             		long chunk_size = strtol(chunk_head.Ptr, NULL, 16);
-            		if(chunk_size == 0)
+            		if(chunk_size <= 0)
             		{
             			fRecvContentBuffer = (char*)realloc(fRecvContentBuffer, fContentLength + 1);
             			fRecvContentBuffer[fContentLength] = '\0';

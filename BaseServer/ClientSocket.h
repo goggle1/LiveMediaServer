@@ -71,6 +71,7 @@ class ClientSocket
         //
         // ACCESSORS
         UInt32          GetHostAddr()           { return fHostAddr; }
+        UInt16          GetHostPort()           { return fHostPort; }
         virtual UInt32  GetLocalAddr() = 0;
 
         // If one of the above methods returns EWOULDBLOCK or EINPROGRESS, you

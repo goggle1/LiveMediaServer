@@ -13,10 +13,14 @@
 class HTTPClientSession : public Task
 {
 	public:
-		HTTPClientSession();
+		HTTPClientSession(UInt32 inAddr, UInt16 inPort, const StrPtrLen& inURL);
 virtual	~HTTPClientSession();
 virtual     SInt64      Run();
-
+	Bool16	IsDownloaded(SEGMENT_T* segp);
+	void 	Set(const StrPtrLen& inURL);
+	int 	Log(char* url, char* datap, UInt32 len);
+	int 	Write(StrPtrLen& file_name, char* datap, UInt32 len);
+	int 	RewriteM3U8(char* channel_name, M3U8Parser* parserp);
 
 		//
         // States. Find out what the object is currently doing
@@ -42,6 +46,7 @@ virtual     SInt64      Run();
 	protected:
 		ClientSocket* 		fSocket;
 		HTTPClient*			fClient;
+		StrPtrLen   		fURL;
 		
 		UInt32          	fState;     // the state machine
 		UInt32          	fDeathReason;
@@ -49,7 +54,9 @@ virtual     SInt64      Run();
 		TimeoutTask     	fTimeoutTask; // Kills this connection in the event the server isn't responding
 
 		M3U8Parser		   	fM3U8Parser;  
-		int					fGetSegmentNum;
+		int					fGetIndex;
+		SEGMENT_T			fDownloadSegments[MAX_SEGMENT_NUM];
+		int					fDownloadIndex;
 		
 };
 

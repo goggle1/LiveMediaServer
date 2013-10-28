@@ -32,6 +32,7 @@ class M3U8Parser
 		// parse result:
 		int 		fTargetDuration;
 		int 		fMediaSequence;
+		int			fSegmentsNum;
 		SEGMENT_T	fSegments[MAX_SEGMENT_NUM];
 };
 

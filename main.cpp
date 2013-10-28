@@ -1,4 +1,8 @@
 #include <signal.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+
 
 #include "BaseServer/OS.h"
 #include "BaseServer/Socket.h"
@@ -148,7 +152,16 @@ int main(int argc, char* argv[])
 		return ret;
 	}
 
-	HTTPClientSession* sessionp = new HTTPClientSession();	
+	//StrPtrLen 	inURL("http://192.168.8.197:1180/1100000000000000000000000000000000000000.m3u8");
+	StrPtrLen 	inURL("/1100000000000000000000000000000000000000.m3u8");
+	//StrPtrLen 	inURL("http://lv.funshion.com/livestream/fd5f6b86b836e38c8eed27c9e66e3e6dcf0a69b2.m3u8?codec=ts");
+	//StrPtrLen 	inURL("/livestream/fd5f6b86b836e38c8eed27c9e66e3e6dcf0a69b2.m3u8?codec=ts");	
+	UInt32		inAddr = 0;
+	UInt16		inPort = 0;		
+	char* 	source_ip = "192.168.8.197";	
+	inAddr = inet_network(source_ip);
+	inPort = 1180;	
+	HTTPClientSession* sessionp = new HTTPClientSession(inAddr, inPort, inURL);	
 	
 	while(1)
 	{
