@@ -65,11 +65,14 @@ EventContext::EventContext(int inFileDesc, EventThread* inThread)
     fEventThread(inThread),
     fWatchEventCalled(false),
     fAutoCleanup(true)
-{}
+{
+	fprintf(stdout, "%s\n", __PRETTY_FUNCTION__);
+}
 
 
 void EventContext::InitNonBlocking(int inFileDesc)
 {
+	fprintf(stdout, "%s\n", __PRETTY_FUNCTION__);
     fFileDesc = inFileDesc;
     
 #ifdef __Win32__
@@ -94,15 +97,19 @@ void EventContext::Cleanup()
             fEventThread->fRefTable.UnRegister(&fRef);
 
 #if !MACOSXEVENTQUEUE
+
 #if MIO_SELECT
             select_removeevent(fFileDesc);//The eventqueue / select shim requires this
 #else
 			epoll_removeevent(fFileDesc);//The eventqueue / select shim requires this
 #endif
-#ifdef __Win32__
-            err = ::closesocket(fFileDesc);
+			fWatchEventCalled = false;
+
 #endif
 
+
+#ifdef __Win32__
+            err = ::closesocket(fFileDesc);
 #else
             //On Linux (possibly other UNIX implementations) you MUST NOT close the fd before
             //removing the fd from the select mask, and having the select function wake up
@@ -112,7 +119,8 @@ void EventContext::Cleanup()
             //So, what we do is have the select thread itself call close. This is triggered
             //by calling removeevent.
             err = ::close(fFileDesc);
-#endif      
+#endif  
+
         }
         else
 #ifdef __Win32__

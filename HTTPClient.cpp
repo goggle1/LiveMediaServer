@@ -9,7 +9,7 @@
 
 #include "HTTPClient.h"
 
-HTTPClient::HTTPClient(ClientSocket* inSocket)
+HTTPClient::HTTPClient(TCPClientSocket* inSocket)
 : 	fSocket(inSocket),	
 	fState(kInitial),	
 	fRecvContentBuffer(NULL),
@@ -97,7 +97,8 @@ OS_Error HTTPClient::DoTransaction()
         
         		if (theErr != OS_NoErr)
 				{
-					fprintf(stderr, "%s Send len=%"_U32BITARG_" err = %"_S32BITARG_"\n", __PRETTY_FUNCTION__, theRequest.Len, theErr);
+					fprintf(stderr, "%s: Send len=%"_U32BITARG_" err = [%"_S32BITARG_"][%s]\n", 
+						__PRETTY_FUNCTION__, theRequest.Len, theErr, strerror(theErr));
             		return theErr;
 				}
         		fprintf(stdout, "\n-----REQUEST-----len=%"_U32BITARG_"\n%s\n", theRequest.Len, theRequest.Ptr);
@@ -118,11 +119,20 @@ OS_Error HTTPClient::DoTransaction()
 			case kHeaderReceived:
         		theErr = this->ReceiveResponse();  //note that this function can change the fState
 
-        		fprintf(stdout, "%s: ReceiveResponse fStatus=%"_U32BITARG_" len=%"_U32BITARG_" err = %"_S32BITARG_", %s\n",
+        		fprintf(stdout, "%s: ReceiveResponse fStatus=%"_U32BITARG_" len=%"_U32BITARG_" err = [%"_S32BITARG_"][%s]\n",
         			__PRETTY_FUNCTION__, fStatus, fHeaderRecvLen, theErr, strerror(theErr));
     
         		if (theErr != OS_NoErr)
+        		{        	
+        			// only 107 ? and other errno?
+        			if(theErr == 107)
+        			{
+	        			fSocket->Disconnect((TCPSocket*)fSocket->GetSocket());
+						fSocket->Close((TCPSocket*)fSocket->GetSocket());
+						fState = kInitial;
+					}
             		return theErr;
+            	}
 
 				//The response has been completely received and parsed.  If the response is 401 unauthorized, then redo the request with authorization
 				fState = kInitial;

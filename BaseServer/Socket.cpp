@@ -82,9 +82,10 @@ Socket::Socket(Task *notifytask, UInt32 inSocketType)
 }
 
 OS_Error Socket::Open(int theType)
-{
+{	
     Assert(fFileDesc == EventContext::kInvalidFileDesc);
     fFileDesc = ::socket(PF_INET, theType, 0);
+    fprintf(stdout, "%s: fd=%d\n", __PRETTY_FUNCTION__, fFileDesc);
     if (fFileDesc == EventContext::kInvalidFileDesc)
         return (OS_Error)OSThread::GetErrno();
             
@@ -94,6 +95,13 @@ OS_Error Socket::Open(int theType)
         this->InitNonBlocking(fFileDesc);   
 
     return OS_NoErr;
+}
+
+void Socket::Close()
+{
+	fprintf(stdout, "%s\n", __PRETTY_FUNCTION__);
+	Cleanup();	
+	fState = fState ^ kBound;
 }
 
 void Socket::ReuseAddr()
@@ -375,7 +383,10 @@ OS_Error Socket::Read(void *buffer, const UInt32 length, UInt32 *outRecvLenP)
         // Yes... EAGAIN. Means the socket is now flow-controleld
         int theErr = OSThread::GetErrno();
         if ((theErr != EAGAIN) && (this->IsConnected()))
+        {
+        	fprintf(stderr, "%s: errno=[%d][%s]\n", __PRETTY_FUNCTION__, theErr, strerror(theErr));
             fState ^= kConnected;//turn off connected state flag
+        }
         return (OS_Error)theErr;
     }
     //if we get 0 bytes back from read, that means the client has disconnected.

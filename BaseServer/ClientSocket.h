@@ -81,6 +81,8 @@ class ClientSocket
         
         virtual void    SetRcvSockBufSize(UInt32 inSize) = 0;
 
+		void		Close(TCPSocket* inSocket);
+		void		Disconnect(TCPSocket* inSocket);
     protected:
     
         // Generic connect function

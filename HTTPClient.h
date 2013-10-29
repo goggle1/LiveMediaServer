@@ -10,7 +10,7 @@
 class HTTPClient
 {
 	public:
-		HTTPClient(ClientSocket* inSocket);
+		HTTPClient(TCPClientSocket* inSocket);
 		~HTTPClient();				
 		OS_Error    SendGetM3U8(char* url);
 		OS_Error    SendGetSegment(char* url);
@@ -24,10 +24,10 @@ class HTTPClient
 		UInt32      GetStatus()             { return fStatus; }
 		Bool16      IsTransactionInProgress() { return fState != kInitial; }
 		UInt32      GetContentLength()      { return fContentLength; }
-        char*       GetContentBody()        { return fRecvContentBuffer; }
+        char*       GetContentBody()        { return fRecvContentBuffer; }        
 		
 	protected:
-		ClientSocket*	fSocket;	
+		TCPClientSocket*	fSocket;	
 		
 		enum { kInitial, kRequestSending, kResponseReceiving, kHeaderReceived };
         UInt32      	fState;

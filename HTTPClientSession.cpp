@@ -46,8 +46,10 @@ int make_dir(StrPtrLen& dir)
 HTTPClientSession::HTTPClientSession(UInt32 inAddr, UInt16 inPort, const StrPtrLen& inURL)
 	:fTimeoutTask(this, 60)
 {
-	fSocket = new TCPClientSocket(Socket::kNonBlockingSocketType);
-	fSocket->Set(inAddr, inPort);
+	fInAddr = inAddr;
+	fInPort = inPort;
+	fSocket = new TCPClientSocket(Socket::kNonBlockingSocketType);	
+	fSocket->Set(fInAddr, fInPort);
 	
 	fClient = new HTTPClient(fSocket);	
 
@@ -347,7 +349,7 @@ SInt64 HTTPClientSession::Run()
         }
     }
 
-    if ((theErr == EINPROGRESS) || (theErr == EAGAIN))
+	if ((theErr == EINPROGRESS) || (theErr == EAGAIN))
     {
         //
         // Request an async event
@@ -364,6 +366,8 @@ SInt64 HTTPClientSession::Run()
         else
             fDeathReason = kConnectionFailed;
 
+		//this->Reconnect();
+		
         //fState = kDone;
         return MAX_SEMENT_TIME;
     }    

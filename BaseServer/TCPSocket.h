@@ -72,6 +72,7 @@ class TCPSocket : public Socket
         // has completed, EINPROGRESS if it is still in progress, or an appropriate error
         // if the connect failed.
         OS_Error    Connect(UInt32 inRemoteAddr, UInt16 inRemotePort);
+        void        Disconnect();
         //OS_Error  CheckAsyncConnect();
 
         // Basically a copy constructor for this object, also NULLs out the data

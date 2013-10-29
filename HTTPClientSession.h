@@ -20,7 +20,7 @@ virtual     SInt64      Run();
 	void 	Set(const StrPtrLen& inURL);
 	int 	Log(char* url, char* datap, UInt32 len);
 	int 	Write(StrPtrLen& file_name, char* datap, UInt32 len);
-	int 	RewriteM3U8(char* channel_name, M3U8Parser* parserp);
+	int 	RewriteM3U8(char* channel_name, M3U8Parser* parserp);	
 
 		//
         // States. Find out what the object is currently doing
@@ -44,7 +44,9 @@ virtual     SInt64      Run();
         };
 
 	protected:
-		ClientSocket* 		fSocket;
+		UInt32				fInAddr;
+		UInt16				fInPort;
+		TCPClientSocket* 	fSocket;
 		HTTPClient*			fClient;
 		StrPtrLen   		fURL;
 		

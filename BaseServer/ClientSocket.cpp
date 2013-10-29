@@ -58,9 +58,11 @@ ClientSocket::ClientSocket()
 
 OS_Error ClientSocket::Open(TCPSocket* inSocket)
 {
+	//fprintf(stdout, "%s\n", __PRETTY_FUNCTION__);
     OS_Error theErr = OS_NoErr;
     if (!inSocket->IsBound())
     {
+    	fprintf(stdout, "%s\n", __PRETTY_FUNCTION__);
         theErr = inSocket->Open();
         if (theErr == OS_NoErr)
             theErr = inSocket->Bind(0, 0);
@@ -79,6 +81,16 @@ OS_Error ClientSocket::Open(TCPSocket* inSocket)
     return theErr;
 }
 
+void ClientSocket::Close(TCPSocket* inSocket)
+{
+	fprintf(stdout, "%s\n", __PRETTY_FUNCTION__);
+	if (inSocket->IsBound())
+    {
+		inSocket->Close();
+	}
+}
+
+
 OS_Error ClientSocket::Connect(TCPSocket* inSocket)
 {
     OS_Error theErr = this->Open(inSocket);
@@ -87,8 +99,9 @@ OS_Error ClientSocket::Connect(TCPSocket* inSocket)
         return theErr;
 
     if (!inSocket->IsConnected())
-    {
+    {    	
         theErr = inSocket->Connect(fHostAddr, fHostPort);
+        fprintf(stdout, "%s: errno=[%d][%s]\n", __PRETTY_FUNCTION__, theErr, strerror(theErr));
         if ((theErr == EINPROGRESS) || (theErr == EAGAIN))
         {
             fSocketP = inSocket;
@@ -97,6 +110,15 @@ OS_Error ClientSocket::Connect(TCPSocket* inSocket)
         }
     }
     return theErr;
+}
+
+void ClientSocket::Disconnect(TCPSocket* inSocket)
+{
+	fprintf(stdout, "%s\n", __PRETTY_FUNCTION__);
+	if (inSocket->IsConnected())
+    {
+    	inSocket->Disconnect();
+    }
 }
 
 OS_Error ClientSocket::Send(char* inData, const UInt32 inLength)

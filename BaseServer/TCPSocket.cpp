@@ -98,12 +98,13 @@ StrPtrLen*  TCPSocket::GetRemoteAddrStr()
 
 OS_Error  TCPSocket::Connect(UInt32 inRemoteAddr, UInt16 inRemotePort)
 {
+	fprintf(stdout, "%s\n", __PRETTY_FUNCTION__);
     ::memset(&fRemoteAddr, 0, sizeof(fRemoteAddr));
     fRemoteAddr.sin_family = AF_INET;        /* host byte order */
     fRemoteAddr.sin_port = htons(inRemotePort); /* short, network byte order */
     fRemoteAddr.sin_addr.s_addr = htonl(inRemoteAddr);
 
-    /* don't forget to error check the connect()! */
+    /* don't forget to error check the connect()! */    
     int err = ::connect(fFileDesc, (sockaddr *)&fRemoteAddr, sizeof(fRemoteAddr));
     fState |= kConnected;
     
@@ -116,5 +117,11 @@ OS_Error  TCPSocket::Connect(UInt32 inRemoteAddr, UInt16 inRemotePort)
     
     return OS_NoErr;
 
+}
+
+void TCPSocket::Disconnect()
+{
+	fprintf(stdout, "%s\n", __PRETTY_FUNCTION__);
+	fState = fState ^ kConnected;
 }
 

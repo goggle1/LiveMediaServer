@@ -106,6 +106,8 @@ class Socket : public EventContext
             kMaxNumSockets = 4096   //UInt32
         };
 
+        void		Close();
+
     protected:
 
         //TCPSocket takes an optional task object which will get notified when
