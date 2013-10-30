@@ -11,7 +11,7 @@
 #include "HTTPClientSession.h"
 
 // 10 seconds
-#define MAX_SEMENT_TIME	10000	
+#define MAX_SEMENT_TIME	5000	
 
 int make_dir(StrPtrLen& dir)
 {
@@ -43,7 +43,7 @@ int make_dir(StrPtrLen& dir)
 	return 0;
 }
 
-HTTPClientSession::HTTPClientSession(UInt32 inAddr, UInt16 inPort, const StrPtrLen& inURL)
+HTTPClientSession::HTTPClientSession(UInt32 inAddr, UInt16 inPort, const StrPtrLen& inURL, char* liveid, char* type)
 	:fTimeoutTask(this, 60)
 {
 	fInAddr = inAddr;
@@ -53,6 +53,8 @@ HTTPClientSession::HTTPClientSession(UInt32 inAddr, UInt16 inPort, const StrPtrL
 	
 	fClient = new HTTPClient(fSocket);	
 
+	fLiveId = strdup(liveid);
+	fType	= strdup(type);
 	this->Set(inURL);
 	this->Signal(Task::kStartEvent);
 
@@ -76,7 +78,7 @@ void HTTPClientSession::Set(const StrPtrLen& inURL)
     char* destPtr = fURL.Ptr;
     
     // add a leading '/' to the url if it isn't a full URL and doesn't have a leading '/'
-    if ( !inURL.NumEqualIgnoreCase("rtsp://", strlen("rtsp://")) && inURL.Ptr[0] != '/')
+    if ( !inURL.NumEqualIgnoreCase("http://", strlen("http://")) && inURL.Ptr[0] != '/')
     {
         *destPtr = '/';
         destPtr++;
@@ -136,10 +138,10 @@ int HTTPClientSession::Log(char * url,char * datap, UInt32 len)
 	return ret;
 }
 
-int HTTPClientSession::RewriteM3U8(char* channel_name, M3U8Parser* parserp)
+int HTTPClientSession::RewriteM3U8(M3U8Parser* parserp)
 {
 	char path[PATH_MAX] = {'\0'};
-	sprintf(path, "%s/%s.m3u8", ROOT_PATH, channel_name);
+	sprintf(path, "%s/%s_%s.m3u8", ROOT_PATH, fType, fLiveId);
 	int fd = open(path, O_WRONLY|O_CREAT|O_TRUNC, 0666);
 	if(fd == -1)
 	{
@@ -271,7 +273,7 @@ SInt64 HTTPClientSession::Run()
                     {
                     	Log(fURL.Ptr, fClient->GetContentBody(), fClient->GetContentLength());
                         fM3U8Parser.Parse(fClient->GetContentBody(), fClient->GetContentLength());
-                        RewriteM3U8("jiangsu", &fM3U8Parser);
+                        //RewriteM3U8(&fM3U8Parser);
                         fGetIndex = 0;
                         fState = kSendingGetSegment;
                     }
@@ -284,6 +286,7 @@ SInt64 HTTPClientSession::Run()
             	if(fM3U8Parser.fSegmentsNum <= 0)
             	{
             		fState = kSendingGetM3U8;
+            		RewriteM3U8(&fM3U8Parser);
             		return MAX_SEMENT_TIME;
             	}
 				
@@ -295,7 +298,7 @@ SInt64 HTTPClientSession::Run()
 	            		fGetIndex ++;
 	            		if(fGetIndex >= fM3U8Parser.fSegmentsNum)
 		            	{
-		            		fState = kSendingGetM3U8;
+		            		fState = kSendingGetM3U8;		            		
 		            		return MAX_SEMENT_TIME;
 		            	}
 	            	}
@@ -317,6 +320,7 @@ SInt64 HTTPClientSession::Run()
 	                        if(fGetIndex >= fM3U8Parser.fSegmentsNum)
 			            	{
 			            		fState = kSendingGetM3U8;
+			            		RewriteM3U8(&fM3U8Parser);
 			            		return MAX_SEMENT_TIME;
 			            	}
 	                    }
@@ -339,6 +343,7 @@ SInt64 HTTPClientSession::Run()
                         if(fGetIndex >= fM3U8Parser.fSegmentsNum)
 		            	{
 		            		fState = kSendingGetM3U8;
+		            		RewriteM3U8(&fM3U8Parser);
 		            		return MAX_SEMENT_TIME;
 		            	}
                     }

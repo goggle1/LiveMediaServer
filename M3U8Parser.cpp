@@ -12,6 +12,12 @@ M3U8Parser::M3U8Parser()
 
 M3U8Parser::~M3U8Parser()
 {
+	if(fData.Ptr != NULL)
+	{
+		delete []fData.Ptr;
+		fData.Ptr = NULL;
+		fData.Len = 0;
+	}
 }
 
 int M3U8Parser::Parse(char * datap, UInt32 len)

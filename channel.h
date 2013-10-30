@@ -11,12 +11,38 @@
 #define MAX_LIVE_ID     	44
 #define MAX_CHANNEL_NAME	64
 
+//#define MAX_SEG_NUM			40
+#define MAX_SEG_NUM			41
+#define MAX_M3U8_NUM		2
+#define MAX_URL_LEN			256
+
+typedef struct data_t
+{
+	u_int64_t 	size;
+	void*		datap;	
+} DATA_T;
+
+typedef struct seg_t
+{
+	char 		url[MAX_URL_LEN];	
+	DATA_T		data;
+} SEG_T;
+
+typedef DATA_T M3U8_T;
+
+typedef struct memory_t
+{
+	M3U8_T	m3u8s[MAX_M3U8_NUM];	
+	SEG_T	segs[MAX_SEG_NUM];
+} MEMORY_T;
+
 typedef struct source_t
 {
 	u_int32_t	ip;
 	u_int16_t	port;
 } SOURCE_T;
 
+class HTTPClientSession;
 //{"channel_id":"21","LOWER(t.liveid)":"0b49884b3b85f7ccddbe4e96e4ae2eae7a6dec56","bitrate":"800","channel_name":"\u4e1c\u65b9\u536b\u89c6"},
 typedef struct channel_t
 {
@@ -28,8 +54,17 @@ typedef struct channel_t
 	int		codec_flv;	// 1: on, 0: off
 	int		codec_mp4;	// 1: on, 0: off
 	DEQUE_NODE* source_list;
+	// HTTPClientSession
+	HTTPClientSession* 	sessionp_ts;
+	HTTPClientSession* 	sessionp_flv;
+	HTTPClientSession* 	sessionp_mp4;
+	// memory
+	MEMORY_T* 	memoryp_ts;
+	MEMORY_T* 	memoryp_flv;
+	MEMORY_T* 	memoryp_mp4;
 } CHANNEL_T;
 
+void channel_release(void* datap);
 DEQUE_NODE* channel_find_source(CHANNEL_T* channelp, u_int32_t ip);
 int channel_add_source(CHANNEL_T* channelp, u_int32_t ip, u_int16_t port);
 

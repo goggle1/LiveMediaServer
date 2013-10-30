@@ -494,6 +494,39 @@ Bool16 HTTPSession::ResponseCmdAddChannel()
 		{
 			channelp->codec_mp4 = atoi(paramp->value);
 		}
+		else if(strcmp(paramp->key, "source") == 0)
+		{
+			u_int32_t ip = 0;
+			u_int16_t port = 80;
+			#define MAX_IP_LEN			16
+			#define MAX_PORT_LEN		8
+			char ip_str[MAX_IP_LEN];			
+			char* temp = strstr(paramp->value, ":");
+			if(temp == NULL)
+			{				
+				ip = inet_network(paramp->value);
+			}
+			else
+			{
+				int ip_len = temp - paramp->value;
+				if(ip_len>MAX_IP_LEN-1)
+				{
+					ip_len = MAX_IP_LEN-1;
+				}
+				strncpy(ip_str, paramp->value, ip_len);
+				ip_str[ip_len] = '\0';
+				ip = inet_network(ip_str);
+
+				temp ++;
+				port = atoi(temp);
+			}
+
+			DEQUE_NODE* nodep = channel_find_source(channelp, ip);
+			if(nodep == NULL)
+			{
+				channel_add_source(channelp, ip, port);
+			}
+		}
 		
 		
 		if(nodep->nextp == fRequest.fParamPairs)
@@ -504,6 +537,7 @@ Bool16 HTTPSession::ResponseCmdAddChannel()
 	}
 
 	CHANNEL_T* findp = NULL;
+	/*
 	findp = g_channels.FindChannelById(channelp->channel_id);
 	if(findp != NULL)
 	{
@@ -511,10 +545,11 @@ Bool16 HTTPSession::ResponseCmdAddChannel()
 		snprintf(reason, MAX_REASON_LEN-1, "channel_id [%d] exist", channelp->channel_id);
 		reason[MAX_REASON_LEN-1] = '\0';
 		ResponseCmdResult("add_channel", "failure", reason);
-		free(channelp);
+		channel_release(channelp);
 		channelp = NULL;
 		return true;
 	}
+	*/
 	findp = g_channels.FindChannelByHash(channelp->liveid);
 	if(findp != NULL)
 	{
@@ -522,7 +557,7 @@ Bool16 HTTPSession::ResponseCmdAddChannel()
 		snprintf(reason, MAX_REASON_LEN-1, "liveid [%s] exist", channelp->liveid);
 		reason[MAX_REASON_LEN-1] = '\0';
 		ResponseCmdResult("add_channel", "failure", reason);
-		free(channelp);
+		channel_release(channelp);
 		channelp = NULL;
 		return true;
 	}
@@ -534,7 +569,7 @@ Bool16 HTTPSession::ResponseCmdAddChannel()
 		snprintf(reason, MAX_REASON_LEN-1, "AddChannel() internal failure");
 		reason[MAX_REASON_LEN-1] = '\0';
 		ResponseCmdResult("add_channel", "failure", reason);
-		free(channelp);
+		channel_release(channelp);
 		channelp = NULL;
 		return true;
 	}
@@ -546,7 +581,7 @@ Bool16 HTTPSession::ResponseCmdAddChannel()
 		snprintf(reason, MAX_REASON_LEN-1, "WriteConfig() internal failure");
 		reason[MAX_REASON_LEN-1] = '\0';
 		ResponseCmdResult("add_channel", "failure", reason);
-		free(channelp);
+		channel_release(channelp);
 		channelp = NULL;
 		return true;
 	}
@@ -620,6 +655,7 @@ Bool16 HTTPSession::ResponseCmdDelChannel()
 	return ret;
 }
 
+#if 0
 Bool16 HTTPSession::ResponseCmdListChannel()
 {
 	Bool16 ret = true;	
@@ -631,6 +667,65 @@ Bool16 HTTPSession::ResponseCmdListChannel()
 	
 	ret = ResponseFile(abs_path);
 	
+	return ret;
+}
+#endif
+
+Bool16 HTTPSession::ResponseCmdListChannel()
+{
+	Bool16 ret = true;
+	
+	char buffer[1024*4];
+	StringFormatter content(buffer, sizeof(buffer));
+	content.Put("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n");
+	content.Put("<channels>\n");
+
+	DEQUE_NODE* channel_list = g_channels.GetChannels();
+	DEQUE_NODE* nodep = channel_list;
+	while(nodep)
+	{
+		CHANNEL_T* channelp = (CHANNEL_T*)nodep->datap;		
+		content.PutFmtStr("\t<channel channel_id=\"%d\" liveid=\"%s\" bitrate=\"%d\" channel_name=\"%s\" "
+			"codec_ts=\"%d\" codec_flv=\"%d\" codec_mp4=\"%d\">\n", 
+			channelp->channel_id, channelp->liveid, channelp->bitrate, channelp->channel_name,
+			channelp->codec_ts, channelp->codec_flv, channelp->codec_mp4);
+
+		content.Put("\t\t<sources>\n");
+
+		DEQUE_NODE* node2p = channelp->source_list;
+		while(node2p)
+		{
+			SOURCE_T* sourcep = (SOURCE_T*)node2p->datap;
+
+			struct in_addr in;
+			in.s_addr = htonl(sourcep->ip);
+			char* str_ip = inet_ntoa(in);
+			
+			content.PutFmtStr("\t\t\t<source ip=\"%s\" port=\"%d\">\n",
+				str_ip, sourcep->port);
+			content.Put("\t\t\t</source>\n");
+			
+			if(node2p->nextp == channelp->source_list)
+			{
+				break;
+			}
+			node2p = node2p->nextp;
+		}
+		
+		content.Put("\t\t</sources>\n");
+
+		content.Put("\t</channel>\n");
+		
+		if(nodep->nextp == channel_list)
+		{
+			break;
+		}
+		nodep = nodep->nextp;
+	}
+	content.Put("</channels>\n");
+
+	ResponseContent(content.GetBufPtr(), content.GetBytesWritten(), CONTENT_TYPE_TEXT_XML);
+
 	return ret;
 }
 

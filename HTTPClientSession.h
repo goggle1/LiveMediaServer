@@ -13,14 +13,14 @@
 class HTTPClientSession : public Task
 {
 	public:
-		HTTPClientSession(UInt32 inAddr, UInt16 inPort, const StrPtrLen& inURL);
+		HTTPClientSession(UInt32 inAddr, UInt16 inPort, const StrPtrLen& inURL, char* liveid, char* type);
 virtual	~HTTPClientSession();
 virtual     SInt64      Run();
 	Bool16	IsDownloaded(SEGMENT_T* segp);
 	void 	Set(const StrPtrLen& inURL);
 	int 	Log(char* url, char* datap, UInt32 len);
 	int 	Write(StrPtrLen& file_name, char* datap, UInt32 len);
-	int 	RewriteM3U8(char* channel_name, M3U8Parser* parserp);	
+	int 	RewriteM3U8(M3U8Parser* parserp);	
 
 		//
         // States. Find out what the object is currently doing
@@ -49,6 +49,8 @@ virtual     SInt64      Run();
 		TCPClientSocket* 	fSocket;
 		HTTPClient*			fClient;
 		StrPtrLen   		fURL;
+		char*				fLiveId;
+		char*				fType;
 		
 		UInt32          	fState;     // the state machine
 		UInt32          	fDeathReason;
