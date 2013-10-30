@@ -573,6 +573,21 @@ Bool16 HTTPSession::ResponseCmdAddChannel()
 		channelp = NULL;
 		return true;
 	}
+
+	if(channelp->source_list)
+	{
+		result = start_channel(channelp);
+		if(result != 0)
+		{
+			char reason[MAX_REASON_LEN] = "";
+			snprintf(reason, MAX_REASON_LEN-1, "start_channel() internal failure");
+			reason[MAX_REASON_LEN-1] = '\0';
+			ResponseCmdResult("add_source", "failure", reason);
+			free(channelp);
+			channelp = NULL;
+			return true;
+		}
+	}
 	
 	result = g_channels.WriteConfig(ROOT_PATH"/channels.xml");
 	if(result != 0)
@@ -633,6 +648,31 @@ Bool16 HTTPSession::ResponseCmdDelChannel()
 		return true;
 	}
 
+	CHANNEL_T* channelp = g_channels.FindChannelByHash(liveid);
+	if(channelp == NULL)
+	{
+		char reason[MAX_REASON_LEN] = "";
+		snprintf(reason, MAX_REASON_LEN-1, "can not find liveid[%s]", liveid);
+		reason[MAX_REASON_LEN-1] = '\0';
+		ResponseCmdResult("del_channel", "failure", reason);
+		return true;
+	}
+	
+	if(channelp->source_list)
+	{
+		int result = stop_channel(channelp);
+		if(result != 0)
+		{
+			char reason[MAX_REASON_LEN] = "";
+			snprintf(reason, MAX_REASON_LEN-1, "stop_channel() internal failure");
+			reason[MAX_REASON_LEN-1] = '\0';
+			ResponseCmdResult("del_channel", "failure", reason);
+			free(channelp);
+			channelp = NULL;
+			return true;
+		}
+	}
+
 	int result = g_channels.DeleteChannel(liveid);
 	if(result != 0)
 	{
@@ -643,10 +683,7 @@ Bool16 HTTPSession::ResponseCmdDelChannel()
 	result = g_channels.WriteConfig(ROOT_PATH"/channels.xml");
 	if(result != 0)
 	{
-		char reason[MAX_REASON_LEN] = "";
-		snprintf(reason, MAX_REASON_LEN-1, "WriteConfig() internal failure");
-		reason[MAX_REASON_LEN-1] = '\0';
-		ResponseCmdResult("del_channel", "failure", reason);
+		ResponseCmdResult("del_channel", "failure", "WriteConfig() internal failure");
 		return true;
 	}
 	

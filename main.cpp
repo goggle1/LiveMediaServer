@@ -139,60 +139,6 @@ int start_server()
 	return 0;
 }
 
-int start_channel(CHANNEL_T* channelp)
-{
-	DEQUE_NODE* source_list = channelp->source_list;
-	DEQUE_NODE* nodep = source_list;
-	if(nodep == NULL)
-	{
-		return -1;
-	}
-	
-	SOURCE_T* sourcep = (SOURCE_T*)nodep->datap;
-	if(channelp->codec_ts)
-	{		
-		//StrPtrLen 	inURL("http://192.168.8.197:1180/1100000000000000000000000000000000000000.m3u8");
-		//StrPtrLen 	inURL("http://lv.funshion.com/livestream/fd5f6b86b836e38c8eed27c9e66e3e6dcf0a69b2.m3u8?codec=ts");
-		char* type = "ts";
-		char url[MAX_URL_LEN];
-		snprintf(url, MAX_URL_LEN-1, "/livestream/%s.m3u8?codec=%s", channelp->liveid, type);
-		url[MAX_URL_LEN-1] = '\0';
-		StrPtrLen inURL(url);
-		HTTPClientSession* sessionp = new HTTPClientSession(sourcep->ip, sourcep->port, inURL, channelp->liveid, type);	
-		if(sessionp == NULL)
-		{
-			return -1;
-		}
-	}
-	if(channelp->codec_flv)
-	{		
-		char* type = "flv";
-		char url[MAX_URL_LEN];
-		snprintf(url, MAX_URL_LEN-1, "/livestream/%s.m3u8?codec=%s", channelp->liveid, type);
-		url[MAX_URL_LEN-1] = '\0';
-		StrPtrLen inURL(url);
-		HTTPClientSession* sessionp = new HTTPClientSession(sourcep->ip, sourcep->port, inURL, channelp->liveid, type);	
-		if(sessionp == NULL)
-		{
-			return -1;
-		}
-	}
-	if(channelp->codec_mp4)
-	{		
-		char* type = "mp4";
-		char url[MAX_URL_LEN];
-		snprintf(url, MAX_URL_LEN-1, "/livestream/%s.m3u8?codec=%s", channelp->liveid, type);
-		url[MAX_URL_LEN-1] = '\0';
-		StrPtrLen inURL(url);
-		HTTPClientSession* sessionp = new HTTPClientSession(sourcep->ip, sourcep->port, inURL, channelp->liveid, type);	
-		if(sessionp == NULL)
-		{
-			return -1;
-		}
-	}	
-	
-	return 0;
-}
 
 int start_clients()
 {

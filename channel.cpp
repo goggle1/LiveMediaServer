@@ -4,6 +4,7 @@
 #include <arpa/inet.h>
 
 #include "channel.h"
+#include "HTTPClientSession.h"
 
 void source_release(void* datap)
 {
@@ -81,6 +82,88 @@ int channel_add_source(CHANNEL_T* channelp, u_int32_t ip, u_int16_t port)
 	return 0;
 }
 
+
+int start_channel(CHANNEL_T* channelp)
+{
+	DEQUE_NODE* source_list = channelp->source_list;
+	DEQUE_NODE* nodep = source_list;
+	if(nodep == NULL)
+	{
+		return -1;
+	}
+	
+	SOURCE_T* sourcep = (SOURCE_T*)nodep->datap;
+	if(channelp->codec_ts)
+	{		
+		//StrPtrLen 	inURL("http://192.168.8.197:1180/1100000000000000000000000000000000000000.m3u8");
+		//StrPtrLen 	inURL("http://lv.funshion.com/livestream/fd5f6b86b836e38c8eed27c9e66e3e6dcf0a69b2.m3u8?codec=ts");
+		char* type = "ts";
+		char url[MAX_URL_LEN];
+		snprintf(url, MAX_URL_LEN-1, "/livestream/%s.m3u8?codec=%s", channelp->liveid, type);
+		url[MAX_URL_LEN-1] = '\0';
+		StrPtrLen inURL(url);
+		HTTPClientSession* sessionp = new HTTPClientSession(sourcep->ip, sourcep->port, inURL, channelp->liveid, type);	
+		if(sessionp == NULL)
+		{
+			return -1;
+		}
+		channelp->sessionp_ts = sessionp;
+	}
+	if(channelp->codec_flv)
+	{		
+		char* type = "flv";
+		char url[MAX_URL_LEN];
+		snprintf(url, MAX_URL_LEN-1, "/livestream/%s.m3u8?codec=%s", channelp->liveid, type);
+		url[MAX_URL_LEN-1] = '\0';
+		StrPtrLen inURL(url);
+		HTTPClientSession* sessionp = new HTTPClientSession(sourcep->ip, sourcep->port, inURL, channelp->liveid, type);	
+		if(sessionp == NULL)
+		{
+			return -1;
+		}
+		channelp->sessionp_flv = sessionp;
+	}
+	if(channelp->codec_mp4)
+	{		
+		char* type = "mp4";
+		char url[MAX_URL_LEN];
+		snprintf(url, MAX_URL_LEN-1, "/livestream/%s.m3u8?codec=%s", channelp->liveid, type);
+		url[MAX_URL_LEN-1] = '\0';
+		StrPtrLen inURL(url);
+		HTTPClientSession* sessionp = new HTTPClientSession(sourcep->ip, sourcep->port, inURL, channelp->liveid, type);	
+		if(sessionp == NULL)
+		{
+			return -1;
+		}
+		channelp->sessionp_mp4 = sessionp;
+	}	
+	
+	return 0;
+}
+
+int stop_channel(CHANNEL_T* channelp)
+{
+	if(channelp->sessionp_ts != NULL)
+	{	
+		channelp->sessionp_ts->Signal(Task::kKillEvent);
+		channelp->sessionp_ts = NULL;
+	}
+
+	if(channelp->sessionp_flv != NULL)
+	{	
+		channelp->sessionp_flv->Signal(Task::kKillEvent);
+		channelp->sessionp_flv = NULL;
+	}
+
+	if(channelp->sessionp_mp4 != NULL)
+	{	
+		channelp->sessionp_mp4->Signal(Task::kKillEvent);
+		channelp->sessionp_mp4 = NULL;
+	}
+	
+	
+	return 0;
+}
 
 
 ChannelList::ChannelList()
@@ -417,11 +500,6 @@ int ChannelList::WriteConfig(char* config_file)
 
 int ChannelList::WriteConfig(char* config_file)
 {
-	if(m_channel_list == NULL)
-	{
-		return -1;
-	}
-
 	FILE* filep = fopen(config_file, "w");
 	if(filep == NULL)
 	{

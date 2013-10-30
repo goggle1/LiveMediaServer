@@ -67,6 +67,10 @@ typedef struct channel_t
 void channel_release(void* datap);
 DEQUE_NODE* channel_find_source(CHANNEL_T* channelp, u_int32_t ip);
 int channel_add_source(CHANNEL_T* channelp, u_int32_t ip, u_int16_t port);
+int start_channel(CHANNEL_T* channelp);
+int stop_channel(CHANNEL_T* channelp);
+
+
 
 class ChannelList
 {

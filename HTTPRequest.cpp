@@ -187,7 +187,7 @@ QTSS_Error HTTPRequest::ParseURI(StringParser* parser)
     
     // Allocate memory for fRequestPath
     UInt32 len = fRelativeURI.Len;
-    #if 1
+#if 1
     
     len++;    
     char* relativeURIDecoded = new char[len];
@@ -198,21 +198,23 @@ QTSS_Error HTTPRequest::ParseURI(StringParser* parser)
     //if negative, an error occurred, reported as an QTSS_Error
     //we also need to leave room for a terminator.
     if ((theBytesWritten < 0) || ((UInt32)theBytesWritten == len))
-        {
-            fStatusCode = httpBadRequest;
-            return QTSS_BadArgument;
-        }
+    {
+        fStatusCode = httpBadRequest;
+        return QTSS_BadArgument;
+    }
+    
     fRequestPath = new char[theBytesWritten + 1];
-    ::memcpy(fRequestPath, relativeURIDecoded + 1, theBytesWritten); 
+    //::memcpy(fRequestPath, relativeURIDecoded + 1, theBytesWritten); 
+    ::memcpy(fRequestPath, relativeURIDecoded, theBytesWritten); 
+    fRequestPath[theBytesWritten] = '\0';
+    
     delete relativeURIDecoded;
     
-    #else
-    
+#else    
     fRequestPath = new char[len+1];
     ::memcpy(fRequestPath, fRelativeURI.Ptr, len); 
-    fRequestPath[len] = '\0';
-    
-    #endif
+    fRequestPath[len] = '\0';    
+#endif
 
 	{
 		StrPtrLen request_path(fRequestPath);
