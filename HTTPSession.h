@@ -9,6 +9,7 @@
 
 #include "HTTPRequest.h"
 
+#include "channel.h"
 
 class HTTPSession : public Task
 {
@@ -40,6 +41,10 @@ protected:
         	Bool16 			ResponseFileNotFound(char* absolute_uri);
         	Bool16 			ResponseError(QTSS_RTSPStatusCode StatusCode);
 	        void            MoveOnRequest();
+	        Bool16 			ResponseLive();
+	        Bool16			ResponseLiveM3U8();
+	        Bool16			ResponseLiveSegment();
+	        Bool16 			ReadSegmentContent();
 
 			TCPSocket	fSocket;
 		
@@ -72,6 +77,9 @@ protected:
 			// 
 			int			fFd;
 			char		fBuffer[kReadBufferSize];
+			//
+			DATA_T* 	fMemory;
+			int			fMemoryPosition;
 
 			// from RTSP, 
 	        QTSS_RTSPStatusCode fStatusCode;  	        

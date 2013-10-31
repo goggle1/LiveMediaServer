@@ -102,7 +102,7 @@ int start_channel(CHANNEL_T* channelp)
 		snprintf(url, MAX_URL_LEN-1, "/livestream/%s.m3u8?codec=%s", channelp->liveid, type);
 		url[MAX_URL_LEN-1] = '\0';
 		StrPtrLen inURL(url);
-		HTTPClientSession* sessionp = new HTTPClientSession(sourcep->ip, sourcep->port, inURL, channelp->liveid, type);	
+		HTTPClientSession* sessionp = new HTTPClientSession(sourcep->ip, sourcep->port, inURL, channelp, type);	
 		if(sessionp == NULL)
 		{
 			return -1;
@@ -116,7 +116,7 @@ int start_channel(CHANNEL_T* channelp)
 		snprintf(url, MAX_URL_LEN-1, "/livestream/%s.m3u8?codec=%s", channelp->liveid, type);
 		url[MAX_URL_LEN-1] = '\0';
 		StrPtrLen inURL(url);
-		HTTPClientSession* sessionp = new HTTPClientSession(sourcep->ip, sourcep->port, inURL, channelp->liveid, type);	
+		HTTPClientSession* sessionp = new HTTPClientSession(sourcep->ip, sourcep->port, inURL, channelp, type);	
 		if(sessionp == NULL)
 		{
 			return -1;
@@ -130,7 +130,7 @@ int start_channel(CHANNEL_T* channelp)
 		snprintf(url, MAX_URL_LEN-1, "/livestream/%s.m3u8?codec=%s", channelp->liveid, type);
 		url[MAX_URL_LEN-1] = '\0';
 		StrPtrLen inURL(url);
-		HTTPClientSession* sessionp = new HTTPClientSession(sourcep->ip, sourcep->port, inURL, channelp->liveid, type);	
+		HTTPClientSession* sessionp = new HTTPClientSession(sourcep->ip, sourcep->port, inURL, channelp, type);	
 		if(sessionp == NULL)
 		{
 			return -1;

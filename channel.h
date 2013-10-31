@@ -18,8 +18,9 @@
 
 typedef struct data_t
 {
-	u_int64_t 	size;
 	void*		datap;	
+	u_int64_t 	size;	// total size
+	u_int64_t 	len;	// used length
 } DATA_T;
 
 typedef struct seg_t
@@ -32,8 +33,12 @@ typedef DATA_T M3U8_T;
 
 typedef struct memory_t
 {
-	M3U8_T	m3u8s[MAX_M3U8_NUM];	
-	SEG_T	segs[MAX_SEG_NUM];
+	int 		m3u8_index;
+	int 		m3u8_num;
+	M3U8_T		m3u8s[MAX_M3U8_NUM];	
+	int			seg_index;
+	int			seg_num;
+	SEG_T		segs[MAX_SEG_NUM];
 } MEMORY_T;
 
 typedef struct source_t

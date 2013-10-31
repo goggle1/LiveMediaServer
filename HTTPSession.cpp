@@ -30,6 +30,10 @@
 #define CMD_LIST_SOURCE  	"/cmd/list_source/"
 #define CMD_ADD_SOURCE  	"/cmd/add_source/"
 #define CMD_DEL_SOURCE  	"/cmd/del_source/"
+#define URI_LIVESTREAM		"/livestream/"
+#define LIVE_TS				"ts"
+#define LIVE_FLV			"flv"
+#define LIVE_MP4			"mp4"
 
 #define MAX_REASON_LEN		256
 
@@ -96,6 +100,8 @@ HTTPSession::HTTPSession():
 {
 	fprintf(stdout, "%s %s[%d][0x%016lX] \n", __FILE__, __PRETTY_FUNCTION__, __LINE__, (long)this);
 	fFd	= -1;
+	fMemory = NULL;
+	fMemoryPosition = 0;
     fStatusCode     = 0;
 }
 
@@ -146,6 +152,14 @@ SInt64     HTTPSession::Run()
     	else if(fFd != -1)
     	{
     		Bool16 haveContent = ReadFileContent();
+    		if(haveContent)
+    		{
+    			willRequestEvent = willRequestEvent | EV_WR;
+    		}
+    	}
+    	else if(fMemory != NULL)
+    	{
+    		Bool16 haveContent = ReadSegmentContent();
     		if(haveContent)
     		{
     			willRequestEvent = willRequestEvent | EV_WR;
@@ -376,7 +390,12 @@ Bool16 HTTPSession::ResponseGet()
 	{
 		ret = ResponseCmd();
 		return ret;
-	}	
+	}
+	else if(strncmp(fRequest.fAbsoluteURI.Ptr, URI_LIVESTREAM, strlen(URI_LIVESTREAM)) == 0)
+	{
+		ret = ResponseLive();
+		return ret;
+	}
 	
 	char absolute_uri[fRequest.fAbsoluteURI.Len + 1];
 	strncpy(absolute_uri, fRequest.fAbsoluteURI.Ptr, fRequest.fAbsoluteURI.Len);
@@ -398,11 +417,50 @@ Bool16 HTTPSession::ResponseGet()
 	}
 	else
 	{
-		ret = ResponseFileNotFound(request_file);
+		//ret = ResponseFileNotFound(request_file);
+		ret = ResponseError(qtssClientNotFound);		
 	}	
 
 	return ret;
 
+}
+
+Bool16 HTTPSession::ReadSegmentContent()
+{
+	if(fMemory == NULL)
+	{
+		return false;
+	}
+
+	int remain_len = fMemory->len - fMemoryPosition;
+	int count = kReadBufferSize;
+	if(count >= remain_len)
+	{		
+		count = remain_len;
+	}
+
+	memcpy(fBuffer, (char*)fMemory->datap+fMemoryPosition, count);
+	fMemoryPosition = fMemoryPosition + count;
+	if(fMemoryPosition >= fMemory->len)
+	{
+		fMemory = NULL;
+		fMemoryPosition = 0;
+	}
+	
+	fprintf(stdout, "%s %s[%d][0x%016lX] read %u, return %u\n", 
+        __FILE__, __PRETTY_FUNCTION__, __LINE__, (long)this, kReadBufferSize, count);
+
+	fResponse.Set(fStrRemained.Ptr+fStrRemained.Len, kResponseBufferSizeInBytes-fStrRemained.Len);
+    fResponse.Put(fBuffer, count);
+
+    fStrResponse.Set(fResponse.GetBufPtr(), fResponse.GetBytesWritten());
+    //append to fStrRemained
+    fStrRemained.Len += fStrResponse.Len;  
+    //clear previous response.
+    fStrResponse.Set(fResponseBuffer, 0);
+	
+	
+	return true;     
 }
 
 Bool16 HTTPSession::ReadFileContent()
@@ -434,8 +492,7 @@ Bool16 HTTPSession::ReadFileContent()
     //append to fStrRemained
     fStrRemained.Len += fStrResponse.Len;  
     //clear previous response.
-    fStrResponse.Set(fResponseBuffer, 0);
-	
+    fStrResponse.Set(fResponseBuffer, 0);	
 	
 	return true;
 }
@@ -1176,6 +1233,192 @@ Bool16 HTTPSession::ResponseCmd()
 	
 	return ret;
 }
+
+Bool16 HTTPSession::ResponseLiveM3U8()
+{
+	Bool16 ret = true;
+
+	char liveid[MAX_LIVE_ID];
+	StringParser parser(&(fRequest.fRelativeURI));
+	parser.ConsumeLength(NULL, strlen(URI_LIVESTREAM));
+	StrPtrLen seg1;
+	parser.ConsumeUntil(&seg1, '.');
+	int len = seg1.Len;
+	if(len >= MAX_LIVE_ID-1)
+	{
+		len = MAX_LIVE_ID-1;
+	}
+	memcpy(liveid, seg1.Ptr, len);
+	liveid[len] = '\0';
+	
+	CHANNEL_T* channelp = g_channels.FindChannelByHash(liveid);
+	if(channelp == NULL)
+	{
+		return false;
+	}
+
+	char* type = LIVE_TS;
+	DEQUE_NODE* nodep = fRequest.fParamPairs;
+	while(nodep)
+	{
+		UriParam* paramp = (UriParam*)nodep->datap;
+		if(strcasecmp(paramp->key, "codec") == 0)
+		{
+			type = paramp->value;
+		}
+		
+		if(nodep->nextp == fRequest.fParamPairs)
+		{
+			break;	
+		}
+		nodep = nodep->nextp;
+	}
+	
+	MEMORY_T* memoryp = NULL;
+	if(strcasecmp(type, LIVE_TS) == 0)
+	{
+		memoryp = channelp->memoryp_ts;
+	}
+	else if(strcasecmp(type, LIVE_FLV) == 0)
+	{
+		memoryp = channelp->memoryp_flv;
+	}
+	else if(strcasecmp(type, LIVE_MP4) == 0)
+	{
+		memoryp = channelp->memoryp_mp4;
+	}
+	if(memoryp == NULL)
+	{
+		return false;
+	}
+	
+	if(memoryp->m3u8_num == 0)
+	{
+		return false;
+	}
+	int index = memoryp->m3u8_index;
+	index --;
+	if(index < 0)
+	{
+		index = MAX_M3U8_NUM-1;		
+	}
+	
+	ResponseContent((char*)memoryp->m3u8s[index].datap, memoryp->m3u8s[index].len, CONTENT_TYPE_TEXT_HTML);
+	
+	return ret;
+}
+
+Bool16 HTTPSession::ResponseLiveSegment()
+{
+	Bool16 ret = true;
+
+	// /livestream/3702892333/78267cf4a7864a887540cf4af3c432dca3d52050/ts/2013/10/31/20131017T171949_03_20131031_140823_3059413.ts
+	char liveid[MAX_LIVE_ID];
+	StringParser parser(&(fRequest.fRelativeURI));
+	parser.ConsumeLength(NULL, strlen(URI_LIVESTREAM));
+	StrPtrLen seg1;
+	parser.ConsumeUntil(&seg1, '/');
+	parser.Expect('/');
+	StrPtrLen seg2;
+	parser.ConsumeUntil(&seg2, '/');
+	parser.Expect('/');	
+	int len = seg2.Len;
+	if(len >= MAX_LIVE_ID-1)
+	{
+		len = MAX_LIVE_ID-1;
+	}
+	memcpy(liveid, seg2.Ptr, len);
+	liveid[len] = '\0';
+	
+	CHANNEL_T* channelp = g_channels.FindChannelByHash(liveid);
+	if(channelp == NULL)
+	{
+		return false;
+	}
+	// get type
+	parser.ConsumeUntil(NULL, '.');
+	parser.Expect('.');
+	StrPtrLen seg3;
+	parser.ConsumeUntil(&seg3, '?');
+
+	MEMORY_T* memoryp = NULL;
+	char* type = seg3.Ptr;
+	if(strncasecmp(type, LIVE_TS, strlen(LIVE_TS)) == 0)
+	{
+		memoryp = channelp->memoryp_ts;
+	}
+	else if(strncasecmp(type, LIVE_FLV, strlen(LIVE_FLV)) == 0)
+	{
+		memoryp = channelp->memoryp_flv;
+	}
+	else if(strncasecmp(type, LIVE_MP4, strlen(LIVE_MP4)) == 0)
+	{
+		memoryp = channelp->memoryp_mp4;
+	}
+	if(memoryp == NULL)
+	{
+		return false;
+	}
+
+	SEG_T* segp = NULL;	
+	int index = memoryp->seg_index - 1;	
+	int count = 0;
+	while(count < memoryp->seg_num)
+	{
+		if(index<0)
+		{
+			index = memoryp->seg_num - 1;
+		}
+		SEG_T* onep = &(memoryp->segs[index]);
+		if(strncmp(onep->url, fRequest.fRelativeURI.Ptr, strlen(onep->url)) == 0)
+		{
+			segp = onep;
+			break;
+		}
+		
+		count ++;
+		index --;
+	}
+	if(segp == NULL)
+	{
+		return false;
+	}
+
+	fMemory = &(segp->data);
+	fMemoryPosition = 0;
+	
+	fResponse.Set(fStrRemained.Ptr+fStrRemained.Len, kResponseBufferSizeInBytes-fStrRemained.Len);
+    fResponse.Put("HTTP/1.0 200 OK\r\n");
+    fResponse.PutFmtStr("Server: %s/%s\r\n", BASE_SERVER_NAME, BASE_SERVER_VERSION);
+    fResponse.PutFmtStr("Content-Length: %ld\r\n", fMemory->len);
+    //fResponse.PutFmtStr("Content-Type: %s; charset=utf-8\r\n", content_type);
+    fResponse.PutFmtStr("Content-Type: %s\r\n", CONTENT_TYPE_TEXT_HTML);    
+    fResponse.Put("\r\n"); 
+    
+    fStrResponse.Set(fResponse.GetBufPtr(), fResponse.GetBytesWritten());
+    //append to fStrRemained
+    fStrRemained.Len += fStrResponse.Len;  
+    //clear previous response.
+    fStrResponse.Set(fResponseBuffer, 0);	
+	
+	return ret;
+}
+
+Bool16 HTTPSession::ResponseLive()
+{
+	Bool16 ret = true;
+	if(strcasestr(fRequest.fAbsoluteURI.Ptr, ".m3u8") != NULL)
+	{	
+		ret = ResponseLiveM3U8();
+	}
+	else 
+	{
+		ret = ResponseLiveSegment();		
+	}
+	
+	return ret;
+}
+
 
 Bool16 HTTPSession::ResponseFile(char* abs_path)
 {
