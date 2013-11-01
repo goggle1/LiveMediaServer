@@ -20,7 +20,7 @@ typedef struct data_t
 {
 	void*		datap;	
 	u_int64_t 	size;	// total size
-	u_int64_t 	len;	// used length
+	int64_t 	len;	// used length
 } DATA_T;
 
 typedef struct seg_t

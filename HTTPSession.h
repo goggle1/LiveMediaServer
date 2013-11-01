@@ -38,8 +38,7 @@ protected:
         	Bool16 			ResponseCmdDelSource();  
         	Bool16 			ResponseContent(char* content, int len, char* type);
         	Bool16 			ResponseFile(char* absolute_path);
-        	Bool16 			ResponseFileNotFound(char* absolute_uri);
-        	Bool16 			ResponseError(QTSS_RTSPStatusCode StatusCode);
+        	Bool16 			ResponseError(HTTPStatusCode StatusCode);
 	        void            MoveOnRequest();
 	        Bool16 			ResponseLive();
 	        Bool16			ResponseLiveM3U8();
@@ -79,7 +78,7 @@ protected:
 			char		fBuffer[kReadBufferSize];
 			//
 			DATA_T* 	fMemory;
-			int			fMemoryPosition;
+			int64_t		fMemoryPosition;
 
 			// from RTSP, 
 	        QTSS_RTSPStatusCode fStatusCode;  	        
