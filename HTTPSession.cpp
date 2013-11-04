@@ -1623,13 +1623,14 @@ Bool16 HTTPSession::ResponseLiveSegment()
 
 	SEG_T* segp = NULL;	
 	int index = memoryp->seg_index - 1;	
-	int count = 0;
-	while(count < memoryp->seg_num)
+	if(index<0)
 	{
-		if(index<0)
-		{
-			index = memoryp->seg_num - 1;
-		}
+		index = MAX_SEG_NUM - 1;
+	}
+		
+	int count = 0;
+	while(count <= memoryp->seg_num)
+	{
 		SEG_T* onep = &(memoryp->segs[index]);
 		if(strncmp(onep->url, fRequest.fRelativeURI.Ptr, strlen(onep->url)) == 0)
 		{
@@ -1639,6 +1640,10 @@ Bool16 HTTPSession::ResponseLiveSegment()
 		
 		count ++;
 		index --;
+		if(index<0)
+		{
+			index = MAX_SEG_NUM - 1;
+		}
 	}
 	if(segp == NULL)
 	{

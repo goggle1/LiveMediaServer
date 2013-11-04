@@ -152,7 +152,7 @@ int HTTPClientSession::Log(char * url,char * datap, UInt32 len)
 	return ret;
 }
 
-int HTTPClientSession::MemoSegment(char * url,char * datap, UInt32 len)
+int HTTPClientSession::MemoSegment(char * url, char * datap, UInt32 len)
 {
 	StrPtrLen AbsoluteURI(url);
 	StringParser urlParser(&AbsoluteURI);
@@ -168,12 +168,7 @@ int HTTPClientSession::MemoSegment(char * url,char * datap, UInt32 len)
     
 	char* relative_url = urlParser.GetCurrentPosition();
 	
-	SEG_T* segp = &(fMemory->segs[fMemory->seg_index]);
-	fMemory->seg_index ++;
-	if(fMemory->seg_index >= MAX_SEG_NUM)
-	{
-		fMemory->seg_index = 0;
-	}
+	SEG_T* segp = &(fMemory->segs[fMemory->seg_index]);	
 
 	strncpy(segp->url, relative_url, MAX_URL_LEN-1);
 	segp->url[MAX_URL_LEN-1] = '\0';
@@ -190,6 +185,12 @@ int HTTPClientSession::MemoSegment(char * url,char * datap, UInt32 len)
 		segp->data.size = len;
 		memcpy(segp->data.datap, datap, len);
 		segp->data.len = len;
+	}
+
+	fMemory->seg_index ++;
+	if(fMemory->seg_index >= MAX_SEG_NUM)
+	{
+		fMemory->seg_index = 0;
 	}
 	
 	fMemory->seg_num ++;
