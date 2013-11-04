@@ -86,7 +86,7 @@ int M3U8Parser::Parse(char * datap, UInt32 len)
 		}
 		else if(strncasecmp(oneLine.Ptr, "#EXT-X-BYTERANGE:", strlen("#EXT-X-BYTERANGE:")) == 0)
 		{			
-			fSegments[fSegmentsNum-1].byte_range = atoi(oneLine.Ptr+strlen("#EXT-X-BYTERANGE:"));
+			fSegments[fSegmentsNum-1].byte_range = atol(oneLine.Ptr+strlen("#EXT-X-BYTERANGE:"));
 		}
 		else if(strncasecmp(oneLine.Ptr, "#EXT-X-PROGRAM-DATE-TIME:", strlen("#EXT-X-PROGRAM-DATE-TIME:")) == 0)
 		{			

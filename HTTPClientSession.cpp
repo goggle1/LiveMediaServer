@@ -229,7 +229,8 @@ int HTTPClientSession::MemoM3U8(M3U8Parser* parserp)
 		for(index=0; index<parserp->fSegmentsNum; index++)
 		{
 			SEGMENT_T* segp = &(parserp->fSegments[index]);
-			content.PutFmtStr("#EXTINF:%d,\n", segp->inf);
+			content.PutFmtStr("#EXTINF:%u,\n", segp->inf);
+			content.PutFmtStr("#EXT-X-BYTERANGE:%lu,\n", segp->byte_range);
 
 			StrPtrLen AbsoluteURI(segp->url);
 			StringParser urlParser(&AbsoluteURI);
@@ -289,7 +290,8 @@ int HTTPClientSession::RewriteM3U8(M3U8Parser* parserp)
 	for(index=0; index<parserp->fSegmentsNum; index++)
 	{
 		SEGMENT_T* segp = &(parserp->fSegments[index]);
-		ret = dprintf(fd, "#EXTINF:%d,\n", segp->inf);
+		ret = dprintf(fd, "#EXTINF:%u,\n", segp->inf);
+		ret = dprintf(fd, "#EXT-X-BYTERANGE:%lu,\n", segp->byte_range);
 
 		StrPtrLen AbsoluteURI(segp->url);
 		StringParser urlParser(&AbsoluteURI);
