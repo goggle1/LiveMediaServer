@@ -174,50 +174,51 @@ int HTTPClientSession::Log(char * url,char * datap, UInt32 len)
 
 int HTTPClientSession::MemoSegment(SEGMENT_T* onep, char * datap, UInt32 len)
 {	
-	SEG_T* segp = &(fMemory->segs[fMemory->seg_index]);	
+	CLIP_T* clipp = &(fMemory->clips[fMemory->clip_index]);	
 
-	segp->inf = onep->inf;
-	segp->byte_range = onep->byte_range;
-	segp->sequence = onep->sequence;	
+	clipp->inf = onep->inf;
+	clipp->byte_range = onep->byte_range;
+	clipp->sequence = onep->sequence;	
 	
-	strncpy(segp->relative_url, onep->relative_url, MAX_URL_LEN-1);
-	segp->relative_url[MAX_URL_LEN-1] = '\0';	
+	strncpy(clipp->relative_url, onep->relative_url, MAX_URL_LEN-1);
+	clipp->relative_url[MAX_URL_LEN-1] = '\0';	
 
-	strncpy(segp->m3u8_relative_url, onep->m3u8_relative_url, MAX_URL_LEN-1);
-	segp->m3u8_relative_url[MAX_URL_LEN-1] = '\0';
+	strncpy(clipp->m3u8_relative_url, onep->m3u8_relative_url, MAX_URL_LEN-1);
+	clipp->m3u8_relative_url[MAX_URL_LEN-1] = '\0';
 
-	if(segp->data.datap != NULL)
+	if(clipp->data.datap != NULL)
 	{
-		free(segp->data.datap);
-		segp->data.datap = NULL;
+		free(clipp->data.datap);
+		clipp->data.datap = NULL;
 	}
 	
-	segp->data.datap = malloc(len);
-	if(segp->data.datap != NULL)
+	clipp->data.datap = malloc(len);
+	if(clipp->data.datap != NULL)
 	{
-		segp->data.size = len;
-		memcpy(segp->data.datap, datap, len);
-		segp->data.len = len;
+		clipp->data.size = len;
+		memcpy(clipp->data.datap, datap, len);
+		clipp->data.len = len;
 	}
 
-	fMemory->seg_index ++;
-	if(fMemory->seg_index >= MAX_SEG_NUM)
+	fMemory->clip_index ++;
+	if(fMemory->clip_index >= MAX_CLIP_NUM)
 	{
-		fMemory->seg_index = 0;
+		fMemory->clip_index = 0;
 	}
 	
-	fMemory->seg_num ++;
-	if(fMemory->seg_num > MAX_SEG_NUM-1)
+	fMemory->clip_num ++;
+	if(fMemory->clip_num > MAX_CLIP_NUM-1)
 	{
-		fMemory->seg_num = MAX_SEG_NUM-1;
-	}
-	
+		fMemory->clip_num = MAX_CLIP_NUM-1;
+	}	
     
 	return 0;
 }
 
 int HTTPClientSession::MemoM3U8(M3U8Parser* parserp)
 {
+	fMemory->target_duration = parserp->fTargetDuration;
+	
 	M3U8_T* m3u8p = &(fMemory->m3u8s[fMemory->m3u8_index]);
 	fMemory->m3u8_index ++;
 	if(fMemory->m3u8_index >= MAX_M3U8_NUM)

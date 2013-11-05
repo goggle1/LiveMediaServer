@@ -11,8 +11,8 @@
 #define MAX_LIVE_ID     	44
 #define MAX_CHANNEL_NAME	64
 
-//#define MAX_SEG_NUM			40
-#define MAX_SEG_NUM			41
+//#define MAX_CLIP_NUM			40
+#define MAX_CLIP_NUM			41
 #define MAX_M3U8_NUM		2
 #define MAX_URL_LEN			256
 
@@ -25,7 +25,7 @@ typedef struct data_t
 	int64_t 	len;	// used length
 } DATA_T;
 
-typedef struct seg_t
+typedef struct clip_t
 {
 	//#EXTINF:10,
 	u_int32_t 	inf;
@@ -36,18 +36,19 @@ typedef struct seg_t
 	char 		relative_url[MAX_URL_LEN];	
 	char 		m3u8_relative_url[MAX_URL_LEN];
 	DATA_T		data;
-} SEG_T;
+} CLIP_T;
 
 typedef DATA_T M3U8_T;
 
 typedef struct memory_t
 {
+	int 		target_duration;
 	int 		m3u8_index;
 	int 		m3u8_num;
 	M3U8_T		m3u8s[MAX_M3U8_NUM];	
-	int			seg_index;
-	int			seg_num;
-	SEG_T		segs[MAX_SEG_NUM];
+	int			clip_index;
+	int			clip_num;
+	CLIP_T		clips[MAX_CLIP_NUM];
 } MEMORY_T;
 
 typedef struct source_t

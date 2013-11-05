@@ -36,7 +36,7 @@ class M3U8Parser
 
 	public:
 		StrPtrLen   fData;
-		StrPtrLen	fPath;
+		StrPtrLen	fM3U8Path;
 
 		// parse result:
 		int 		fTargetDuration;

@@ -1573,17 +1573,23 @@ Bool16 HTTPSession::ResponseLiveM3U8()
 		ResponseContent((char*)memoryp->m3u8s[index].datap, memoryp->m3u8s[index].len, CONTENT_TYPE_APPLICATION_M3U8);
 	}
 	else
-	{		
-		int index = memoryp->seg_index - 1;	
+	{	
+		if(memoryp->clip_num <= 0)
+		{
+			ResponseError(httpNotFound);
+			return ret;
+		}
+		
+		int index = memoryp->clip_index - 1;	
 		if(index<0)
 		{
-			index = MAX_SEG_NUM - 1;
+			index = MAX_CLIP_NUM - 1;
 		}
 			
 		int count = 0;
 		while(1)
 		{
-			SEG_T* onep = &(memoryp->segs[index]);
+			CLIP_T* onep = &(memoryp->clips[index]);
 			if(param_seq != -1 && (int64_t)onep->sequence < param_seq)
 			{	
 				break;
@@ -1593,17 +1599,17 @@ Bool16 HTTPSession::ResponseLiveM3U8()
 			index --;
 			if(index<0)
 			{
-				index = MAX_SEG_NUM - 1;
+				index = MAX_CLIP_NUM - 1;
 			}
 
-			if(count >= memoryp->seg_num || count >= param_count)
+			if(count >= memoryp->clip_num || count >= param_count)
 			{
 				break;
 			}
 		}
 
 		index ++;
-		if(index>=MAX_SEG_NUM)
+		if(index>=MAX_CLIP_NUM)
 		{
 			index = 0;
 		}
@@ -1611,20 +1617,20 @@ Bool16 HTTPSession::ResponseLiveM3U8()
 		char m3u8_buffer[MAX_M3U8_CONTENT_LEN];
 		StringFormatter content(m3u8_buffer, MAX_M3U8_CONTENT_LEN);	
 		content.Put("#EXTM3U\n");
-		content.PutFmtStr("#EXT-X-TARGETDURATION:%d\n", 10);
-		content.PutFmtStr("#EXT-X-MEDIA-SEQUENCE:%lu\n", memoryp->segs[index].sequence);
+		content.PutFmtStr("#EXT-X-TARGETDURATION:%d\n", memoryp->target_duration);
+		content.PutFmtStr("#EXT-X-MEDIA-SEQUENCE:%lu\n", memoryp->clips[index].sequence);
 			
 		int count2 = 0;
 		while(1)
 		{
-			SEG_T* onep = &(memoryp->segs[index]);
+			CLIP_T* onep = &(memoryp->clips[index]);
 			content.PutFmtStr("#EXTINF:%u,\n", onep->inf);
 			content.PutFmtStr("#EXT-X-BYTERANGE:%lu,\n", onep->byte_range);
 			content.PutFmtStr("%s\n", onep->m3u8_relative_url);
 
 			count2 ++;
 			index ++;
-			if(index>=MAX_SEG_NUM)
+			if(index>=MAX_CLIP_NUM)
 			{
 				index = 0;
 			}
@@ -1700,20 +1706,20 @@ Bool16 HTTPSession::ResponseLiveSegment()
 		return ret;
 	}
 
-	SEG_T* segp = NULL;	
-	int index = memoryp->seg_index - 1;	
+	CLIP_T* clipp = NULL;	
+	int index = memoryp->clip_index - 1;	
 	if(index<0)
 	{
-		index = MAX_SEG_NUM - 1;
+		index = MAX_CLIP_NUM - 1;
 	}
 		
 	int count = 0;
-	while(count <= memoryp->seg_num)
+	while(count <= memoryp->clip_num)
 	{
-		SEG_T* onep = &(memoryp->segs[index]);
+		CLIP_T* onep = &(memoryp->clips[index]);
 		if(strncmp(onep->relative_url, fRequest.fRelativeURI.Ptr, strlen(onep->relative_url)) == 0)
 		{
-			segp = onep;
+			clipp = onep;
 			break;
 		}
 		
@@ -1721,16 +1727,16 @@ Bool16 HTTPSession::ResponseLiveSegment()
 		index --;
 		if(index<0)
 		{
-			index = MAX_SEG_NUM - 1;
+			index = MAX_CLIP_NUM - 1;
 		}
 	}
-	if(segp == NULL)
+	if(clipp == NULL)
 	{
 		ret = ResponseError(httpNotFound);
 		return ret;
 	}
 
-	fMemory = &(segp->data);
+	fMemory = &(clipp->data);
 	fMemoryPosition = 0;
 	
 	fResponse.Set(fStrRemained.Ptr+fStrRemained.Len, kResponseBufferSizeInBytes-fStrRemained.Len);

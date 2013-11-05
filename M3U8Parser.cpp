@@ -22,18 +22,18 @@ M3U8Parser::~M3U8Parser()
 
 int M3U8Parser::SetPath(StrPtrLen* pathp)
 {
-	if(fPath.Ptr != NULL)
+	if(fM3U8Path.Ptr != NULL)
 	{
-		delete []fPath.Ptr;
-		fPath.Ptr = NULL;
-		fPath.Len = 0;
+		delete []fM3U8Path.Ptr;
+		fM3U8Path.Ptr = NULL;
+		fM3U8Path.Len = 0;
 	}
 
 	char *dataCopy = new char[pathp->Len+1];  
     memcpy(dataCopy, pathp->Ptr, pathp->Len);
     dataCopy[pathp->Len] = '\0';
 
-    fPath.Set(dataCopy, pathp->Len);
+    fM3U8Path.Set(dataCopy, pathp->Len);
 	
 	return 0;
 }
@@ -67,12 +67,6 @@ int M3U8Parser::Parse(char * datap, UInt32 len)
 	http://lm.funshion.com/livestream/3702892333/fd5f6b86b836e38c8eed27c9e66e3e6dcf0a69b2/ts/2013/10/25/20131017T174027_03_20131024_155821_565633.ts
 	*/
 	
-	/*
-	#EXTM3U
-	#EXT-X-TARGETDURATION:10
-	#EXT-X-MEDIA-SEQUENCE:-1
-	*/
-
 	fSegmentsNum = 0;
 	memset(fSegments, 0, sizeof(fSegments));
 	
@@ -101,6 +95,10 @@ int M3U8Parser::Parse(char * datap, UInt32 len)
 		else if(strncasecmp(oneLine.Ptr, "#EXTINF:", strlen("#EXTINF:")) == 0)
 		{
 			fSegmentsNum ++;
+			if(fSegmentsNum > MAX_SEGMENT_NUM)
+			{
+				break;
+			}
 			fSegments[fSegmentsNum-1].inf = atoi(oneLine.Ptr+strlen("#EXTINF:"));
 		}
 		else if(strncasecmp(oneLine.Ptr, "#EXT-X-BYTERANGE:", strlen("#EXT-X-BYTERANGE:")) == 0)
@@ -116,17 +114,13 @@ int M3U8Parser::Parse(char * datap, UInt32 len)
 			if(fSegmentsNum > 0)
 			{				
 				int len = oneLine.Len;
-				if(len < MAX_URL_LEN)
+				if(len >= MAX_URL_LEN)
 				{
-					strncpy(fSegments[fSegmentsNum-1].url, oneLine.Ptr, len);
-					fSegments[fSegmentsNum-1].url[len] = '\0';
+					fprintf(stderr, "%s: url len[%d] >= MAX_URL_LEN[%d]\n", __PRETTY_FUNCTION__, len, MAX_URL_LEN);
+					len = MAX_URL_LEN - 1;
 				}
-				else
-				{
-					fprintf(stderr, "%s: url len[%d] > MAX_URL_LEN[%d]\n", __PRETTY_FUNCTION__, len, MAX_URL_LEN);
-					strncpy(fSegments[fSegmentsNum-1].url, oneLine.Ptr, MAX_URL_LEN-1);
-					fSegments[fSegmentsNum-1].url[MAX_URL_LEN-1] = '\0';
-				}
+				strncpy(fSegments[fSegmentsNum-1].url, oneLine.Ptr, len);
+				fSegments[fSegmentsNum-1].url[len] = '\0';				
 				
 				StringParser lineParser(&oneLine);
 				if(strncasecmp(oneLine.Ptr, "http://", strlen("http://")) == 0)
@@ -135,17 +129,37 @@ int M3U8Parser::Parse(char * datap, UInt32 len)
 					// skip host
 					lineParser.ConsumeUntil(NULL, '/');
 					// get relative_url
-					strncpy(fSegments[fSegmentsNum-1].relative_url, lineParser.GetCurrentPosition(), lineParser.GetDataRemaining());
-					fSegments[fSegmentsNum-1].relative_url[lineParser.GetDataRemaining()] = '\0';
+					int relative_len = lineParser.GetDataRemaining();
+					if(relative_len >= MAX_URL_LEN)
+					{
+						fprintf(stderr, "%s: relative_len[%d] >= MAX_URL_LEN[%d]\n", __PRETTY_FUNCTION__, relative_len, MAX_URL_LEN);
+						relative_len = MAX_URL_LEN - 1;
+					}
+					strncpy(fSegments[fSegmentsNum-1].relative_url, lineParser.GetCurrentPosition(), relative_len);
+					fSegments[fSegmentsNum-1].relative_url[relative_len] = '\0';
 					// skip /
 					lineParser.Expect('/');
+					// skip m3u8 path
+					lineParser.ConsumeLength(NULL, fM3U8Path.Len);
+					lineParser.Expect('/');
 				}
-
+				
 				// get m3u8_relative_url
-				lineParser.ConsumeLength(NULL, fPath.Len);
-				lineParser.Expect('/');
-				strncpy(fSegments[fSegmentsNum-1].m3u8_relative_url, lineParser.GetCurrentPosition(), lineParser.GetDataRemaining());
-				fSegments[fSegmentsNum-1].m3u8_relative_url[lineParser.GetDataRemaining()] = '\0';
+				int m3u8_relative_len = lineParser.GetDataRemaining();
+				if(m3u8_relative_len >= MAX_URL_LEN)
+				{
+					fprintf(stderr, "%s: m3u8_relative_len[%d] >= MAX_URL_LEN[%d]\n", __PRETTY_FUNCTION__, m3u8_relative_len, MAX_URL_LEN);
+					m3u8_relative_len = MAX_URL_LEN - 1;
+				}
+				strncpy(fSegments[fSegmentsNum-1].m3u8_relative_url, lineParser.GetCurrentPosition(), m3u8_relative_len);
+				fSegments[fSegmentsNum-1].m3u8_relative_url[m3u8_relative_len] = '\0';
+
+				if(strlen(fSegments[fSegmentsNum-1].relative_url) == 0)
+				{
+					snprintf(fSegments[fSegmentsNum-1].relative_url, MAX_URL_LEN-1, "/%s/%s", 
+						fM3U8Path.Ptr, fSegments[fSegmentsNum-1].m3u8_relative_url);
+					fSegments[fSegmentsNum-1].relative_url[MAX_URL_LEN-1] = '\0';
+				}
 
 				// get sequence
 				lineParser.ConsumeUntil(NULL, '_');
