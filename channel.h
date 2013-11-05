@@ -16,6 +16,8 @@
 #define MAX_M3U8_NUM		2
 #define MAX_URL_LEN			256
 
+#define MAX_M3U8_CONTENT_LEN (1024*4)
+
 typedef struct data_t
 {
 	void*		datap;	
@@ -25,7 +27,14 @@ typedef struct data_t
 
 typedef struct seg_t
 {
-	char 		url[MAX_URL_LEN];	
+	//#EXTINF:10,
+	u_int32_t 	inf;
+	//#EXT-X-BYTERANGE:1095852
+	u_int64_t	byte_range;
+	// 565631
+	u_int64_t	sequence;
+	char 		relative_url[MAX_URL_LEN];	
+	char 		m3u8_relative_url[MAX_URL_LEN];
 	DATA_T		data;
 } SEG_T;
 

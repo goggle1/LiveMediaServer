@@ -23,7 +23,7 @@ virtual     SInt64      Run();
 	int 	Write(StrPtrLen& file_name, char* datap, UInt32 len);
 	int 	RewriteM3U8(M3U8Parser* parserp);	
 	int 	MemoM3U8(M3U8Parser* parserp);
-	int 	MemoSegment(char* url, char* datap, UInt32 len);
+	int 	MemoSegment(SEGMENT_T* segp, char* datap, UInt32 len);
 	
 
 		//
@@ -53,6 +53,7 @@ virtual     SInt64      Run();
 		TCPClientSocket* 	fSocket;
 		HTTPClient*			fClient;
 		StrPtrLen   		fURL;
+		StrPtrLen			fM3U8Path;
 		CHANNEL_T*			fChannel;
 		MEMORY_T*			fMemory;
 		char*				fType;

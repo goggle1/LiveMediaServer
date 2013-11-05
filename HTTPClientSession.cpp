@@ -69,6 +69,7 @@ HTTPClientSession::HTTPClientSession(UInt32 inAddr, UInt16 inPort, const StrPtrL
 	{
 		channelp->memoryp_mp4 = fMemory;
 	}
+	
 	this->Set(inURL);
 	this->Signal(Task::kStartEvent);
 
@@ -100,6 +101,25 @@ void HTTPClientSession::Set(const StrPtrLen& inURL)
     }
     ::memcpy(destPtr, inURL.Ptr, inURL.Len);
     fURL.Ptr[fURL.Len] = '\0';
+
+    // get m3u8 path    
+    delete [] fM3U8Path.Ptr;
+    int path_len = 0;
+    int index = fURL.Len;
+    for(index=fURL.Len; index>=1; index--)
+    {
+    	if(fURL.Ptr[index] == '/')
+    	{
+    		path_len = index - 1;
+    	}
+    }
+    fM3U8Path.Ptr = new char[path_len+1];
+    fM3U8Path.Len = path_len;
+    ::memcpy(fM3U8Path.Ptr, fURL.Ptr+1, path_len);
+    fM3U8Path.Ptr[path_len] = '\0';   
+
+    fM3U8Parser.SetPath(&fM3U8Path);
+    
 }
 
 
@@ -152,26 +172,19 @@ int HTTPClientSession::Log(char * url,char * datap, UInt32 len)
 	return ret;
 }
 
-int HTTPClientSession::MemoSegment(char * url, char * datap, UInt32 len)
-{
-	StrPtrLen AbsoluteURI(url);
-	StringParser urlParser(&AbsoluteURI);
-  
-    // we always should have a slash before the URI
-    // If not, that indicates this is a full URI
-    if (AbsoluteURI.Ptr[0] != '/')
-    {
-	    //if it is a full URL, store the scheme and host name
-	    urlParser.ConsumeLength(NULL, 7); //consume "http://"
-	    urlParser.ConsumeUntil(NULL, '/');
-    }    
-    
-	char* relative_url = urlParser.GetCurrentPosition();
-	
+int HTTPClientSession::MemoSegment(SEGMENT_T* onep, char * datap, UInt32 len)
+{	
 	SEG_T* segp = &(fMemory->segs[fMemory->seg_index]);	
 
-	strncpy(segp->url, relative_url, MAX_URL_LEN-1);
-	segp->url[MAX_URL_LEN-1] = '\0';
+	segp->inf = onep->inf;
+	segp->byte_range = onep->byte_range;
+	segp->sequence = onep->sequence;	
+	
+	strncpy(segp->relative_url, onep->relative_url, MAX_URL_LEN-1);
+	segp->relative_url[MAX_URL_LEN-1] = '\0';	
+
+	strncpy(segp->m3u8_relative_url, onep->m3u8_relative_url, MAX_URL_LEN-1);
+	segp->m3u8_relative_url[MAX_URL_LEN-1] = '\0';
 
 	if(segp->data.datap != NULL)
 	{
@@ -215,8 +228,8 @@ int HTTPClientSession::MemoM3U8(M3U8Parser* parserp)
 
 	if(m3u8p->datap == NULL)
 	{	
-		m3u8p->datap = malloc(1024);
-		m3u8p->size = 1024;		
+		m3u8p->datap = malloc(MAX_M3U8_CONTENT_LEN);
+		m3u8p->size = MAX_M3U8_CONTENT_LEN;		
 	}
 		
 	if(m3u8p->datap != NULL)
@@ -224,29 +237,14 @@ int HTTPClientSession::MemoM3U8(M3U8Parser* parserp)
 		StringFormatter content((char*)m3u8p->datap, m3u8p->size);	
 		content.Put("#EXTM3U\n");
 		content.PutFmtStr("#EXT-X-TARGETDURATION:%d\n", parserp->fTargetDuration);
-		content.PutFmtStr("#EXT-X-MEDIA-SEQUENCE:%d\n", parserp->fMediaSequence);
+		content.PutFmtStr("#EXT-X-MEDIA-SEQUENCE:%lu\n", parserp->fMediaSequence);
 		int index = 0;
 		for(index=0; index<parserp->fSegmentsNum; index++)
 		{
 			SEGMENT_T* segp = &(parserp->fSegments[index]);
 			content.PutFmtStr("#EXTINF:%u,\n", segp->inf);
 			content.PutFmtStr("#EXT-X-BYTERANGE:%lu,\n", segp->byte_range);
-
-			StrPtrLen AbsoluteURI(segp->url);
-			StringParser urlParser(&AbsoluteURI);
-		  
-		    // we always should have a slash before the URI
-		    // If not, that indicates this is a full URI
-		    if (AbsoluteURI.Ptr[0] != '/')
-		    {
-		            //if it is a full URL, store the scheme and host name
-		            urlParser.ConsumeLength(NULL, 7); //consume "http://"
-		            urlParser.ConsumeUntil(NULL, '/');
-		    } 
-		    urlParser.Expect('/');
-		    urlParser.ConsumeUntil(NULL, '/');
-		    urlParser.Expect('/');
-			content.PutFmtStr("%s\n", urlParser.GetCurrentPosition());
+			content.PutFmtStr("%s\n", segp->m3u8_relative_url);
 		}
 	
 		content.PutTerminator();
@@ -284,7 +282,7 @@ int HTTPClientSession::RewriteM3U8(M3U8Parser* parserp)
 	*/
 	ret = dprintf(fd, "#EXTM3U\n");	
 	ret = dprintf(fd, "#EXT-X-TARGETDURATION:%d\n", parserp->fTargetDuration);
-	ret = dprintf(fd, "#EXT-X-MEDIA-SEQUENCE:%d\n", parserp->fMediaSequence);
+	ret = dprintf(fd, "#EXT-X-MEDIA-SEQUENCE:%lu\n", parserp->fMediaSequence);
 	
 	int index = 0;
 	for(index=0; index<parserp->fSegmentsNum; index++)
@@ -292,19 +290,7 @@ int HTTPClientSession::RewriteM3U8(M3U8Parser* parserp)
 		SEGMENT_T* segp = &(parserp->fSegments[index]);
 		ret = dprintf(fd, "#EXTINF:%u,\n", segp->inf);
 		ret = dprintf(fd, "#EXT-X-BYTERANGE:%lu,\n", segp->byte_range);
-
-		StrPtrLen AbsoluteURI(segp->url);
-		StringParser urlParser(&AbsoluteURI);
-	  
-	    // we always should have a slash before the URI
-	    // If not, that indicates this is a full URI
-	    if (AbsoluteURI.Ptr[0] != '/')
-	    {
-	            //if it is a full URL, store the scheme and host name
-	            urlParser.ConsumeLength(NULL, 7); //consume "http://"
-	            urlParser.ConsumeUntil(NULL, '/');
-	    }    
-		ret = dprintf(fd, "%s\n", urlParser.GetCurrentPosition());
+		ret = dprintf(fd, "%s\n", segp->relative_url);
 	}
 
 	close(fd);
@@ -458,7 +444,7 @@ SInt64 HTTPClientSession::Run()
                     else
                     {
                     	Log(fM3U8Parser.fSegments[fGetIndex].url, fClient->GetContentBody(), fClient->GetContentLength());
-                    	MemoSegment(fM3U8Parser.fSegments[fGetIndex].url, fClient->GetContentBody(), fClient->GetContentLength());
+                    	MemoSegment(&(fM3U8Parser.fSegments[fGetIndex]), fClient->GetContentBody(), fClient->GetContentLength());
                     	memcpy(&(fDownloadSegments[fDownloadIndex]), &(fM3U8Parser.fSegments[fGetIndex]), sizeof(SEGMENT_T));
                     	fDownloadIndex ++;
                     	if(fDownloadIndex >= MAX_SEGMENT_NUM)

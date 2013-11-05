@@ -1510,14 +1510,24 @@ Bool16 HTTPSession::ResponseLiveM3U8()
 		return ret;
 	}
 
-	char* type = LIVE_TS;
+	char* param_type = LIVE_FLV;
+	int   param_seq = -1;
+	int   param_count = -1;
 	DEQUE_NODE* nodep = fRequest.fParamPairs;
 	while(nodep)
 	{
 		UriParam* paramp = (UriParam*)nodep->datap;
 		if(strcasecmp(paramp->key, "codec") == 0)
 		{
-			type = paramp->value;
+			param_type = paramp->value;
+		}
+		else if(strcasecmp(paramp->key, "seq") == 0)
+		{
+			param_seq = atoi(paramp->value);
+		}
+		else if(strcasecmp(paramp->key, "len") == 0)
+		{
+			param_count = atoi(paramp->value);
 		}
 		
 		if(nodep->nextp == fRequest.fParamPairs)
@@ -1528,15 +1538,15 @@ Bool16 HTTPSession::ResponseLiveM3U8()
 	}
 	
 	MEMORY_T* memoryp = NULL;
-	if(strcasecmp(type, LIVE_TS) == 0)
+	if(strcasecmp(param_type, LIVE_TS) == 0)
 	{
 		memoryp = channelp->memoryp_ts;
 	}
-	else if(strcasecmp(type, LIVE_FLV) == 0)
+	else if(strcasecmp(param_type, LIVE_FLV) == 0)
 	{
 		memoryp = channelp->memoryp_flv;
 	}
-	else if(strcasecmp(type, LIVE_MP4) == 0)
+	else if(strcasecmp(param_type, LIVE_MP4) == 0)
 	{
 		memoryp = channelp->memoryp_mp4;
 	}
@@ -1545,20 +1555,90 @@ Bool16 HTTPSession::ResponseLiveM3U8()
 		ret = ResponseError(httpNotFound);
 		return ret;
 	}
-	
-	if(memoryp->m3u8_num == 0)
+
+	if(param_count == -1)
 	{
-		ret = ResponseError(httpNotFound);
-		return ret;
+		if(memoryp->m3u8_num == 0)
+		{
+			ret = ResponseError(httpNotFound);
+			return ret;
+		}
+		int index = memoryp->m3u8_index;
+		index --;
+		if(index < 0)
+		{
+			index = MAX_M3U8_NUM-1;		
+		}
+		
+		ResponseContent((char*)memoryp->m3u8s[index].datap, memoryp->m3u8s[index].len, CONTENT_TYPE_APPLICATION_M3U8);
 	}
-	int index = memoryp->m3u8_index;
-	index --;
-	if(index < 0)
-	{
-		index = MAX_M3U8_NUM-1;		
+	else
+	{		
+		int index = memoryp->seg_index - 1;	
+		if(index<0)
+		{
+			index = MAX_SEG_NUM - 1;
+		}
+			
+		int count = 0;
+		while(1)
+		{
+			SEG_T* onep = &(memoryp->segs[index]);
+			if(param_seq != -1 && (int64_t)onep->sequence < param_seq)
+			{	
+				break;
+			}
+			
+			count ++;			
+			index --;
+			if(index<0)
+			{
+				index = MAX_SEG_NUM - 1;
+			}
+
+			if(count >= memoryp->seg_num || count >= param_count)
+			{
+				break;
+			}
+		}
+
+		index ++;
+		if(index>=MAX_SEG_NUM)
+		{
+			index = 0;
+		}
+		
+		char m3u8_buffer[MAX_M3U8_CONTENT_LEN];
+		StringFormatter content(m3u8_buffer, MAX_M3U8_CONTENT_LEN);	
+		content.Put("#EXTM3U\n");
+		content.PutFmtStr("#EXT-X-TARGETDURATION:%d\n", 10);
+		content.PutFmtStr("#EXT-X-MEDIA-SEQUENCE:%lu\n", memoryp->segs[index].sequence);
+			
+		int count2 = 0;
+		while(1)
+		{
+			SEG_T* onep = &(memoryp->segs[index]);
+			content.PutFmtStr("#EXTINF:%u,\n", onep->inf);
+			content.PutFmtStr("#EXT-X-BYTERANGE:%lu,\n", onep->byte_range);
+			content.PutFmtStr("%s\n", onep->m3u8_relative_url);
+
+			count2 ++;
+			index ++;
+			if(index>=MAX_SEG_NUM)
+			{
+				index = 0;
+			}
+			
+			if(count2>=count)
+			{
+				break;
+			}
+		}
+		content.PutTerminator();
+
+		ResponseContent(m3u8_buffer, content.GetBytesWritten(), CONTENT_TYPE_APPLICATION_M3U8);
+		
 	}
-	
-	ResponseContent((char*)memoryp->m3u8s[index].datap, memoryp->m3u8s[index].len, CONTENT_TYPE_APPLICATION_M3U8);
 	
 	return ret;
 }
@@ -1590,8 +1670,7 @@ Bool16 HTTPSession::ResponseLiveSegment()
 	{
 		ret = ResponseError(httpNotFound);
 		return ret;
-	}
-	// get type
+	}	
 	parser.ConsumeUntil(NULL, '.');
 	parser.Expect('.');
 	StrPtrLen seg3;
@@ -1632,7 +1711,7 @@ Bool16 HTTPSession::ResponseLiveSegment()
 	while(count <= memoryp->seg_num)
 	{
 		SEG_T* onep = &(memoryp->segs[index]);
-		if(strncmp(onep->url, fRequest.fRelativeURI.Ptr, strlen(onep->url)) == 0)
+		if(strncmp(onep->relative_url, fRequest.fRelativeURI.Ptr, strlen(onep->relative_url)) == 0)
 		{
 			segp = onep;
 			break;

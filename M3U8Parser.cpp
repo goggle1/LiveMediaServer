@@ -20,6 +20,24 @@ M3U8Parser::~M3U8Parser()
 	}
 }
 
+int M3U8Parser::SetPath(StrPtrLen* pathp)
+{
+	if(fPath.Ptr != NULL)
+	{
+		delete []fPath.Ptr;
+		fPath.Ptr = NULL;
+		fPath.Len = 0;
+	}
+
+	char *dataCopy = new char[pathp->Len+1];  
+    memcpy(dataCopy, pathp->Ptr, pathp->Len);
+    dataCopy[pathp->Len] = '\0';
+
+    fPath.Set(dataCopy, pathp->Len);
+	
+	return 0;
+}
+
 int M3U8Parser::Parse(char * datap, UInt32 len)
 {
 	if(fData.Ptr != NULL)
@@ -29,8 +47,9 @@ int M3U8Parser::Parse(char * datap, UInt32 len)
 		fData.Len = 0;
 	}
 	
-	char *dataCopy = new char[len];  
+	char *dataCopy = new char[len+1];  
     memcpy(dataCopy, datap, len);
+    dataCopy[len] = '\0';
     fData.Set(dataCopy, len);
 
 	/*
@@ -77,7 +96,7 @@ int M3U8Parser::Parse(char * datap, UInt32 len)
 		}
 		else if(strncasecmp(oneLine.Ptr, "#EXT-X-MEDIA-SEQUENCE:", strlen("#EXT-X-MEDIA-SEQUENCE:")) == 0)
 		{
-			fMediaSequence = atoi(oneLine.Ptr+strlen("#EXT-X-MEDIA-SEQUENCE:"));
+			fMediaSequence = atol(oneLine.Ptr+strlen("#EXT-X-MEDIA-SEQUENCE:"));
 		}
 		else if(strncasecmp(oneLine.Ptr, "#EXTINF:", strlen("#EXTINF:")) == 0)
 		{
@@ -95,7 +114,7 @@ int M3U8Parser::Parse(char * datap, UInt32 len)
 		else if(oneLine.Ptr[0] != '#')
 		{			
 			if(fSegmentsNum > 0)
-			{
+			{				
 				int len = oneLine.Len;
 				if(len < MAX_URL_LEN)
 				{
@@ -108,6 +127,36 @@ int M3U8Parser::Parse(char * datap, UInt32 len)
 					strncpy(fSegments[fSegmentsNum-1].url, oneLine.Ptr, MAX_URL_LEN-1);
 					fSegments[fSegmentsNum-1].url[MAX_URL_LEN-1] = '\0';
 				}
+				
+				StringParser lineParser(&oneLine);
+				if(strncasecmp(oneLine.Ptr, "http://", strlen("http://")) == 0)
+				{
+					lineParser.ConsumeLength(NULL, strlen("http://"));
+					// skip host
+					lineParser.ConsumeUntil(NULL, '/');
+					// get relative_url
+					strncpy(fSegments[fSegmentsNum-1].relative_url, lineParser.GetCurrentPosition(), lineParser.GetDataRemaining());
+					fSegments[fSegmentsNum-1].relative_url[lineParser.GetDataRemaining()] = '\0';
+					// skip /
+					lineParser.Expect('/');
+				}
+
+				// get m3u8_relative_url
+				lineParser.ConsumeLength(NULL, fPath.Len);
+				lineParser.Expect('/');
+				strncpy(fSegments[fSegmentsNum-1].m3u8_relative_url, lineParser.GetCurrentPosition(), lineParser.GetDataRemaining());
+				fSegments[fSegmentsNum-1].m3u8_relative_url[lineParser.GetDataRemaining()] = '\0';
+
+				// get sequence
+				lineParser.ConsumeUntil(NULL, '_');
+				lineParser.Expect('_');
+				lineParser.ConsumeUntil(NULL, '_');
+				lineParser.Expect('_');
+				lineParser.ConsumeUntil(NULL, '_');
+				lineParser.Expect('_');
+				lineParser.ConsumeUntil(NULL, '_');
+				lineParser.Expect('_');
+				fSegments[fSegmentsNum-1].sequence = atol(lineParser.GetCurrentPosition());
 			}
 		}		
     }
