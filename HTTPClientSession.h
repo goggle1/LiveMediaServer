@@ -14,7 +14,7 @@
 class HTTPClientSession : public Task
 {
 	public:
-		HTTPClientSession(UInt32 inAddr, UInt16 inPort, const StrPtrLen& inURL, CHANNEL_T* channelp, char* type);
+		HTTPClientSession(const StrPtrLen& inURL, CHANNEL_T* channelp, char* type);
 virtual	~HTTPClientSession();
 virtual     SInt64      Run();
 	Bool16	IsDownloaded(SEGMENT_T* segp);
@@ -48,8 +48,8 @@ virtual     SInt64      Run();
         };
 
 	protected:
-		UInt32				fInAddr;
-		UInt16				fInPort;
+		//UInt32				fInAddr;
+		//UInt16				fInPort;
 		TCPClientSocket* 	fSocket;
 		HTTPClient*			fClient;
 		StrPtrLen   		fURL;

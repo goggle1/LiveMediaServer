@@ -68,9 +68,6 @@
 #define CMD_LIST_CHANNEL  	"/cmd/list_channel/"
 #define CMD_ADD_CHANNEL  	"/cmd/add_channel/"
 #define CMD_DEL_CHANNEL  	"/cmd/del_channel/"
-#define CMD_LIST_SOURCE  	"/cmd/list_source/"
-#define CMD_ADD_SOURCE  	"/cmd/add_source/"
-#define CMD_DEL_SOURCE  	"/cmd/del_source/"
 #define URI_LIVESTREAM		"/livestream/"
 #define LIVE_TS				"ts"
 #define LIVE_FLV			"flv"
@@ -519,8 +516,8 @@ Bool16 HTTPSession::SendData()
     theErr = fSocket.Send(fStrRemained.Ptr, fStrRemained.Len, &send_len);
     if(send_len > 0)
     {        
-    	fprintf(stdout, "%s %s[%d][0x%016lX] send %u, return %u\n", 
-        __FILE__, __PRETTY_FUNCTION__, __LINE__, (long)this, fStrRemained.Len, send_len);
+    	//fprintf(stdout, "%s %s[%d][0x%016lX] send %u, return %u\n", 
+        //__FILE__, __PRETTY_FUNCTION__, __LINE__, (long)this, fStrRemained.Len, send_len);
         fStrRemained.Ptr += send_len;
         fStrRemained.Len -= send_len;
         ::memmove(fResponseBuffer, fStrRemained.Ptr, fStrRemained.Len);
@@ -730,8 +727,8 @@ Bool16 HTTPSession::ReadFileContent()
 		return false;
 	}
 
-	fprintf(stdout, "%s %s[%d][0x%016lX] read %u, return %lu\n", 
-        __FILE__, __PRETTY_FUNCTION__, __LINE__, (long)this, kReadBufferSize, count);
+	//fprintf(stdout, "%s %s[%d][0x%016lX] read %u, return %lu\n", 
+    //    __FILE__, __PRETTY_FUNCTION__, __LINE__, (long)this, kReadBufferSize, count);
 
     fResponse.Set(fStrRemained.Ptr+fStrRemained.Len, kResponseBufferSizeInBytes-fStrRemained.Len);
     fResponse.Put(fBuffer, count);
@@ -799,8 +796,8 @@ Bool16 HTTPSession::ResponseCmdAddChannel()
 		{
 			channelp->codec_mp4 = atoi(paramp->value);
 		}
-		else if(strcmp(paramp->key, "source") == 0)
-		{
+		else if(strcmp(paramp->key, "source") == 0 && strlen(paramp->value)>0)
+		{			
 			u_int32_t ip = 0;
 			u_int16_t port = 80;
 			#define MAX_IP_LEN			16
@@ -1071,6 +1068,7 @@ Bool16 HTTPSession::ResponseCmdListChannel()
 	return ret;
 }
 
+#if 0
 Bool16 HTTPSession::ResponseCmdAddSource()
 {
 	Bool16 ret = true;
@@ -1374,7 +1372,7 @@ Bool16 HTTPSession::ResponseCmdListSource()
 	
 	return ret;
 }
-
+#endif
 
 Bool16 HTTPSession::ResponseCmdResult(char* cmd, char* result, char* reason)
 {
@@ -1409,6 +1407,26 @@ Bool16 HTTPSession::ResponseCmdResult(char* cmd, char* result, char* reason)
 	content.Put("</TH>\n");
 	content.Put("<TD align=\"left\">\n");
 	content.PutFmtStr("%s\n", reason);
+	content.Put("</TD>\n");	
+	content.Put("</TR>\n");
+
+	content.Put("<TR>\n");	
+	content.Put("<TD>\n");
+	content.Put("server:\n");
+	content.Put("</TD>\n");
+	content.Put("<TD>\n");
+	content.PutFmtStr("%s/%s\n", BASE_SERVER_NAME, BASE_SERVER_VERSION);	
+	content.Put("</TD>\n");	
+	content.Put("</TR>\n");
+
+	content.Put("<TR>\n");	
+	content.Put("<TD>\n");
+	content.Put("time:");
+	content.Put("</TD>\n");
+	content.Put("<TD>\n");
+	time_t now = time(NULL);
+	char* now_str = ctime(&now);
+	content.PutFmtStr("%s\n", now_str);
 	content.Put("</TD>\n");	
 	content.Put("</TR>\n");
 
@@ -1465,19 +1483,7 @@ Bool16 HTTPSession::ResponseCmd()
 	else if(strncmp(fRequest.fAbsoluteURI.Ptr, CMD_DEL_CHANNEL, strlen(CMD_DEL_CHANNEL)) == 0)
 	{
 		ret = ResponseCmdDelChannel();
-	}	
-	else if(strncmp(fRequest.fAbsoluteURI.Ptr, CMD_LIST_SOURCE, strlen(CMD_LIST_SOURCE)) == 0)
-	{
-		ret = ResponseCmdListSource();
-	}	
-	else if(strncmp(fRequest.fAbsoluteURI.Ptr, CMD_ADD_SOURCE, strlen(CMD_ADD_SOURCE)) == 0)
-	{
-		ret = ResponseCmdAddSource();		
-	}
-	else if(strncmp(fRequest.fAbsoluteURI.Ptr, CMD_DEL_SOURCE, strlen(CMD_DEL_SOURCE)) == 0)
-	{
-		ret = ResponseCmdDelSource();
-	}
+	}		
 	else 
 	{
 		ret = ResponseError(httpBadRequest);

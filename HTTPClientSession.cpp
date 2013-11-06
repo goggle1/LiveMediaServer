@@ -43,15 +43,13 @@ int make_dir(StrPtrLen& dir)
 	return 0;
 }
 
-HTTPClientSession::HTTPClientSession(UInt32 inAddr, UInt16 inPort, const StrPtrLen& inURL, CHANNEL_T* channelp, char* type)
+HTTPClientSession::HTTPClientSession(const StrPtrLen& inURL, CHANNEL_T* channelp, char* type)
 	:fTimeoutTask(this, 60)
-{
-	fInAddr = inAddr;
-	fInPort = inPort;
+{	
 	fSocket = new TCPClientSocket(Socket::kNonBlockingSocketType);	
-	fSocket->Set(fInAddr, fInPort);
+	//fSocket->Set(fInAddr, fInPort);
 	
-	fClient = new HTTPClient(fSocket);	
+	fClient = new HTTPClient(fSocket, channelp);	
 
 	fChannel= channelp;
 	fType	= strdup(type);
@@ -82,6 +80,19 @@ HTTPClientSession::HTTPClientSession(UInt32 inAddr, UInt16 inPort, const StrPtrL
 
 HTTPClientSession::~HTTPClientSession()
 {
+	delete [] fM3U8Path.Ptr;
+	delete [] fURL.Ptr;
+	
+	if(fClient != NULL)
+	{
+		delete fClient;
+		fClient = NULL;
+	}
+	if(fSocket != NULL)
+	{
+		delete fSocket;
+		fSocket = NULL;
+	}
 	fprintf(stdout, "%s\n", __PRETTY_FUNCTION__);
 }
 
@@ -421,7 +432,7 @@ SInt64 HTTPClientSession::Run()
 	            	}
             	}            	
             	
-            	theErr = fClient->SendGetSegment(fM3U8Parser.fSegments[fGetIndex].url);
+            	theErr = fClient->SendGetSegment(fM3U8Parser.fSegments[fGetIndex].relative_url);
             	if (theErr == OS_NoErr)
                 {   
                 	if (fClient->GetStatus() != 200)
@@ -444,7 +455,7 @@ SInt64 HTTPClientSession::Run()
                     }
                     else
                     {
-                    	Log(fM3U8Parser.fSegments[fGetIndex].url, fClient->GetContentBody(), fClient->GetContentLength());
+                    	Log(fM3U8Parser.fSegments[fGetIndex].relative_url, fClient->GetContentBody(), fClient->GetContentLength());
                     	MemoSegment(&(fM3U8Parser.fSegments[fGetIndex]), fClient->GetContentBody(), fClient->GetContentLength());
                     	memcpy(&(fDownloadSegments[fDownloadIndex]), &(fM3U8Parser.fSegments[fGetIndex]), sizeof(SEGMENT_T));
                     	fDownloadIndex ++;

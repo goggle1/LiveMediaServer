@@ -85,14 +85,14 @@ int channel_add_source(CHANNEL_T* channelp, u_int32_t ip, u_int16_t port)
 
 int start_channel(CHANNEL_T* channelp)
 {
-	DEQUE_NODE* source_list = channelp->source_list;
-	DEQUE_NODE* nodep = source_list;
-	if(nodep == NULL)
+	DEQUE_NODE* source_list = channelp->source_list;	
+	if(source_list == NULL)
 	{
 		return -1;
 	}
-	
-	SOURCE_T* sourcep = (SOURCE_T*)nodep->datap;
+
+	//DEQUE_NODE* nodep = source_list;
+	//SOURCE_T* sourcep = (SOURCE_T*)nodep->datap;
 	if(channelp->codec_ts)
 	{		
 		//StrPtrLen 	inURL("http://192.168.8.197:1180/1100000000000000000000000000000000000000.m3u8");
@@ -102,7 +102,7 @@ int start_channel(CHANNEL_T* channelp)
 		snprintf(url, MAX_URL_LEN-1, "/livestream/%s.m3u8?codec=%s", channelp->liveid, type);
 		url[MAX_URL_LEN-1] = '\0';
 		StrPtrLen inURL(url);
-		HTTPClientSession* sessionp = new HTTPClientSession(sourcep->ip, sourcep->port, inURL, channelp, type);	
+		HTTPClientSession* sessionp = new HTTPClientSession(inURL, channelp, type);	
 		if(sessionp == NULL)
 		{
 			return -1;
@@ -116,7 +116,7 @@ int start_channel(CHANNEL_T* channelp)
 		snprintf(url, MAX_URL_LEN-1, "/livestream/%s.m3u8?codec=%s", channelp->liveid, type);
 		url[MAX_URL_LEN-1] = '\0';
 		StrPtrLen inURL(url);
-		HTTPClientSession* sessionp = new HTTPClientSession(sourcep->ip, sourcep->port, inURL, channelp, type);	
+		HTTPClientSession* sessionp = new HTTPClientSession(inURL, channelp, type);	
 		if(sessionp == NULL)
 		{
 			return -1;
@@ -130,7 +130,7 @@ int start_channel(CHANNEL_T* channelp)
 		snprintf(url, MAX_URL_LEN-1, "/livestream/%s.m3u8?codec=%s", channelp->liveid, type);
 		url[MAX_URL_LEN-1] = '\0';
 		StrPtrLen inURL(url);
-		HTTPClientSession* sessionp = new HTTPClientSession(sourcep->ip, sourcep->port, inURL, channelp, type);	
+		HTTPClientSession* sessionp = new HTTPClientSession(inURL, channelp, type);	
 		if(sessionp == NULL)
 		{
 			return -1;

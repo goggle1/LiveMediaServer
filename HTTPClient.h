@@ -4,13 +4,15 @@
 
 #include "BaseServer/ClientSocket.h"
 
+#include "channel.h"
+
 #define USER_AGENT	"LiveMediaServer"
 #define MAX_HOST_LEN	64
 
 class HTTPClient
 {
 	public:
-		HTTPClient(TCPClientSocket* inSocket);
+		HTTPClient(TCPClientSocket* inSocket, CHANNEL_T* channelp);
 		~HTTPClient();				
 		OS_Error    SendGetM3U8(char* url);
 		OS_Error    SendGetSegment(char* url);
@@ -28,6 +30,8 @@ class HTTPClient
 		
 	protected:
 		TCPClientSocket*	fSocket;	
+		CHANNEL_T*			fChannel;
+		DEQUE_NODE*			fSource;
 		
 		enum { kInitial, kRequestSending, kResponseReceiving, kHeaderReceived };
         UInt32      	fState;

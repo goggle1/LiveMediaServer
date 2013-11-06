@@ -9,7 +9,7 @@
 
 #include "HTTPClient.h"
 
-HTTPClient::HTTPClient(TCPClientSocket* inSocket)
+HTTPClient::HTTPClient(TCPClientSocket* inSocket, CHANNEL_T* channelp)
 : 	fSocket(inSocket),	
 	fState(kInitial),	
 	fRecvContentBuffer(NULL),
@@ -19,7 +19,12 @@ HTTPClient::HTTPClient(TCPClientSocket* inSocket)
     fStatus(0),
 	fPacketDataInHeaderBufferLen(0),
     fPacketDataInHeaderBuffer(NULL)
-{
+{	
+	fChannel = channelp;
+	fSource = fChannel->source_list;
+	SOURCE_T* sourcep = (SOURCE_T*)fSource->datap;
+	fSocket->Set(sourcep->ip, sourcep->port);
+
 	UInt32  ip = fSocket->GetHostAddr();
 	UInt16  port = fSocket->GetHostPort();
 	UInt32	ip_net = htonl(ip);
@@ -129,6 +134,19 @@ OS_Error HTTPClient::DoTransaction()
         			{
 	        			fSocket->Disconnect((TCPSocket*)fSocket->GetSocket());
 						fSocket->Close((TCPSocket*)fSocket->GetSocket());
+						fSource = fSource->nextp;
+						SOURCE_T* sourcep = (SOURCE_T*)fSource->datap;
+						fSocket->Set(sourcep->ip, sourcep->port);
+						UInt32  ip = fSocket->GetHostAddr();
+						UInt16  port = fSocket->GetHostPort();
+						UInt32	ip_net = htonl(ip);
+						struct in_addr in;
+						in.s_addr = ip_net;
+						char* 	ip_str = inet_ntoa(in);	
+						snprintf(fHost, MAX_HOST_LEN-1, "%s:%d", ip_str, port);
+						fHost[MAX_HOST_LEN-1] = '\0';
+						fprintf(stdout, "%s: fHost=%s\n", __PRETTY_FUNCTION__, fHost);
+	
 						fState = kInitial;
 					}
             		return theErr;
@@ -280,8 +298,7 @@ OS_Error HTTPClient::ReceiveResponse()
                     // do nothing.
                 }
                 else if (theKey.NumEqualIgnoreCase(sTransferEncodingHeader.Ptr, sTransferEncodingHeader.Len))
-                {
-                	fprintf(stdout, "Transfer-Encoding\n");
+                {                	
                     // chunked
                     StrPtrLen remains(theKey.Ptr + sTransferEncodingHeader.Len, theKey.Len-sTransferEncodingHeader.Len);                    
                     StringParser parser(&remains);                    
@@ -293,7 +310,6 @@ OS_Error HTTPClient::ReceiveResponse()
                     {
                     	fChunked = true;
                     	fChunkTail = false;
-                    	fprintf(stdout, "chunked\n");
                     }
                 }
                 

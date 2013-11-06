@@ -66,13 +66,12 @@ EventContext::EventContext(int inFileDesc, EventThread* inThread)
     fWatchEventCalled(false),
     fAutoCleanup(true)
 {
-	fprintf(stdout, "%s\n", __PRETTY_FUNCTION__);
+	//fprintf(stdout, "%s\n", __PRETTY_FUNCTION__);
 }
 
 
 void EventContext::InitNonBlocking(int inFileDesc)
-{
-	fprintf(stdout, "%s\n", __PRETTY_FUNCTION__);
+{	
     fFileDesc = inFileDesc;
     
 #ifdef __Win32__
@@ -133,7 +132,7 @@ void EventContext::Cleanup()
     fFileDesc = kInvalidFileDesc;
     fUniqueID = 0;
     
-    AssertV(err == 0, OSThread::GetErrno());//we don't really care if there was an error, but it's nice to know
+    //AssertV(err == 0, OSThread::GetErrno());//we don't really care if there was an error, but it's nice to know
 }
 
 

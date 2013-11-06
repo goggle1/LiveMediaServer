@@ -33,9 +33,11 @@ protected:
         	Bool16 			ResponseCmdListChannel();
         	Bool16 			ResponseCmdAddChannel();
         	Bool16 			ResponseCmdDelChannel();  
+#if 0
         	Bool16 			ResponseCmdListSource();
         	Bool16 			ResponseCmdAddSource();
         	Bool16 			ResponseCmdDelSource();  
+#endif
         	Bool16 			ResponseContent(char* content, int len, char* type);
         	Bool16 			ResponseFile(char* absolute_path);
         	Bool16 			ResponseError(HTTPStatusCode StatusCode);
