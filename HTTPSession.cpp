@@ -11,8 +11,9 @@
 #include "BaseServer/StringParser.h"
 
 #include "public.h"
-#include "HTTPSession.h"
+#include "config.h"
 #include "channel.h"
+#include "HTTPSession.h"
 
 #define BASE_SERVER_NAME 	"TeslaStreamingServer"
 #define BASE_SERVER_VERSION "1.0"
@@ -658,7 +659,7 @@ Bool16 HTTPSession::ResponseGet()
 	}
 
 	char abs_path[PATH_MAX];
-	snprintf(abs_path, PATH_MAX-1, "%s%s", ROOT_PATH, request_file);
+	snprintf(abs_path, PATH_MAX-1, "%s%s", g_config.work_path, request_file);
 	abs_path[PATH_MAX-1] = '\0';		
 	if(file_exist(abs_path))
 	{
@@ -754,7 +755,7 @@ Bool16 HTTPSession::ResponseCmdAddChannel()
 	{
 		char* request_file = "/add_channel.html";
 		char abs_path[PATH_MAX];
-		snprintf(abs_path, PATH_MAX-1, "%s%s", ROOT_PATH, request_file);
+		snprintf(abs_path, PATH_MAX-1, "%s%s", g_config.work_path, request_file);
 		abs_path[PATH_MAX-1] = '\0';	
 		
 		ret = ResponseFile(abs_path);
@@ -895,7 +896,7 @@ Bool16 HTTPSession::ResponseCmdAddChannel()
 		}
 	}
 	
-	result = g_channels.WriteConfig(ROOT_PATH"/channels.xml");
+	result = g_channels.WriteConfig(g_config.channels_file);
 	if(result != 0)
 	{
 		char reason[MAX_REASON_LEN] = "";
@@ -919,7 +920,7 @@ Bool16 HTTPSession::ResponseCmdDelChannel()
 	{
 		char* request_file = "/del_channel.html";
 		char abs_path[PATH_MAX];
-		snprintf(abs_path, PATH_MAX-1, "%s%s", ROOT_PATH, request_file);
+		snprintf(abs_path, PATH_MAX-1, "%s%s", g_config.work_path, request_file);
 		abs_path[PATH_MAX-1] = '\0';	
 		
 		ret = ResponseFile(abs_path);
@@ -986,7 +987,7 @@ Bool16 HTTPSession::ResponseCmdDelChannel()
 		return true;
 	}
 		
-	result = g_channels.WriteConfig(ROOT_PATH"/channels.xml");
+	result = g_channels.WriteConfig(g_config.channels_file);
 	if(result != 0)
 	{
 		ResponseCmdResult("del_channel", "failure", "WriteConfig() internal failure");
@@ -997,22 +998,6 @@ Bool16 HTTPSession::ResponseCmdDelChannel()
 	
 	return ret;
 }
-
-#if 0
-Bool16 HTTPSession::ResponseCmdListChannel()
-{
-	Bool16 ret = true;	
-
-	char* request_file = "/channels.xml";
-	char abs_path[PATH_MAX];
-	snprintf(abs_path, PATH_MAX-1, "%s%s", ROOT_PATH, request_file);
-	abs_path[PATH_MAX-1] = '\0';	
-	
-	ret = ResponseFile(abs_path);
-	
-	return ret;
-}
-#endif
 
 Bool16 HTTPSession::ResponseCmdListChannel()
 {

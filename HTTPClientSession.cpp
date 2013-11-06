@@ -8,6 +8,7 @@
 #include "BaseServer/StringFormatter.h"
 
 #include "public.h"
+#include "config.h"
 #include "HTTPClientSession.h"
 
 // 10 seconds
@@ -16,7 +17,7 @@
 int make_dir(StrPtrLen& dir)
 {
 	char path[PATH_MAX] = {'\0'};
-	sprintf(path, "%s/", ROOT_PATH);
+	sprintf(path, "%s/", g_config.work_path);
 	
 	int path_len = strlen(path);	
 	if(path_len+dir.Len >= PATH_MAX)
@@ -275,7 +276,7 @@ int HTTPClientSession::MemoM3U8(M3U8Parser* parserp)
 int HTTPClientSession::RewriteM3U8(M3U8Parser* parserp)
 {
 	char path[PATH_MAX] = {'\0'};
-	sprintf(path, "%s/%s_%s.m3u8", ROOT_PATH, fType, fChannel->liveid);
+	sprintf(path, "%s/%s_%s.m3u8", g_config.work_path, fType, fChannel->liveid);
 	int fd = open(path, O_WRONLY|O_CREAT|O_TRUNC, 0666);
 	if(fd == -1)
 	{
@@ -313,7 +314,7 @@ int HTTPClientSession::RewriteM3U8(M3U8Parser* parserp)
 int HTTPClientSession::Write(StrPtrLen& file_name, char * datap, UInt32 len)
 {
 	char path[PATH_MAX] = {'\0'};
-	sprintf(path, "%s/", ROOT_PATH);
+	sprintf(path, "%s/", g_config.work_path);
 	
 	int path_len = strlen(path);	
 	if(path_len+file_name.Len >= PATH_MAX)

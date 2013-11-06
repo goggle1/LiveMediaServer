@@ -11,6 +11,7 @@
 #include "BaseServer/ev_epoll.h"
 
 #include "public.h"
+#include "config.h"
 #include "HTTPListenerSocket.h"
 #include "channel.h"
 #include "HTTPClientSession.h"
@@ -20,6 +21,7 @@
 
 #define MAX_URL_LEN		256
 
+CONFIG_T	g_config = {};
 ChannelList g_channels;
 
 int start_server()
@@ -47,8 +49,8 @@ int start_server()
 		createListeners = false;		
 	sServer->Initialize(inPrefsSource, inMessagesSource, inPortOverride,createListeners);
 	*/
-	UInt32 server_ip    = DEFAULT_HTTP_SERVER_IP;
-	UInt16 server_port  = DEFAULT_HTTP_SERVER_PORT;			
+	UInt32 server_ip    = inet_network(g_config.ip);
+	UInt16 server_port  = g_config.port;			
     HTTPListenerSocket* listenerp = new HTTPListenerSocket();
     if(listenerp == NULL)
     {
@@ -159,52 +161,37 @@ int start_clients()
 	return 0;
 }
 
-int test()
-{
-	M3U8Parser parser;
-	StrPtrLen m3u8_path("livestream");
-	parser.SetPath(&m3u8_path);
-
-	char* datap = 
-		"#EXTM3U\n"
-		"#EXT-X-TARGETDURATION:10\n"
-		"#EXT-X-MEDIA-SEQUENCE:565631\n"
-		"#EXTINF:10,\n"
-		"#EXT-X-BYTERANGE:1095852\n"
-		"http://lm.funshion.com/livestream/3702892333/fd5f6b86b836e38c8eed27c9e66e3e6dcf0a69b2/ts/2013/10/25/20131017T174027_03_20131024_155801_565631.ts\n";
-	int len = strlen(datap);
-	parser.Parse(datap, len);
-	
-	char* data2p = 
-		"#EXTM3U\n"
-		"#EXT-X-TARGETDURATION:10\n"
-		"#EXT-X-MEDIA-SEQUENCE:565631\n"
-		"#EXTINF:10,\n"
-		"#EXT-X-BYTERANGE:1095852\n"
-		"3702892333/fd5f6b86b836e38c8eed27c9e66e3e6dcf0a69b2/ts/2013/10/25/20131017T174027_03_20131024_155801_565631.ts\n";
-	int len2 = strlen(data2p);
-	parser.Parse(data2p, len2);
-
-	return 0;
-	
-}
-
 int main(int argc, char* argv[])
 {
 	int ret = 0;
+
+	char* config_file = "/etc/LiveMediaServer.xml";
+	ret = config_read(&g_config, config_file);
+	if(ret != 0)
+	{
+		fprintf(stderr, "config_read %s error!\n", config_file);
+		return ret;
+	}
 	
-	char* config_file = ROOT_PATH"/channels.xml";
-	ret = g_channels.ReadConfig(config_file);
+	char* channels_file = g_config.channels_file;
+	ret = g_channels.ReadConfig(channels_file);
+	if(ret != 0)
+	{
+		fprintf(stderr, "g_channels.ReadConfig %s error!\n", channels_file);
+		//return ret;
+	}
 	
 	ret = start_server();
 	if(ret != 0)
 	{
+		fprintf(stderr, "start_server error!\n");
 		return ret;
 	}
 
 	ret = start_clients();
 	if(ret != 0)
 	{
+		fprintf(stderr, "start_clients error!\n");
 		return ret;
 	}	
 	
