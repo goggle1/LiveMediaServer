@@ -410,6 +410,10 @@ SInt64     HTTPSession::Run()
     			willRequestEvent = willRequestEvent | EV_WR;
     		}
     	}
+    	else
+    	{
+    		willRequestEvent = willRequestEvent | EV_RE;
+    	}
    	}
 
     if(events & Task::kReadEvent)
@@ -692,8 +696,8 @@ Bool16 HTTPSession::ReadSegmentContent()
 		fMemoryPosition = 0;
 	}
 	
-	fprintf(stdout, "%s %s[%d][0x%016lX] read %u, return %u\n", 
-        __FILE__, __PRETTY_FUNCTION__, __LINE__, (long)this, kReadBufferSize, count);
+	//fprintf(stdout, "%s %s[%d][0x%016lX] read %u, return %u\n", 
+    //    __FILE__, __PRETTY_FUNCTION__, __LINE__, (long)this, kReadBufferSize, count);
 
 	fResponse.Set(fStrRemained.Ptr+fStrRemained.Len, kResponseBufferSizeInBytes-fStrRemained.Len);
     fResponse.Put(fBuffer, count);
@@ -1442,7 +1446,10 @@ Bool16 HTTPSession::ResponseCmdResult(char* cmd, char* result, char* reason)
 Bool16 HTTPSession::ResponseContent(char* content, int len, char* type)
 {			
 	fResponse.Set(fStrRemained.Ptr+fStrRemained.Len, kResponseBufferSizeInBytes-fStrRemained.Len);
-	fResponse.Put("HTTP/1.0 200 OK\r\n");
+	fResponse.PutFmtStr("%s %s %s\r\n", 
+    	HTTPProtocol::GetVersionString(http11Version)->Ptr,
+    	HTTPProtocol::GetStatusCodeAsString(httpOK)->Ptr,
+    	HTTPProtocol::GetStatusCodeString(httpOK)->Ptr);
 	fResponse.PutFmtStr("Server: %s/%s\r\n", BASE_SERVER_NAME, BASE_SERVER_VERSION);
 	fResponse.PutFmtStr("Content-Length: %d\r\n", len);
 	//fResponse.PutFmtStr("Content-Type: %s; charset=utf-8\r\n", content_type);
@@ -1746,7 +1753,10 @@ Bool16 HTTPSession::ResponseLiveSegment()
 	fMemoryPosition = 0;
 	
 	fResponse.Set(fStrRemained.Ptr+fStrRemained.Len, kResponseBufferSizeInBytes-fStrRemained.Len);
-    fResponse.Put("HTTP/1.0 200 OK\r\n");
+	fResponse.PutFmtStr("%s %s %s\r\n", 
+			HTTPProtocol::GetVersionString(http11Version)->Ptr,
+			HTTPProtocol::GetStatusCodeAsString(httpOK)->Ptr,
+			HTTPProtocol::GetStatusCodeString(httpOK)->Ptr);
     fResponse.PutFmtStr("Server: %s/%s\r\n", BASE_SERVER_NAME, BASE_SERVER_VERSION);
     fResponse.PutFmtStr("Content-Length: %ld\r\n", fMemory->len);
     //fResponse.PutFmtStr("Content-Type: %s; charset=utf-8\r\n", content_type);
@@ -1792,7 +1802,10 @@ Bool16 HTTPSession::ResponseFile(char* abs_path)
 	char* content_type = content_type_by_suffix(suffix);
 	
 	fResponse.Set(fStrRemained.Ptr+fStrRemained.Len, kResponseBufferSizeInBytes-fStrRemained.Len);
-    fResponse.Put("HTTP/1.0 200 OK\r\n");
+	fResponse.PutFmtStr("%s %s %s\r\n", 
+			HTTPProtocol::GetVersionString(http11Version)->Ptr,
+			HTTPProtocol::GetStatusCodeAsString(httpOK)->Ptr,
+			HTTPProtocol::GetStatusCodeString(httpOK)->Ptr);
     fResponse.PutFmtStr("Server: %s/%s\r\n", BASE_SERVER_NAME, BASE_SERVER_VERSION);
     fResponse.PutFmtStr("Content-Length: %ld\r\n", file_len);
     //fResponse.PutFmtStr("Content-Type: %s; charset=utf-8\r\n", content_type);
@@ -1903,7 +1916,8 @@ Bool16 HTTPSession::ResponseError(HTTPStatusCode status_code)
 	content.Put("</HTML>\n");
     
     fResponse.Set(fStrRemained.Ptr+fStrRemained.Len, kResponseBufferSizeInBytes-fStrRemained.Len);
-    fResponse.PutFmtStr("HTTP/1.0 %s %s\r\n", 
+    fResponse.PutFmtStr("%s %s %s\r\n", 
+    	HTTPProtocol::GetVersionString(http11Version)->Ptr,
     	HTTPProtocol::GetStatusCodeAsString(status_code)->Ptr,
     	HTTPProtocol::GetStatusCodeString(status_code)->Ptr);
     fResponse.PutFmtStr("Server: %s/%s\r\n", BASE_SERVER_NAME, BASE_SERVER_VERSION);

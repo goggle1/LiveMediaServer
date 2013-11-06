@@ -124,8 +124,8 @@ OS_Error HTTPClient::DoTransaction()
 			case kHeaderReceived:
         		theErr = this->ReceiveResponse();  //note that this function can change the fState
 
-        		fprintf(stdout, "%s: ReceiveResponse fStatus=%"_U32BITARG_" len=%"_U32BITARG_" err = [%"_S32BITARG_"][%s]\n",
-        			__PRETTY_FUNCTION__, fStatus, fHeaderRecvLen, theErr, strerror(theErr));
+        		//fprintf(stdout, "%s: ReceiveResponse fStatus=%"_U32BITARG_" len=%"_U32BITARG_" err = [%"_S32BITARG_"][%s]\n",
+        		//	__PRETTY_FUNCTION__, fStatus, fHeaderRecvLen, theErr, strerror(theErr));
     
         		if (theErr != OS_NoErr)
         		{        	
