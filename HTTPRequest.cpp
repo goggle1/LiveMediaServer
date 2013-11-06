@@ -71,13 +71,13 @@ UInt8 HTTPRequest::sURLStopConditions[] =
 };
 
 HTTPRequest::HTTPRequest()
-{
+{	
 	fParamPairs = NULL;
     Clear();
 }
 
 HTTPRequest::~HTTPRequest()
-{
+{	
 	deque_release(fParamPairs, UriParam_release);
 	fParamPairs = NULL;
 }
@@ -92,7 +92,10 @@ void HTTPRequest::Clear()
     fAbsoluteURIScheme.Set(NULL, 0);    
     fHostHeader.Set(NULL, 0);
     fRequestPath = NULL;
-    fStatusCode = qtssSuccessOK;
+    fStatusCode = qtssSuccessOK; 
+    fURIParams.Set(NULL, 0);
+    deque_release(fParamPairs, UriParam_release);
+	fParamPairs = NULL;
 }
 
 QTSS_Error  HTTPRequest::Parse(StrPtrLen* str)
