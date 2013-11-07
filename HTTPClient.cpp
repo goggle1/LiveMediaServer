@@ -180,7 +180,7 @@ OS_Error HTTPClient::ReceiveResponse()
         
         fHeaderRecvLen += theRecvLen;
         fRecvHeaderBuffer[fHeaderRecvLen] = 0;
-        fprintf(stdout, "\n-----RESPONSE (len: %"_U32BITARG_")----\n%s\n", fHeaderRecvLen, fRecvHeaderBuffer);
+        //fprintf(stdout, "\n-----RESPONSE (len: %"_U32BITARG_")----\n%s\n", fHeaderRecvLen, fRecvHeaderBuffer);
 
         //fRecvHeaderBuffer[fHeaderRecvLen] = '\0';
         // Check to see if we've gotten a complete header, and if the header has even started       

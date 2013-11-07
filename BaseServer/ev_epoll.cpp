@@ -178,7 +178,8 @@ void epoll_startevents()
 	#endif
 	struct epoll_event ev;
 	ev.data.fd = s_Pipes[0];
-	ev.events = EPOLLIN|EPOLLET;
+	//ev.events = EPOLLIN|EPOLLET;
+	ev.events = EPOLLIN; // EPOLLLT
 	epoll_ctl(s_epoll_fd, EPOLL_CTL_ADD, s_Pipes[0], &ev);
     
 }
@@ -192,7 +193,8 @@ int epoll_modwatch(struct eventreq *req, int which)
 
 		struct epoll_event ev;
 		ev.data.fd = req->er_handle;
-		ev.events = EPOLLET;
+		//ev.events = EPOLLET;
+		ev.events = 0; //EPOLLLT;
 	
         //Add or remove this fd from the specified sets
         if (which & EV_RE)
@@ -245,7 +247,8 @@ int epoll_watchevent(struct eventreq *req, int which)
 
 		struct epoll_event ev;
 		ev.data.fd = req->er_handle;
-		ev.events = EPOLLET;
+		//ev.events = EPOLLET;
+		ev.events = 0; //EPOLLLT;
 	
         //Add or remove this fd from the specified sets
         if (which & EV_RE)
@@ -298,7 +301,8 @@ int epoll_removeevent(int which)
         
 		struct epoll_event ev;
 		ev.data.fd = which;
-		ev.events = EPOLLET;
+		//ev.events = EPOLLET;
+		ev.events = 0; //EPOLLLT;
         int ret  = epoll_ctl(s_epoll_fd, EPOLL_CTL_DEL, which, &ev);
         fprintf(stdout, "%s: epoll_ctl del %d, return %d\n", 
         	__FUNCTION__, which, ret);
