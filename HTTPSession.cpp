@@ -1566,7 +1566,7 @@ Bool16 HTTPSession::ResponseLiveM3U8()
 		return ret;
 	}
 
-	if(param_count == -1)
+	if(param_count == -1 && param_seq == -1)
 	{
 		if(memoryp->m3u8_num == 0)
 		{
@@ -1612,7 +1612,7 @@ Bool16 HTTPSession::ResponseLiveM3U8()
 				index = MAX_CLIP_NUM - 1;
 			}
 
-			if(count >= memoryp->clip_num || count >= param_count)
+			if(count >= memoryp->clip_num || (param_count!=-1 && count >= param_count) )
 			{
 				break;
 			}
@@ -1820,7 +1820,10 @@ Bool16 HTTPSession::ResponseFile(char* abs_path)
 	{
 		fRangeStop = file_len - 1;
 	}
-	fprintf(stdout, "range: %ld-%ld\n", fRangeStart, fRangeStop);
+	if(range.Len > 0)
+	{
+		fprintf(stdout, "range: %ld-%ld\n", fRangeStart, fRangeStop);
+	}
 
 	char* suffix = file_suffix(abs_path);
 	char* content_type = content_type_by_suffix(suffix);
