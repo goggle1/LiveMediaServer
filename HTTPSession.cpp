@@ -650,7 +650,7 @@ Bool16 HTTPSession::ResponseGet()
 	char absolute_uri[fRequest.fAbsoluteURI.Len + 1];
 	strncpy(absolute_uri, fRequest.fAbsoluteURI.Ptr, fRequest.fAbsoluteURI.Len);
 	absolute_uri[fRequest.fAbsoluteURI.Len] = '\0';
-	fprintf(stdout, "%s: absolute_uri=%s\n", __FUNCTION__, absolute_uri);
+	//fprintf(stdout, "%s: absolute_uri=%s\n", __FUNCTION__, absolute_uri);
 
 	char* request_file = absolute_uri;
 	if(strcmp(absolute_uri, "/") == 0)
@@ -719,9 +719,21 @@ Bool16 HTTPSession::ReadFileContent()
 	{
 		return false;
 	}
-	
-	ssize_t count = read(fFd, fBuffer, kReadBufferSize);
-	if(count < kReadBufferSize)
+
+	int64_t read_len = kReadBufferSize;
+	off_t current_pos = lseek(fFd, 0, SEEK_CUR);
+	int64_t remain_len = fRangeStop+1-current_pos;
+	if(remain_len<read_len)
+	{
+		read_len = remain_len;
+	}
+	ssize_t count = read(fFd, fBuffer, read_len);
+	if(count < read_len)
+	{
+		close(fFd);
+		fFd = -1;
+	}
+	else if(lseek(fFd, 0, SEEK_CUR) == fRangeStop+1)
 	{
 		close(fFd);
 		fFd = -1;
@@ -1772,7 +1784,6 @@ Bool16 HTTPSession::ResponseLive()
 	return ret;
 }
 
-
 Bool16 HTTPSession::ResponseFile(char* abs_path)
 {
 	fFd = open(abs_path, O_RDONLY);
@@ -1780,21 +1791,73 @@ Bool16 HTTPSession::ResponseFile(char* abs_path)
 	{
 		return false;
 	}
+	// parser range if any.
+	fRangeStart = 0;
+	fRangeStop = -1;
+	StrPtrLen range = fRequest.fFieldValues[httpRangeHeader];	
+	if(range.Len > 0)
+	{
+		StringParser parser(&range);
+		parser.ConsumeUntil(NULL, '=');
+		parser.Expect('=');
+		StrPtrLen start;
+		parser.ConsumeUntil(&start, '-');
+		fRangeStart = atol(start.Ptr);
+		parser.Expect('-');
+		if(parser.GetDataRemaining() > 0)
+		{
+			fRangeStop = atol(parser.GetCurrentPosition());
+		}
+		else
+		{
+			fRangeStop = -1;
+		}
+	}
+	
 	off_t file_len = lseek(fFd, 0L, SEEK_END);	
-	lseek(fFd, 0L, SEEK_SET);
+	lseek(fFd, fRangeStart, SEEK_SET);
+	if(fRangeStop == -1)
+	{
+		fRangeStop = file_len - 1;
+	}
+	fprintf(stdout, "range: %ld-%ld\n", fRangeStart, fRangeStop);
 
 	char* suffix = file_suffix(abs_path);
 	char* content_type = content_type_by_suffix(suffix);
 	
 	fResponse.Set(fStrRemained.Ptr+fStrRemained.Len, kResponseBufferSizeInBytes-fStrRemained.Len);
+
+	HTTPStatusCode status_code = httpOK;	
+	if(range.Len > 0)
+	{
+		status_code = httpPartialContent;
+	}
+	/*
+	Accept-Ranges:bytes
+	Access-Control-Allow-Headers:Range
+	Access-Control-Allow-Origin:*
+	Connection:keep-alive
+	Content-Length:224533099
+	Content-Range:bytes 0-224533098/224533099
+	Content-Type:video/mp4
+	Date:Fri, 08 Nov 2013 05:02:21 GMT
+	Last-Modified:Mon, 12 Aug 2013 03:23:06 GMT
+	Server:funshion
+	*/	
 	fResponse.PutFmtStr("%s %s %s\r\n", 
 			HTTPProtocol::GetVersionString(http11Version)->Ptr,
-			HTTPProtocol::GetStatusCodeAsString(httpOK)->Ptr,
-			HTTPProtocol::GetStatusCodeString(httpOK)->Ptr);
+			HTTPProtocol::GetStatusCodeAsString(status_code)->Ptr,			
+			HTTPProtocol::GetStatusCodeString(status_code)->Ptr);
     fResponse.PutFmtStr("Server: %s/%s\r\n", BASE_SERVER_NAME, BASE_SERVER_VERSION);
-    fResponse.PutFmtStr("Content-Length: %ld\r\n", file_len);
+    fResponse.PutFmtStr("Accept-Ranges: bytes\r\n");	
+    fResponse.PutFmtStr("Content-Length: %ld\r\n", fRangeStop+1-fRangeStart);    
+    if(range.Len > 0)
+    {
+    	//Content-Range: 1000-3000/5000
+    	fResponse.PutFmtStr("Content-Range: bytes %ld-%ld/%ld\r\n", fRangeStart, fRangeStop, file_len);    
+    }
     //fResponse.PutFmtStr("Content-Type: %s; charset=utf-8\r\n", content_type);
-    fResponse.PutFmtStr("Content-Type: %s", content_type);
+    fResponse.PutFmtStr("Content-Type: %s", content_type);  
     if(strcmp(content_type, CONTENT_TYPE_TEXT_HTML) == 0)
     {
     	fResponse.PutFmtStr(";charset=%s\r\n", CHARSET_UTF8);
@@ -1802,8 +1865,12 @@ Bool16 HTTPSession::ResponseFile(char* abs_path)
     else
     {
     	fResponse.Put("\r\n");
-    }
+    }    
     fResponse.Put("\r\n"); 
+    char* only_log = fResponse.GetAsCString();
+    fprintf(stdout, "%s %s[%d][0x%016lX] %u, \n%s", 
+        __FILE__, __PRETTY_FUNCTION__, __LINE__, (long)this, fResponse.GetBytesWritten(), only_log);
+    delete only_log;
     
     fStrResponse.Set(fResponse.GetBufPtr(), fResponse.GetBytesWritten());
     //append to fStrRemained
@@ -1813,33 +1880,6 @@ Bool16 HTTPSession::ResponseFile(char* abs_path)
 	
 	return true;
 }
-
-#if 0
-Bool16 HTTPSession::ResponseError(QTSS_RTSPStatusCode status_code)
-{
-    StrPtrLen blank;
-    blank.Set(fStrRemained.Ptr+fStrRemained.Len, kResponseBufferSizeInBytes-fStrRemained.Len);
-    int response_len = 0;
-    
-    response_len = snprintf(blank.Ptr, blank.Len-1, template_response_http_error,
-            HTTPProtocol::GetStatusCodeAsString(status_code)->Ptr,  
-            HTTPProtocol::GetStatusCodeString(status_code)->Ptr,  
-            BASE_SERVER_NAME,
-            BASE_SERVER_VERSION); 
-
-    fStrResponse.Set(blank.Ptr, response_len);
-    
-    //append to fStrRemained
-    fStrRemained.Len += fStrResponse.Len;  
-
-    //clear previous response.
-    fStrResponse.Set(fResponseBuffer, 0);
-
-    //bool ok = SendData();
-    //return ok;
-    return true;
-}
-#endif
 
 Bool16 HTTPSession::ResponseError(HTTPStatusCode status_code)
 {

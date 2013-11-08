@@ -117,6 +117,11 @@ public:
     QTSS_Error  ParseURI(StringParser* parser);
     QTSS_Error  ParseParams(StringParser* parser);
     QTSS_Error  ParseParam(StrPtrLen* param);
+    // Parses the headers and adds them into a dictionary
+    // Also calls SetKeepAlive with the Connection header field's value if it exists
+    QTSS_Error              ParseHeaders(StringParser* parser);
+    // Sets fRequestKeepAlive
+    void                    SetKeepAlive(StrPtrLen* keepAliveValue);
     
     StrPtrLen                   fFullRequest;
     
@@ -141,7 +146,10 @@ public:
     
     //for Error Response
     QTSS_RTSPStatusCode         fStatusCode;
-
+    Bool16              fRequestKeepAlive;              // Keep-alive information in the client request
+    StrPtrLen           fFieldValues[httpNumHeaders];   // Array of header field values parsed from the request
+    StrPtrLen           fSvrHeader;                     // Server header set up at initialization
+    static StrPtrLen    sColonSpace;
     static UInt8        sURLStopConditions[]; 
 };
 

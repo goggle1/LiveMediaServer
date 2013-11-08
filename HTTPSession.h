@@ -78,6 +78,8 @@ protected:
 			// 
 			int			fFd;
 			char		fBuffer[kReadBufferSize];
+			int64_t		fRangeStart;
+			int64_t		fRangeStop;
 			//
 			DATA_T* 	fMemory;
 			int64_t		fMemoryPosition;

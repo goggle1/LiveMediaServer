@@ -40,6 +40,12 @@ void UriParam_release(void* datap)
 	delete paramp;
 }
 
+StrPtrLen HTTPRequest::sColonSpace(": ", 2);
+static Bool16 sFalse = false;
+static Bool16 sTrue = true;
+static StrPtrLen sCloseString("close", 5);
+static StrPtrLen sKeepAliveString("keep-alive", 10);
+static StrPtrLen sDefaultRealm("Streaming Server", 19);
 UInt8 HTTPRequest::sURLStopConditions[] =
 {
   0, 0, 0, 0, 0, 0, 0, 0, 0, 1, //0-9      //'\t' is a stop condition
@@ -70,8 +76,10 @@ UInt8 HTTPRequest::sURLStopConditions[] =
   0, 0, 0, 0, 0, 0                         //250-255
 };
 
+
 HTTPRequest::HTTPRequest()
 {	
+    fStatusCode = httpOK;
 	fParamPairs = NULL;
     Clear();
 }
@@ -112,15 +120,13 @@ QTSS_Error  HTTPRequest::Parse(StrPtrLen* str)
     if (error != QTSS_NoErr)
     {
         return error;
-    }
-   
-#if 0
-    error = this->ParseHeaders(parser);
+    }   
+
+    error = this->ParseHeaders(&parser);
     if (error != QTSS_NoErr)
     {
         return error;
     }
-#endif
 
     return QTSS_NoErr;
 };
@@ -163,6 +169,60 @@ QTSS_Error HTTPRequest::ParseFirstLine(StringParser* parser)
     return QTSS_NoErr;
 }
 
+// Parses the Connection header and makes sure that request is properly terminated
+QTSS_Error HTTPRequest::ParseHeaders(StringParser* parser)
+{
+    StrPtrLen theKeyWord;
+    Bool16 isStreamOK;
+  
+    //Repeat until we get a \r\n\r\n, which signals the end of the headers
+    while ((parser->PeekFast() != '\r') && (parser->PeekFast() != '\n'))
+    {
+        //First get the header identifier
+    
+        isStreamOK = parser->GetThru(&theKeyWord, ':');
+        if (!isStreamOK)
+        {       // No colon after header!
+            fStatusCode = httpBadRequest;
+            return QTSS_BadArgument;
+        }
+    
+        if (parser->PeekFast() == ' ') 
+        {        // handle space, if any
+            isStreamOK = parser->Expect(' ');
+            Assert(isStreamOK);
+        }
+     
+        //Look up the proper header enumeration based on the header string.
+        HTTPHeader theHeader = HTTPProtocol::GetHeader(&theKeyWord);
+      
+        StrPtrLen theHeaderVal;
+        isStreamOK = parser->GetThruEOL(&theHeaderVal);
+      
+        if (!isStreamOK)
+        {       // No EOL after header!
+            fStatusCode = httpBadRequest;
+            return QTSS_BadArgument;
+        }
+      
+        // If this is the connection header
+        if ( theHeader == httpConnectionHeader )
+        { // Set the keep alive boolean based on the connection header value
+            SetKeepAlive(&theHeaderVal);
+        }
+      
+        // Have the header field and the value; Add value to the array
+        // If the field is invalid (or unrecognized) just skip over gracefully
+        if ( theHeader != httpIllegalHeader )
+            fFieldValues[theHeader] = theHeaderVal;
+            
+    }
+  
+    isStreamOK = parser->ExpectEOL();
+    Assert(isStreamOK);
+  
+    return QTSS_NoErr;
+}
 
 QTSS_Error HTTPRequest::ParseURI(StringParser* parser)
 {
@@ -291,5 +351,17 @@ QTSS_Error HTTPRequest::ParseParam(StrPtrLen* param)
 
 	return QTSS_NoErr;
 }
+
+void HTTPRequest::SetKeepAlive(StrPtrLen *keepAliveValue)
+{
+    if ( sCloseString.EqualIgnoreCase(keepAliveValue->Ptr, keepAliveValue->Len) )
+            fRequestKeepAlive = sFalse;
+    else
+        {
+            Assert( sKeepAliveString.EqualIgnoreCase(keepAliveValue->Ptr, keepAliveValue->Len) );
+            fRequestKeepAlive = sTrue;
+        }
+}
+
 
 
