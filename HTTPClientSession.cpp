@@ -80,9 +80,41 @@ HTTPClientSession::HTTPClientSession(const StrPtrLen& inURL, CHANNEL_T* channelp
 }
 
 HTTPClientSession::~HTTPClientSession()
-{
+{	
 	delete [] fM3U8Path.Ptr;
 	delete [] fURL.Ptr;
+
+	if(fMemory != NULL)
+	{
+		int index = 0;
+		for(index=0; index<MAX_M3U8_NUM; index++)
+		{
+			if(fMemory->m3u8s[index].datap != NULL)
+			{
+				fMemory->m3u8s[index].len = 0;
+				fMemory->m3u8s[index].size = 0;
+				free(fMemory->m3u8s[index].datap);				
+			}
+		}
+		for(index=0; index<MAX_CLIP_NUM; index++)
+		{
+			if(fMemory->clips[index].data.datap != NULL)
+			{
+				fMemory->clips[index].data.len = 0;
+				fMemory->clips[index].data.size = 0;
+				free(fMemory->clips[index].data.datap);				
+			}
+		}
+		
+		free(fMemory);
+		fMemory = NULL;
+	}
+	
+	if(fType != NULL)
+	{
+		free(fType);
+		fType = NULL;
+	}
 	
 	if(fClient != NULL)
 	{

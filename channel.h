@@ -23,6 +23,7 @@ typedef struct data_t
 	void*		datap;	
 	u_int64_t 	size;	// total size
 	int64_t 	len;	// used length
+	// reference count.
 } DATA_T;
 
 typedef struct clip_t

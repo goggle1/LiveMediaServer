@@ -979,17 +979,7 @@ Bool16 HTTPSession::ResponseCmdDelChannel()
 	
 	if(channelp->source_list)
 	{
-		int result = stop_channel(channelp);
-		if(result != 0)
-		{
-			char reason[MAX_REASON_LEN] = "";
-			snprintf(reason, MAX_REASON_LEN-1, "stop_channel() internal failure");
-			reason[MAX_REASON_LEN-1] = '\0';
-			ResponseCmdResult("del_channel", "failure", reason);
-			free(channelp);
-			channelp = NULL;
-			return true;
-		}
+		stop_channel(channelp);		
 	}
 
 	int result = g_channels.DeleteChannel(liveid);

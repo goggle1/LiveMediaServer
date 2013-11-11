@@ -83,9 +83,8 @@ protected:
 			//
 			DATA_T* 	fMemory;
 			int64_t		fMemoryPosition;
-
-			// from RTSP, 
-	        QTSS_RTSPStatusCode fStatusCode;  	        
+			
+	        HTTPStatusCode fStatusCode;  	        
 
 
 };

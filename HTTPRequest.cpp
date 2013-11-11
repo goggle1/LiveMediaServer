@@ -79,15 +79,31 @@ UInt8 HTTPRequest::sURLStopConditions[] =
 
 HTTPRequest::HTTPRequest()
 {	
-    fStatusCode = httpOK;
+    fFullRequest.Set(NULL, 0);    
+    fMethod = httpGetMethod;
+    fVersion = http11Version;    
+    fAbsoluteURI.Set(NULL, 0);    
+    fRelativeURI.Set(NULL, 0);    
+    fAbsoluteURIScheme.Set(NULL, 0);    
+    fHostHeader.Set(NULL, 0);
+   	fRequestPath = NULL;
+    fStatusCode = httpOK; 
+    fURIParams.Set(NULL, 0);
 	fParamPairs = NULL;
-    Clear();
 }
 
 HTTPRequest::~HTTPRequest()
 {	
-	deque_release(fParamPairs, UriParam_release);
-	fParamPairs = NULL;
+	if(fRequestPath != NULL)
+    {
+    	delete [] fRequestPath;
+    	fRequestPath = NULL;
+    }
+    if(fParamPairs != NULL)
+    {
+    	deque_release(fParamPairs, UriParam_release);    	
+		fParamPairs = NULL;
+	}
 }
 
 void HTTPRequest::Clear()
@@ -99,11 +115,18 @@ void HTTPRequest::Clear()
     fRelativeURI.Set(NULL, 0);    
     fAbsoluteURIScheme.Set(NULL, 0);    
     fHostHeader.Set(NULL, 0);
-    fRequestPath = NULL;
+    if(fRequestPath != NULL)
+    {
+    	delete [] fRequestPath;
+    	fRequestPath = NULL;
+    }
     fStatusCode = qtssSuccessOK; 
     fURIParams.Set(NULL, 0);
-    deque_release(fParamPairs, UriParam_release);
-	fParamPairs = NULL;
+    if(fParamPairs != NULL)
+    {
+    	deque_release(fParamPairs, UriParam_release);    	
+		fParamPairs = NULL;
+	}
 }
 
 QTSS_Error  HTTPRequest::Parse(StrPtrLen* str)

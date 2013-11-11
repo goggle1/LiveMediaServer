@@ -18,6 +18,13 @@ M3U8Parser::~M3U8Parser()
 		fData.Ptr = NULL;
 		fData.Len = 0;
 	}
+	
+	if(fM3U8Path.Ptr != NULL)
+	{
+		delete []fM3U8Path.Ptr;
+		fM3U8Path.Ptr = NULL;
+		fM3U8Path.Len = 0;
+	}
 }
 
 int M3U8Parser::SetPath(StrPtrLen* pathp)

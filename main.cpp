@@ -194,9 +194,19 @@ int main(int argc, char* argv[])
 		fprintf(stderr, "start_clients error!\n");
 		return ret;
 	}	
-	
+
+	int count = 0;
 	while(1)
 	{
+		count ++;
+		#if 0
+		fprintf(stdout, "%s: count=%d\n", __PRETTY_FUNCTION__, count);
+		if(count > 60*5)
+		{			
+			break;
+		}
+		#endif
+		
 		sleep(1);
 	}
 	

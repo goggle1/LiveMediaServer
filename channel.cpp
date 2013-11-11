@@ -600,6 +600,17 @@ int ChannelList::DeleteChannel(char* liveid)
 
 	if(findp != NULL)
 	{
+		CHANNEL_T* channelp = (CHANNEL_T*)findp->datap;			
+		if(channelp != NULL)
+		{
+			if(channelp->source_list != NULL)
+			{
+				deque_release(channelp->source_list, source_release);
+				channelp->source_list = NULL;
+			}	
+			free(channelp);
+			channelp = NULL;
+		}
 		m_channel_list = deque_remove_node(m_channel_list, findp);
 		return 0;
 	}

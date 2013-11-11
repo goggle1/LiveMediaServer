@@ -4,8 +4,6 @@
 #define __HTTPREQUEST_H__
 
 #include "BaseServer/OSHeaders.h"
-// only use QTSS_RTSPStatusCode
-//#include "BaseServer/RTSPProtocol.h"
 #include "BaseServer/StringParser.h"
 
 #include "HTTPProtocol.h"
@@ -145,7 +143,7 @@ public:
     char*               fRequestPath;       // Also contains the query string
     
     //for Error Response
-    QTSS_RTSPStatusCode         fStatusCode;
+    HTTPStatusCode		fStatusCode;
     Bool16              fRequestKeepAlive;              // Keep-alive information in the client request
     StrPtrLen           fFieldValues[httpNumHeaders];   // Array of header field values parsed from the request
     StrPtrLen           fSvrHeader;                     // Server header set up at initialization
