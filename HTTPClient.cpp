@@ -106,7 +106,7 @@ OS_Error HTTPClient::DoTransaction()
 						__PRETTY_FUNCTION__, theRequest.Len, theErr, strerror(theErr));
             		return theErr;
 				}
-        		fprintf(stdout, "\n-----REQUEST-----len=%"_U32BITARG_"\n%s\n", theRequest.Len, theRequest.Ptr);
+        		//fprintf(stdout, "\n-----REQUEST-----len=%"_U32BITARG_"\n%s\n", theRequest.Len, theRequest.Ptr);
         
 
 				//Done sending request; moving onto the response

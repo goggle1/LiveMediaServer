@@ -103,7 +103,7 @@ void Task::Signal(EventFlags events)
     if ((!(oldEvents & kAlive)) && (TaskThreadPool::sNumTaskThreads > 0))
     {
         if (fDefaultThread != NULL && fUseThisThread == NULL)
-            fUseThisThread = fDefaultThread;
+            fUseThisThread = fDefaultThread;   	
 
         if (fUseThisThread != NULL)
             // Task needs to be placed on a particular thread.
@@ -147,7 +147,8 @@ void Task::Signal(EventFlags events)
             if (TASK_DEBUG) if (fTaskName[0] == 0) ::strcpy(fTaskName, " corrupt task");
             if (TASK_DEBUG) qtss_printf("Task::Signal enque TaskName=%s theThreadIndex=%u thread=%p q elem=%p enclosing=%p\n", fTaskName,theThreadIndex,  (void *)TaskThreadPool::sTaskThreadArray[theThreadIndex],(void *) &fTaskQueueElem,(void *) this);
            
-            
+            fUseThisThread = TaskThreadPool::sTaskThreadArray[theThreadIndex];
+            fDefaultThread = fUseThisThread;
             TaskThreadPool::sTaskThreadArray[theThreadIndex]->fTaskQueue.EnQueue(&fTaskQueueElem);
         }
     }
@@ -216,7 +217,7 @@ void TaskThread::Entry()
             Assert(theTask->fInRunCount == 0);
             theTask->fInRunCount++;
 #endif
-            theTask->fUseThisThread = NULL; // Each invocation of Run must independently
+            //theTask->fUseThisThread = NULL; // Each invocation of Run must independently
                                             // request a specific thread.
             SInt64 theTimeout = 0;
             

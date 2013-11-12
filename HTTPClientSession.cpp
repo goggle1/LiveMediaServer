@@ -378,7 +378,7 @@ int HTTPClientSession::Write(StrPtrLen& file_name, char * datap, UInt32 len)
 }
 
 SInt64 HTTPClientSession::Run()
-{
+{	
 	Task::EventFlags theEvents = this->GetEvents(); 
 	
 	if (theEvents & Task::kStartEvent)
@@ -417,7 +417,8 @@ SInt64 HTTPClientSession::Run()
             case kSendingGetM3U8:
             {
             	fGetIndex = 0;
-            	theErr = fClient->SendGetM3U8(fURL.Ptr);
+            	fprintf(stdout, "%s[0x%016lX][0x%016lX]: get %s\n", __PRETTY_FUNCTION__, this->fDefaultThread, this->fUseThisThread, fURL.Ptr);
+            	theErr = fClient->SendGetM3U8(fURL.Ptr);            	
             	if (theErr == OS_NoErr)
                 {   
                     if (fClient->GetStatus() != 200)
@@ -464,7 +465,8 @@ SInt64 HTTPClientSession::Run()
 	            		break;
 	            	}
             	}            	
-            	
+
+            	//fprintf(stdout, "%s: get %s\n", __PRETTY_FUNCTION__, fM3U8Parser.fSegments[fGetIndex].relative_url);
             	theErr = fClient->SendGetSegment(fM3U8Parser.fSegments[fGetIndex].relative_url);
             	if (theErr == OS_NoErr)
                 {   

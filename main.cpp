@@ -81,10 +81,14 @@ int start_server()
             // Note: Limiting the number of worker threads to 2 on a MacOS X system with > 2 cores
             //     results in better performance on those systems, as of MacOS X 10.5.  Future
             //     improvements should make this limit unnecessary.
+        #if 0
             if (numProcessors > 2)
                 numShortTaskThreads = 2;
             else
                 numShortTaskThreads = numProcessors;
+        #else
+        	numShortTaskThreads = numProcessors;
+        #endif
         }
 
         //numBlockingThreads = sServer->GetPrefs()->GetNumBlockingThreads(); // whatever the prefs say

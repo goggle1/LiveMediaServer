@@ -128,7 +128,8 @@ class Task
                                                         return (SInt64) 10; // minimum of 10 milliseconds between locks
                                                     }
 
-    private:
+    //private:
+    protected:
 
         enum
         {
@@ -136,7 +137,7 @@ class Task
             kAliveOff =         0x7fffffff
         };
 
-        void            SetTaskThread(TaskThread *thread);
+        void            SetTaskThread(TaskThread *thread) { fUseThisThread = thread; }
         
         EventFlags      fEvents;
         TaskThread*     fUseThisThread;

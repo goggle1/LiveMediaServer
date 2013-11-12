@@ -96,8 +96,8 @@ protected:
 			int			fLiveSeq;
 			int			fLiveLen;
 			HTTPClientSession*	fHttpClientSession;
-			DATA_T* 	fMemory;
-			int64_t		fMemoryPosition;
+			DATA_T* 	fData;
+			int64_t		fDataPosition;
 			
 	        HTTPStatusCode fStatusCode;  	        
 

@@ -346,9 +346,10 @@ HTTPSession::HTTPSession():
 {
 	fprintf(stdout, "%s %s[%d][0x%016lX] \n", __FILE__, __PRETTY_FUNCTION__, __LINE__, (long)this);
 	fFd	= -1;
-	fMemory = NULL;
-	fMemoryPosition = 0;
+	fData = NULL;
+	fDataPosition = 0;
     fStatusCode     = 0;
+    this->SetThreadPicker(&Task::sBlockingTaskThreadPicker);
 }
 
 HTTPSession::~HTTPSession()
@@ -367,7 +368,7 @@ TCPSocket* HTTPSession::GetSocket()
 }
 
 SInt64     HTTPSession::Run()
-{ 
+{	
     Task::EventFlags events = this->GetEvents();    
     if(events == 0x00000000)
     {
@@ -390,6 +391,7 @@ SInt64     HTTPSession::Run()
 
 	if(events & Task::kUpdateEvent)
     {
+    	fprintf(stdout, "%s: kUpdateEvent fDefaultThread=0x%016lX, fUseThisThread=0x%016lX\n", __PRETTY_FUNCTION__, this->fDefaultThread, this->fUseThisThread);
     	QTSS_Error ok = ContinueLive();
     	if(ok != QTSS_RequestFailed)
         {
@@ -418,7 +420,7 @@ SInt64     HTTPSession::Run()
     			willRequestEvent = willRequestEvent | EV_WR;
     		}
     	}
-    	else if(fMemory != NULL)
+    	else if(fData != NULL)
     	{
     		Bool16 haveContent = ReadSegmentContent();
     		if(haveContent)
@@ -515,8 +517,8 @@ QTSS_Error  HTTPSession::RecvData()
         return theErr;
     }
     
-    fprintf(stdout, "%s %s[%d][0x%016lX] recv %u, \n%s", 
-        __FILE__, __PRETTY_FUNCTION__, __LINE__, (long)this, read_len, start_pos);
+    //fprintf(stdout, "%s %s[%d][0x%016lX] recv %u, \n%s", 
+    //    __FILE__, __PRETTY_FUNCTION__, __LINE__, (long)this, read_len, start_pos);
 
     fStrReceived.Len += read_len;
    
@@ -697,19 +699,19 @@ Bool16 HTTPSession::ReadSegmentContent()
 		return false;
 	}
 
-	int remain_len = fMemory->len - fMemoryPosition;
+	int remain_len = fData->len - fDataPosition;
 	int count = kReadBufferSize;
 	if(count >= remain_len)
 	{		
 		count = remain_len;
 	}
 
-	memcpy(fBuffer, (char*)fMemory->datap+fMemoryPosition, count);
-	fMemoryPosition = fMemoryPosition + count;
-	if(fMemoryPosition >= fMemory->len)
+	memcpy(fBuffer, (char*)fData->datap+fDataPosition, count);
+	fDataPosition = fDataPosition + count;
+	if(fDataPosition >= fData->len)
 	{
-		fMemory = NULL;
-		fMemoryPosition = 0;
+		fData = NULL;
+		fDataPosition = 0;
 	}
 	
 	//fprintf(stdout, "%s %s[%d][0x%016lX] read %u, return %u\n", 
@@ -1581,8 +1583,12 @@ QTSS_Error HTTPSession::ResponseLiveM3U8()
 		ret = ResponseError(httpNotFound);
 		return ret;
 	}
+
+	fprintf(stdout, "%s: before fDefaultThread=0x%016lX, fUseThisThread=0x%016lX\n", __PRETTY_FUNCTION__, this->fDefaultThread, this->fUseThisThread);
 	TaskThread* threadp = fHttpClientSession->GetDefaultThread();
-	this->SetDefaultThread(threadp);
+	this->SetDefaultThread(threadp);	
+	this->SetTaskThread(threadp);
+	fprintf(stdout, "%s: after fDefaultThread=0x%016lX, fUseThisThread=0x%016lX\n", __PRETTY_FUNCTION__, this->fDefaultThread, this->fUseThisThread);
 	return QTSS_NotPreemptiveSafe;
 
 	if(param_count == -1 && param_seq == -1)
@@ -1855,8 +1861,12 @@ QTSS_Error HTTPSession::ResponseLiveSegment()
 		ret = ResponseError(httpNotFound);
 		return ret;
 	}
+
+	fprintf(stdout, "%s: before fDefaultThread=0x%016lX, fUseThisThread=0x%016lX\n", __PRETTY_FUNCTION__, this->fDefaultThread, this->fUseThisThread);
 	TaskThread* threadp = fHttpClientSession->GetDefaultThread();
 	this->SetDefaultThread(threadp);
+	this->SetTaskThread(threadp);
+	fprintf(stdout, "%s: after fDefaultThread=0x%016lX, fUseThisThread=0x%016lX\n", __PRETTY_FUNCTION__, this->fDefaultThread, this->fUseThisThread);
 	return QTSS_NotPreemptiveSafe;
 
 	CLIP_T* clipp = NULL;	
@@ -1889,8 +1899,8 @@ QTSS_Error HTTPSession::ResponseLiveSegment()
 		return ret;
 	}
 
-	fMemory = &(clipp->data);
-	fMemoryPosition = 0;
+	fData = &(clipp->data);
+	fDataPosition = 0;
 	
 	fResponse.Set(fStrRemained.Ptr+fStrRemained.Len, kResponseBufferSizeInBytes-fStrRemained.Len);
 	fResponse.PutFmtStr("%s %s %s\r\n", 
@@ -1898,7 +1908,7 @@ QTSS_Error HTTPSession::ResponseLiveSegment()
 			HTTPProtocol::GetStatusCodeAsString(httpOK)->Ptr,
 			HTTPProtocol::GetStatusCodeString(httpOK)->Ptr);
     fResponse.PutFmtStr("Server: %s/%s\r\n", BASE_SERVER_NAME, BASE_SERVER_VERSION);
-    fResponse.PutFmtStr("Content-Length: %ld\r\n", fMemory->len);
+    fResponse.PutFmtStr("Content-Length: %ld\r\n", fData->len);
     //fResponse.PutFmtStr("Content-Type: %s; charset=utf-8\r\n", content_type);
     fResponse.PutFmtStr("Content-Type: %s\r\n", mime_type);    
     fResponse.Put("\r\n"); 
@@ -1967,8 +1977,8 @@ QTSS_Error HTTPSession::ContinueLiveSegment()
 		return ret;
 	}
 
-	fMemory = &(clipp->data);
-	fMemoryPosition = 0;
+	fData = &(clipp->data);
+	fDataPosition = 0;
 	
 	fResponse.Set(fStrRemained.Ptr+fStrRemained.Len, kResponseBufferSizeInBytes-fStrRemained.Len);
 	fResponse.PutFmtStr("%s %s %s\r\n", 
@@ -1976,7 +1986,7 @@ QTSS_Error HTTPSession::ContinueLiveSegment()
 			HTTPProtocol::GetStatusCodeAsString(httpOK)->Ptr,
 			HTTPProtocol::GetStatusCodeString(httpOK)->Ptr);
     fResponse.PutFmtStr("Server: %s/%s\r\n", BASE_SERVER_NAME, BASE_SERVER_VERSION);
-    fResponse.PutFmtStr("Content-Length: %ld\r\n", fMemory->len);
+    fResponse.PutFmtStr("Content-Length: %ld\r\n", fData->len);
     //fResponse.PutFmtStr("Content-Type: %s; charset=utf-8\r\n", content_type);
     fResponse.PutFmtStr("Content-Type: %s\r\n", mime_type);    
     fResponse.Put("\r\n"); 
