@@ -99,7 +99,8 @@ class Task
         Bool16                  Valid(); // for debugging
 		char            fTaskName[48];
 		void            SetTaskName(char* name);
-		
+
+		TaskThread*		GetDefaultThread() { return fDefaultThread; }
         void            SetDefaultThread(TaskThread* defaultThread) { fDefaultThread = defaultThread; }
         void            SetThreadPicker(unsigned int* picker);
         static unsigned int* GetBlockingTaskThreadPicker() {return &sBlockingTaskThreadPicker; }

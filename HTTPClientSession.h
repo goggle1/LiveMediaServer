@@ -24,7 +24,7 @@ virtual     SInt64      Run();
 	int 	RewriteM3U8(M3U8Parser* parserp);	
 	int 	MemoM3U8(M3U8Parser* parserp);
 	int 	MemoSegment(SEGMENT_T* segp, char* datap, UInt32 len);
-	
+	MEMORY_T*	GetMemory() { return fMemory; }
 
 		//
         // States. Find out what the object is currently doing

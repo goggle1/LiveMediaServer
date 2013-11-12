@@ -10,6 +10,8 @@
 #define HASH_LEN 			40
 #define MAX_LIVE_ID     	44
 #define MAX_CHANNEL_NAME	64
+#define MAX_LIVE_TYPE     	4
+
 
 //#define MAX_CLIP_NUM			40
 #define MAX_CLIP_NUM			41
@@ -24,6 +26,7 @@ typedef struct data_t
 	u_int64_t 	size;	// total size
 	int64_t 	len;	// used length
 	// reference count.
+	int32_t		reference_count;
 } DATA_T;
 
 typedef struct clip_t

@@ -387,6 +387,21 @@ SInt64     HTTPSession::Run()
     } 
 
 	int willRequestEvent = 0;
+
+	if(events & Task::kUpdateEvent)
+    {
+    	QTSS_Error ok = ContinueLive();
+    	if(ok != QTSS_RequestFailed)
+        {
+        	willRequestEvent = willRequestEvent | EV_WR;
+        	//fSocket.RequestEvent(EV_WR);
+       	}
+       	else
+       	{
+       		willRequestEvent = willRequestEvent | EV_RE;
+       		//fSocket.RequestEvent(EV_RE);
+       	}
+    }
 	
     if(events & Task::kWriteEvent)
     {
@@ -422,8 +437,13 @@ SInt64     HTTPSession::Run()
 	    QTSS_Error theErr = this->RecvData();
 	    if(theErr == QTSS_RequestArrived)
 	    {
-	        QTSS_Error ok = this->ProcessRequest();  
-	        if(ok != QTSS_RequestFailed)
+	        QTSS_Error ok = this->ProcessRequest(); 
+	        if(ok == QTSS_NotPreemptiveSafe)
+	        {
+	        	this->Signal(Task::kUpdateEvent);
+	        	return 0;
+	        }
+	        else if(ok != QTSS_RequestFailed)
 	        {
 	        	willRequestEvent = willRequestEvent | EV_WR;
 	        	//fSocket.RequestEvent(EV_WR);
@@ -603,38 +623,33 @@ QTSS_Error  HTTPSession::ProcessRequest()
 		this->MoveOnRequest();
 		return QTSS_RequestFailed;
 	}
-
-	Bool16 ok = false;	  
+	  
 	switch(fRequest.fMethod)
 	{
 		case httpGetMethod:
-			ok = ResponseGet();
+			theError = ResponseGet();
 			break;		
 		default:
 		   //unhandled method.
 			fprintf(stderr, "%s %s[%d][0x%016lX] unhandled method: %d", 
 					__FILE__, __PRETTY_FUNCTION__, __LINE__, (long)this, fRequest.fMethod);
 			fStatusCode = httpBadRequest;
-			ResponseError(fStatusCode);
+			theError = ResponseError(fStatusCode);
+			//theError = QTSS_RequestFailed;
 			break;		  
 	}	
 
-    if(ok)
+    if(theError == QTSS_NoErr)
     {
         this->MoveOnRequest();
     }
- 
-    if(!ok)
-    {
-        return QTSS_RequestFailed;
-    }   
-    
-    return QTSS_NoErr;
+     
+    return theError;
 }
 
-Bool16 HTTPSession::ResponseGet()
+QTSS_Error HTTPSession::ResponseGet()
 {
-	Bool16 ret = true;
+	QTSS_Error ret = QTSS_NoErr;
 	
 	if(strncmp(fRequest.fAbsoluteURI.Ptr, URI_CMD, strlen(URI_CMD)) == 0)
 	{
@@ -677,8 +692,8 @@ Bool16 HTTPSession::ResponseGet()
 
 Bool16 HTTPSession::ReadSegmentContent()
 {
-	if(fMemory == NULL)
-	{
+	if(!fHttpClientSession->Valid())
+	{		
 		return false;
 	}
 
@@ -759,9 +774,9 @@ Bool16 HTTPSession::ReadFileContent()
 	return true;
 }
 
-Bool16 HTTPSession::ResponseCmdAddChannel()
+QTSS_Error HTTPSession::ResponseCmdAddChannel()
 {
-	Bool16 ret = true;
+	QTSS_Error ret = QTSS_NoErr;
 
 	if(fRequest.fParamPairs == NULL)
 	{
@@ -777,7 +792,8 @@ Bool16 HTTPSession::ResponseCmdAddChannel()
 	CHANNEL_T* channelp = (CHANNEL_T*)malloc(sizeof(CHANNEL_T));
 	if(channelp == NULL)
 	{
-		return false;
+		ret = ResponseCmdResult("add_channel", "failure", "not enough memory!");
+		return ret;
 	}
 	memset(channelp, 0, sizeof(CHANNEL_T));
 
@@ -875,10 +891,10 @@ Bool16 HTTPSession::ResponseCmdAddChannel()
 		char reason[MAX_REASON_LEN] = "";
 		snprintf(reason, MAX_REASON_LEN-1, "liveid [%s] exist", channelp->liveid);
 		reason[MAX_REASON_LEN-1] = '\0';
-		ResponseCmdResult("add_channel", "failure", reason);
+		ret = ResponseCmdResult("add_channel", "failure", reason);
 		channel_release(channelp);
 		channelp = NULL;
-		return true;
+		return ret;
 	}
 	
 	int result = g_channels.AddChannel(channelp);
@@ -887,10 +903,10 @@ Bool16 HTTPSession::ResponseCmdAddChannel()
 		char reason[MAX_REASON_LEN] = "";
 		snprintf(reason, MAX_REASON_LEN-1, "AddChannel() internal failure");
 		reason[MAX_REASON_LEN-1] = '\0';
-		ResponseCmdResult("add_channel", "failure", reason);
+		ret = ResponseCmdResult("add_channel", "failure", reason);
 		channel_release(channelp);
 		channelp = NULL;
-		return true;
+		return ret;
 	}
 
 	if(channelp->source_list)
@@ -901,10 +917,10 @@ Bool16 HTTPSession::ResponseCmdAddChannel()
 			char reason[MAX_REASON_LEN] = "";
 			snprintf(reason, MAX_REASON_LEN-1, "start_channel() internal failure");
 			reason[MAX_REASON_LEN-1] = '\0';
-			ResponseCmdResult("add_source", "failure", reason);
+			ret = ResponseCmdResult("add_source", "failure", reason);
 			free(channelp);
 			channelp = NULL;
-			return true;
+			return ret;
 		}
 	}
 	
@@ -914,20 +930,19 @@ Bool16 HTTPSession::ResponseCmdAddChannel()
 		char reason[MAX_REASON_LEN] = "";
 		snprintf(reason, MAX_REASON_LEN-1, "WriteConfig() internal failure");
 		reason[MAX_REASON_LEN-1] = '\0';
-		ResponseCmdResult("add_channel", "failure", reason);
+		ret = ResponseCmdResult("add_channel", "failure", reason);
 		channel_release(channelp);
 		channelp = NULL;
-		return true;
+		return ret;
 	}
 	
-	ResponseCmdResult("add_channel", "success", "");
-	
+	ret = ResponseCmdResult("add_channel", "success", "");	
 	return ret;
 }
 
-Bool16 HTTPSession::ResponseCmdDelChannel()
+QTSS_Error HTTPSession::ResponseCmdDelChannel()
 {
-	Bool16 ret = true;
+	QTSS_Error ret = QTSS_NoErr;
 	if(fRequest.fParamPairs == NULL)
 	{
 		char* request_file = "/del_channel.html";
@@ -963,8 +978,8 @@ Bool16 HTTPSession::ResponseCmdDelChannel()
 
 	if(liveid == NULL)
 	{
-		ResponseCmdResult("del_channel", "failure", "param[liveid] need");	
-		return true;
+		ret = ResponseCmdResult("del_channel", "failure", "param[liveid] need");	
+		return ret;
 	}
 
 	CHANNEL_T* channelp = g_channels.FindChannelByHash(liveid);
@@ -973,8 +988,8 @@ Bool16 HTTPSession::ResponseCmdDelChannel()
 		char reason[MAX_REASON_LEN] = "";
 		snprintf(reason, MAX_REASON_LEN-1, "can not find liveid[%s]", liveid);
 		reason[MAX_REASON_LEN-1] = '\0';
-		ResponseCmdResult("del_channel", "failure", reason);
-		return true;
+		ret = ResponseCmdResult("del_channel", "failure", reason);
+		return ret;
 	}
 	
 	if(channelp->source_list)
@@ -985,25 +1000,24 @@ Bool16 HTTPSession::ResponseCmdDelChannel()
 	int result = g_channels.DeleteChannel(liveid);
 	if(result != 0)
 	{
-		ResponseCmdResult("del_channel", "failure", "DeleteChannel() internal failure");		
-		return true;
+		ret = ResponseCmdResult("del_channel", "failure", "DeleteChannel() internal failure");		
+		return ret;
 	}
 		
 	result = g_channels.WriteConfig(g_config.channels_file);
 	if(result != 0)
 	{
-		ResponseCmdResult("del_channel", "failure", "WriteConfig() internal failure");
-		return true;
+		ret = ResponseCmdResult("del_channel", "failure", "WriteConfig() internal failure");
+		return ret;
 	}
 	
-	ResponseCmdResult("del_channel", "success", "");
-	
+	ret = ResponseCmdResult("del_channel", "success", "");	
 	return ret;
 }
 
-Bool16 HTTPSession::ResponseCmdListChannel()
+QTSS_Error HTTPSession::ResponseCmdListChannel()
 {
-	Bool16 ret = true;
+	QTSS_Error ret = QTSS_NoErr;
 	
 	char buffer[1024*4];
 	StringFormatter content(buffer, sizeof(buffer));
@@ -1365,7 +1379,7 @@ Bool16 HTTPSession::ResponseCmdListSource()
 }
 #endif
 
-Bool16 HTTPSession::ResponseCmdResult(char* cmd, char* result, char* reason)
+QTSS_Error HTTPSession::ResponseCmdResult(char* cmd, char* result, char* reason)
 {
 	char	buffer[1024];
 	StringFormatter content(buffer, sizeof(buffer));
@@ -1427,7 +1441,7 @@ Bool16 HTTPSession::ResponseCmdResult(char* cmd, char* result, char* reason)
 
     ResponseContent(content.GetBufPtr(), content.GetBytesWritten(), CONTENT_TYPE_TEXT_HTML);
     
-	return true;
+	return QTSS_NoErr;
 }
 
 Bool16 HTTPSession::ResponseContent(char* content, int len, char* type)
@@ -1463,9 +1477,9 @@ Bool16 HTTPSession::ResponseContent(char* content, int len, char* type)
 	return true;
 }
 
-Bool16 HTTPSession::ResponseCmd()
+QTSS_Error HTTPSession::ResponseCmd()
 {
-	Bool16 ret = true;
+	QTSS_Error ret = QTSS_NoErr;
 	if(strncmp(fRequest.fAbsoluteURI.Ptr, CMD_LIST_CHANNEL, strlen(CMD_LIST_CHANNEL)) == 0)
 	{
 		ret = ResponseCmdListChannel();
@@ -1486,11 +1500,13 @@ Bool16 HTTPSession::ResponseCmd()
 	return ret;
 }
 
-Bool16 HTTPSession::ResponseLiveM3U8()
+QTSS_Error HTTPSession::ResponseLiveM3U8()
 {
-	Bool16 ret = true;
+	QTSS_Error ret = QTSS_NoErr;
 
-	char liveid[MAX_LIVE_ID];
+	fLiveRequest = kLiveM3U8;
+	
+	//char liveid[MAX_LIVE_ID];
 	StringParser parser(&(fRequest.fRelativeURI));
 	parser.ConsumeLength(NULL, strlen(URI_LIVESTREAM));
 	StrPtrLen seg1;
@@ -1500,10 +1516,10 @@ Bool16 HTTPSession::ResponseLiveM3U8()
 	{
 		len = MAX_LIVE_ID-1;
 	}
-	memcpy(liveid, seg1.Ptr, len);
-	liveid[len] = '\0';
+	memcpy(fLiveId, seg1.Ptr, len);
+	fLiveId[len] = '\0';
 	
-	CHANNEL_T* channelp = g_channels.FindChannelByHash(liveid);
+	CHANNEL_T* channelp = g_channels.FindChannelByHash(fLiveId);
 	if(channelp == NULL)
 	{
 		ret = ResponseError(httpNotFound);
@@ -1536,25 +1552,38 @@ Bool16 HTTPSession::ResponseLiveM3U8()
 		}
 		nodep = nodep->nextp;
 	}
-	
-	MEMORY_T* memoryp = NULL;
+
+	strncpy(fLiveType, param_type, MAX_LIVE_TYPE-1);
+	fLiveType[MAX_LIVE_TYPE-1] = '\0';
+	fLiveSeq = param_seq;
+	fLiveLen = param_count;
+
+	fHttpClientSession = NULL;
+	MEMORY_T* memoryp = NULL;	
 	if(strcasecmp(param_type, LIVE_TS) == 0)
 	{
+		fHttpClientSession = channelp->sessionp_ts;
 		memoryp = channelp->memoryp_ts;
 	}
 	else if(strcasecmp(param_type, LIVE_FLV) == 0)
 	{
+		fHttpClientSession = channelp->sessionp_flv;
 		memoryp = channelp->memoryp_flv;
 	}
 	else if(strcasecmp(param_type, LIVE_MP4) == 0)
 	{
+		fHttpClientSession = channelp->sessionp_mp4;
 		memoryp = channelp->memoryp_mp4;
 	}
-	if(memoryp == NULL)
+	//if(memoryp == NULL)
+	if(fHttpClientSession == NULL)
 	{
 		ret = ResponseError(httpNotFound);
 		return ret;
 	}
+	TaskThread* threadp = fHttpClientSession->GetDefaultThread();
+	this->SetDefaultThread(threadp);
+	return QTSS_NotPreemptiveSafe;
 
 	if(param_count == -1 && param_seq == -1)
 	{
@@ -1649,12 +1678,121 @@ Bool16 HTTPSession::ResponseLiveM3U8()
 	return ret;
 }
 
-Bool16 HTTPSession::ResponseLiveSegment()
+QTSS_Error HTTPSession::ContinueLiveM3U8()
 {
-	Bool16 ret = true;
+	QTSS_Error ret = QTSS_NoErr;
 
+	if(!fHttpClientSession->Valid())
+	{
+		ret = ResponseError(httpGone);
+		return ret;
+	}
+
+	MEMORY_T* memoryp = fHttpClientSession->GetMemory();
+	//if(param_count == -1 && param_seq == -1)
+	if(fLiveLen == -1 && fLiveSeq == -1)
+	{
+		if(memoryp->m3u8_num == 0)
+		{
+			ret = ResponseError(httpNotFound);
+			return ret;
+		}
+		int index = memoryp->m3u8_index;
+		index --;
+		if(index < 0)
+		{
+			index = MAX_M3U8_NUM-1;		
+		}
+		
+		ResponseContent((char*)memoryp->m3u8s[index].datap, memoryp->m3u8s[index].len, CONTENT_TYPE_APPLICATION_M3U8);
+	}
+	else
+	{	
+		if(memoryp->clip_num <= 0)
+		{
+			ResponseError(httpNotFound);
+			return ret;
+		}
+		
+		int index = memoryp->clip_index - 1;	
+		if(index<0)
+		{
+			index = MAX_CLIP_NUM - 1;
+		}
+			
+		int count = 0;
+		while(1)
+		{
+			CLIP_T* onep = &(memoryp->clips[index]);
+			//if(param_seq != -1 && (int64_t)onep->sequence < param_seq)
+			if(fLiveSeq != -1 && (int64_t)onep->sequence < fLiveSeq)
+			{	
+				break;
+			}
+			
+			count ++;			
+			index --;
+			if(index<0)
+			{
+				index = MAX_CLIP_NUM - 1;
+			}
+
+			if(count >= memoryp->clip_num || (fLiveLen !=-1 && count >= fLiveLen) )
+			{
+				break;
+			}
+		}
+
+		index ++;
+		if(index>=MAX_CLIP_NUM)
+		{
+			index = 0;
+		}
+		
+		char m3u8_buffer[MAX_M3U8_CONTENT_LEN];
+		StringFormatter content(m3u8_buffer, MAX_M3U8_CONTENT_LEN);	
+		content.Put("#EXTM3U\n");
+		content.PutFmtStr("#EXT-X-TARGETDURATION:%d\n", memoryp->target_duration);
+		content.PutFmtStr("#EXT-X-MEDIA-SEQUENCE:%lu\n", memoryp->clips[index].sequence);
+			
+		int count2 = 0;
+		while(1)
+		{
+			CLIP_T* onep = &(memoryp->clips[index]);
+			content.PutFmtStr("#EXTINF:%u,\n", onep->inf);
+			content.PutFmtStr("#EXT-X-BYTERANGE:%lu,\n", onep->byte_range);
+			content.PutFmtStr("%s\n", onep->m3u8_relative_url);
+
+			count2 ++;
+			index ++;
+			if(index>=MAX_CLIP_NUM)
+			{
+				index = 0;
+			}
+			
+			if(count2>=count)
+			{
+				break;
+			}
+		}
+		content.PutTerminator();
+
+		ResponseContent(m3u8_buffer, content.GetBytesWritten(), CONTENT_TYPE_APPLICATION_M3U8);
+		
+	}
+
+	return ret;
+}
+
+QTSS_Error HTTPSession::ResponseLiveSegment()
+{
+	QTSS_Error ret = QTSS_NoErr;
+
+	fLiveRequest = kLiveSegment;
+	
 	// /livestream/3702892333/78267cf4a7864a887540cf4af3c432dca3d52050/ts/2013/10/31/20131017T171949_03_20131031_140823_3059413.ts
-	char liveid[MAX_LIVE_ID];
+	//char liveid[MAX_LIVE_ID];
+	// todo:
 	StringParser parser(&(fRequest.fRelativeURI));
 	parser.ConsumeLength(NULL, strlen(URI_LIVESTREAM));
 	StrPtrLen seg1;
@@ -1668,10 +1806,10 @@ Bool16 HTTPSession::ResponseLiveSegment()
 	{
 		len = MAX_LIVE_ID-1;
 	}
-	memcpy(liveid, seg2.Ptr, len);
-	liveid[len] = '\0';
+	memcpy(fLiveId, seg2.Ptr, len);
+	fLiveId[len] = '\0';
 	
-	CHANNEL_T* channelp = g_channels.FindChannelByHash(liveid);
+	CHANNEL_T* channelp = g_channels.FindChannelByHash(fLiveId);
 	if(channelp == NULL)
 	{
 		ret = ResponseError(httpNotFound);
@@ -1681,30 +1819,45 @@ Bool16 HTTPSession::ResponseLiveSegment()
 	parser.Expect('.');
 	StrPtrLen seg3;
 	parser.ConsumeUntil(&seg3, '?');
+	int type_len = seg3.Len;
+	if(type_len >= MAX_LIVE_TYPE-1)
+	{
+		type_len = MAX_LIVE_TYPE-1;
+	}
+	memcpy(fLiveType, seg3.Ptr, type_len);
+	fLiveType[type_len] = '\0';
 
+	fHttpClientSession = NULL;
 	MEMORY_T* memoryp = NULL;
 	char* type = seg3.Ptr;
 	char* mime_type = CONTENT_TYPE_APPLICATION_OCTET_STREAM;
 	if(strncasecmp(type, LIVE_TS, strlen(LIVE_TS)) == 0)
 	{
+		fHttpClientSession = channelp->sessionp_ts;
 		memoryp = channelp->memoryp_ts;
 		mime_type = CONTENT_TYPE_VIDEO_MP2T;
 	}
 	else if(strncasecmp(type, LIVE_FLV, strlen(LIVE_FLV)) == 0)
 	{
+		fHttpClientSession = channelp->sessionp_flv;
 		memoryp = channelp->memoryp_flv;
 		mime_type = CONTENT_TYPE_VIDEO_FLV;
 	}
 	else if(strncasecmp(type, LIVE_MP4, strlen(LIVE_MP4)) == 0)
 	{
+		fHttpClientSession = channelp->sessionp_mp4;
 		memoryp = channelp->memoryp_mp4;
 		mime_type = CONTENT_TYPE_VIDEO_MP4;
 	}
-	if(memoryp == NULL)
+	//if(memoryp == NULL)
+	if(fHttpClientSession == NULL)
 	{
 		ret = ResponseError(httpNotFound);
 		return ret;
 	}
+	TaskThread* threadp = fHttpClientSession->GetDefaultThread();
+	this->SetDefaultThread(threadp);
+	return QTSS_NotPreemptiveSafe;
 
 	CLIP_T* clipp = NULL;	
 	int index = memoryp->clip_index - 1;	
@@ -1759,9 +1912,87 @@ Bool16 HTTPSession::ResponseLiveSegment()
 	return ret;
 }
 
-Bool16 HTTPSession::ResponseLive()
+QTSS_Error HTTPSession::ContinueLiveSegment()
 {
-	Bool16 ret = true;
+	QTSS_Error ret = QTSS_NoErr;
+
+	if(!fHttpClientSession->Valid())
+	{
+		ret = ResponseError(httpGone);
+		return ret;
+	}
+
+	char* mime_type = CONTENT_TYPE_APPLICATION_OCTET_STREAM;
+	if(strncasecmp(fLiveType, LIVE_TS, strlen(LIVE_TS)) == 0)
+	{
+		mime_type = CONTENT_TYPE_VIDEO_MP2T;
+	}
+	else if(strncasecmp(fLiveType, LIVE_FLV, strlen(LIVE_FLV)) == 0)
+	{
+		mime_type = CONTENT_TYPE_VIDEO_FLV;
+	}
+	else if(strncasecmp(fLiveType, LIVE_MP4, strlen(LIVE_MP4)) == 0)
+	{
+		mime_type = CONTENT_TYPE_VIDEO_MP4;
+	}
+	
+	MEMORY_T* memoryp = fHttpClientSession->GetMemory();
+	CLIP_T* clipp = NULL;	
+	int index = memoryp->clip_index - 1;	
+	if(index<0)
+	{
+		index = MAX_CLIP_NUM - 1;
+	}
+		
+	int count = 0;
+	while(count <= memoryp->clip_num)
+	{
+		CLIP_T* onep = &(memoryp->clips[index]);
+		if(strncmp(onep->relative_url, fRequest.fRelativeURI.Ptr, strlen(onep->relative_url)) == 0)
+		{
+			clipp = onep;
+			break;
+		}
+		
+		count ++;
+		index --;
+		if(index<0)
+		{
+			index = MAX_CLIP_NUM - 1;
+		}
+	}
+	if(clipp == NULL)
+	{
+		ret = ResponseError(httpNotFound);
+		return ret;
+	}
+
+	fMemory = &(clipp->data);
+	fMemoryPosition = 0;
+	
+	fResponse.Set(fStrRemained.Ptr+fStrRemained.Len, kResponseBufferSizeInBytes-fStrRemained.Len);
+	fResponse.PutFmtStr("%s %s %s\r\n", 
+			HTTPProtocol::GetVersionString(http11Version)->Ptr,
+			HTTPProtocol::GetStatusCodeAsString(httpOK)->Ptr,
+			HTTPProtocol::GetStatusCodeString(httpOK)->Ptr);
+    fResponse.PutFmtStr("Server: %s/%s\r\n", BASE_SERVER_NAME, BASE_SERVER_VERSION);
+    fResponse.PutFmtStr("Content-Length: %ld\r\n", fMemory->len);
+    //fResponse.PutFmtStr("Content-Type: %s; charset=utf-8\r\n", content_type);
+    fResponse.PutFmtStr("Content-Type: %s\r\n", mime_type);    
+    fResponse.Put("\r\n"); 
+    
+    fStrResponse.Set(fResponse.GetBufPtr(), fResponse.GetBytesWritten());
+    //append to fStrRemained
+    fStrRemained.Len += fStrResponse.Len;  
+    //clear previous response.
+    fStrResponse.Set(fResponseBuffer, 0);	
+	
+	return ret;
+}
+
+QTSS_Error HTTPSession::ResponseLive()
+{
+	QTSS_Error ret = QTSS_NoErr;
 	if(strcasestr(fRequest.fAbsoluteURI.Ptr, ".m3u8") != NULL)
 	{	
 		ret = ResponseLiveM3U8();
@@ -1774,7 +2005,23 @@ Bool16 HTTPSession::ResponseLive()
 	return ret;
 }
 
-Bool16 HTTPSession::ResponseFile(char* abs_path)
+QTSS_Error HTTPSession::ContinueLive()
+{
+	QTSS_Error ret = QTSS_NoErr;
+	if(fLiveRequest == kLiveM3U8)
+	{	
+		ret = ContinueLiveM3U8();
+	}
+	else if(fLiveRequest == kLiveSegment)
+	{
+		ret = ContinueLiveSegment();		
+	}
+	
+	return ret;
+}
+
+
+QTSS_Error HTTPSession::ResponseFile(char* abs_path)
 {
 	fFd = open(abs_path, O_RDONLY);
 	if(fFd == -1)
@@ -1871,10 +2118,10 @@ Bool16 HTTPSession::ResponseFile(char* abs_path)
     //clear previous response.
     fStrResponse.Set(fResponseBuffer, 0);	
 	
-	return true;
+	return QTSS_NoErr;
 }
 
-Bool16 HTTPSession::ResponseError(HTTPStatusCode status_code)
+QTSS_Error HTTPSession::ResponseError(HTTPStatusCode status_code)
 {
 	char	buffer[1024];
 	StringFormatter content(buffer, sizeof(buffer));
@@ -1951,7 +2198,7 @@ Bool16 HTTPSession::ResponseError(HTTPStatusCode status_code)
     fStrResponse.Set(fResponseBuffer, 0);
     
     //Bool16 ret = SendData();    
-	return true;
+	return QTSS_NoErr;
 
 }
 

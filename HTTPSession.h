@@ -10,6 +10,7 @@
 #include "HTTPRequest.h"
 
 #include "channel.h"
+#include "HTTPClientSession.h"
 
 class HTTPSession : public Task
 {
@@ -26,26 +27,29 @@ protected:
        	 	bool            IsFullRequest();
         	Bool16          Disconnect();
         	QTSS_Error      ProcessRequest();
-        	Bool16          ResponseGet();
+        	QTSS_Error      ResponseGet();
         	Bool16 			ReadFileContent();
-        	Bool16 			ResponseCmd();
-        	Bool16 			ResponseCmdResult(char* cmd, char* result, char* reason);
-        	Bool16 			ResponseCmdListChannel();
-        	Bool16 			ResponseCmdAddChannel();
-        	Bool16 			ResponseCmdDelChannel();  
+        	QTSS_Error		ResponseCmd();
+        	QTSS_Error		ResponseCmdResult(char* cmd, char* result, char* reason);
+        	QTSS_Error 		ResponseCmdListChannel();
+        	QTSS_Error 		ResponseCmdAddChannel();
+        	QTSS_Error 		ResponseCmdDelChannel();  
 #if 0
         	Bool16 			ResponseCmdListSource();
         	Bool16 			ResponseCmdAddSource();
         	Bool16 			ResponseCmdDelSource();  
 #endif
         	Bool16 			ResponseContent(char* content, int len, char* type);
-        	Bool16 			ResponseFile(char* absolute_path);
-        	Bool16 			ResponseError(HTTPStatusCode StatusCode);
+        	QTSS_Error		ResponseFile(char* absolute_path);
+        	QTSS_Error		ResponseError(HTTPStatusCode StatusCode);
 	        void            MoveOnRequest();
-	        Bool16 			ResponseLive();
-	        Bool16			ResponseLiveM3U8();
-	        Bool16			ResponseLiveSegment();
+	        QTSS_Error		ResponseLive();
+	        QTSS_Error		ResponseLiveM3U8();
+	        QTSS_Error		ResponseLiveSegment();
 	        Bool16 			ReadSegmentContent();
+	        QTSS_Error		ContinueLive();
+	        QTSS_Error		ContinueLiveM3U8();
+	        QTSS_Error		ContinueLiveSegment();
 
 			TCPSocket	fSocket;
 		
@@ -75,12 +79,23 @@ protected:
 			StrPtrLen	fStrRemained;
 			// 
 			StringFormatter 	fResponse;
-			// 
+			// file
 			int			fFd;
 			char		fBuffer[kReadBufferSize];
 			int64_t		fRangeStart;
 			int64_t		fRangeStop;
-			//
+			//livestream
+			enum
+			{
+				kLiveM3U8 = 1,
+				kLiveSegment = 2,
+			};
+			int			fLiveRequest;
+			char		fLiveId[MAX_LIVE_ID];
+			char		fLiveType[MAX_LIVE_TYPE];
+			int			fLiveSeq;
+			int			fLiveLen;
+			HTTPClientSession*	fHttpClientSession;
 			DATA_T* 	fMemory;
 			int64_t		fMemoryPosition;
 			
