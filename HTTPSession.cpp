@@ -391,7 +391,7 @@ SInt64     HTTPSession::Run()
 
 	if(events & Task::kUpdateEvent)
     {
-    	fprintf(stdout, "%s: kUpdateEvent fDefaultThread=0x%016lX, fUseThisThread=0x%016lX\n", __PRETTY_FUNCTION__, this->fDefaultThread, this->fUseThisThread);
+    	fprintf(stdout, "%s: kUpdateEvent fDefaultThread=0x%016lX, fUseThisThread=0x%016lX, %ld\n", __PRETTY_FUNCTION__, this->fDefaultThread, this->fUseThisThread, pthread_self());
     	QTSS_Error ok = ContinueLive();
     	if(ok != QTSS_RequestFailed)
         {
@@ -442,8 +442,8 @@ SInt64     HTTPSession::Run()
 	        QTSS_Error ok = this->ProcessRequest(); 
 	        if(ok == QTSS_NotPreemptiveSafe)
 	        {
-	        	this->Signal(Task::kUpdateEvent);
-	        	return 0;
+	        	this->SetSignal(Task::kUpdateEvent);
+	        	return -2;
 	        }
 	        else if(ok != QTSS_RequestFailed)
 	        {
@@ -1584,11 +1584,11 @@ QTSS_Error HTTPSession::ResponseLiveM3U8()
 		return ret;
 	}
 
-	fprintf(stdout, "%s: before fDefaultThread=0x%016lX, fUseThisThread=0x%016lX\n", __PRETTY_FUNCTION__, this->fDefaultThread, this->fUseThisThread);
+	fprintf(stdout, "%s: before fDefaultThread=0x%016lX, fUseThisThread=0x%016lX, %ld\n", __PRETTY_FUNCTION__, this->fDefaultThread, this->fUseThisThread, pthread_self());
 	TaskThread* threadp = fHttpClientSession->GetDefaultThread();
 	this->SetDefaultThread(threadp);	
 	this->SetTaskThread(threadp);
-	fprintf(stdout, "%s: after fDefaultThread=0x%016lX, fUseThisThread=0x%016lX\n", __PRETTY_FUNCTION__, this->fDefaultThread, this->fUseThisThread);
+	fprintf(stdout, "%s: after fDefaultThread=0x%016lX, fUseThisThread=0x%016lX, %ld\n", __PRETTY_FUNCTION__, this->fDefaultThread, this->fUseThisThread, pthread_self());
 	return QTSS_NotPreemptiveSafe;
 
 	if(param_count == -1 && param_seq == -1)

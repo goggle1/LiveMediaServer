@@ -95,6 +95,7 @@ class Task
         
         //Send an event to this task.
         void                    Signal(EventFlags eventFlags);
+        void                    SetSignal(EventFlags eventFlags);
         void                    GlobalUnlock();     
         Bool16                  Valid(); // for debugging
 		char            fTaskName[48];
@@ -137,7 +138,7 @@ class Task
             kAliveOff =         0x7fffffff
         };
 
-        void            SetTaskThread(TaskThread *thread) { fUseThisThread = thread; }
+        void            SetTaskThread(TaskThread *thread);
         
         EventFlags      fEvents;
         TaskThread*     fUseThisThread;

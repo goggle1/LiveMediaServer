@@ -90,6 +90,26 @@ Task::EventFlags Task::GetEvents()
     return events;
 }
 
+void Task::SetTaskThread(TaskThread *thread) 
+{ 
+	//fUseThisThread->fTaskQueue.DeQueue(&fTaskQueueElem);
+	fUseThisThread = thread; 
+	fUseThisThread->fTaskQueue.EnQueue(&fTaskQueueElem);
+}
+
+void Task::SetSignal(EventFlags events)
+{
+    if (!this->Valid())
+        return;
+        
+    //Fancy no mutex implementation. We atomically mask the new events into
+    //the event mask. Because atomic_or returns the old state of the mask,
+    //we only schedule this task once.
+    events |= kAlive;
+    EventFlags oldEvents = atomic_or(&fEvents, events);
+    
+}
+
 void Task::Signal(EventFlags events)
 {
     if (!this->Valid())
@@ -100,7 +120,7 @@ void Task::Signal(EventFlags events)
     //we only schedule this task once.
     events |= kAlive;
     EventFlags oldEvents = atomic_or(&fEvents, events);
-    if ((!(oldEvents & kAlive)) && (TaskThreadPool::sNumTaskThreads > 0))
+    if ((!(oldEvents & kAlive)) && (TaskThreadPool::sNumTaskThreads > 0))    
     {
         if (fDefaultThread != NULL && fUseThisThread == NULL)
             fUseThisThread = fDefaultThread;   	
@@ -217,7 +237,7 @@ void TaskThread::Entry()
             Assert(theTask->fInRunCount == 0);
             theTask->fInRunCount++;
 #endif
-            //theTask->fUseThisThread = NULL; // Each invocation of Run must independently
+            theTask->fUseThisThread = NULL; // Each invocation of Run must independently
                                             // request a specific thread.
             SInt64 theTimeout = 0;
             
@@ -241,8 +261,13 @@ void TaskThread::Entry()
             Assert(this->GetNumLocksHeld() == 0);
             theTask->fInRunCount--;
             Assert(theTask->fInRunCount == 0);
-#endif          
-            if (theTimeout < 0)
+#endif  
+			if(theTimeout == -2)
+			{
+				theTask = NULL;
+                doneProcessingEvent = true;	
+			}
+            else if (theTimeout < 0)
             {
                 if (TASK_DEBUG) 
                 {
@@ -279,7 +304,7 @@ void TaskThread::Entry()
                 //(via Signal) that the Run function will be invoked again.
                 doneProcessingEvent = compare_and_store(Task::kAlive, 0, &theTask->fEvents);
                 if (doneProcessingEvent)
-                    theTask = NULL; 
+                    theTask = NULL;
             }
             else
             {

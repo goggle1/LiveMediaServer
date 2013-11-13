@@ -417,7 +417,7 @@ SInt64 HTTPClientSession::Run()
             case kSendingGetM3U8:
             {
             	fGetIndex = 0;
-            	fprintf(stdout, "%s[0x%016lX][0x%016lX]: get %s\n", __PRETTY_FUNCTION__, this->fDefaultThread, this->fUseThisThread, fURL.Ptr);
+            	fprintf(stdout, "%s[0x%016lX][0x%016lX][%ld]: get %s\n", __PRETTY_FUNCTION__, this->fDefaultThread, this->fUseThisThread, pthread_self(), fURL.Ptr);
             	theErr = fClient->SendGetM3U8(fURL.Ptr);            	
             	if (theErr == OS_NoErr)
                 {   
