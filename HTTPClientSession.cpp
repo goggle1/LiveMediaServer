@@ -432,7 +432,7 @@ SInt64 HTTPClientSession::Run()
                     else
                     {
                     	fprintf(stdout, "%s[0x%016lX][0x%016lX][%ld]: get %s done\n", __PRETTY_FUNCTION__, this->fDefaultThread, this->fUseThisThread, pthread_self(), fURL.Ptr);
-                    	Log(fURL.Ptr, fClient->GetContentBody(), fClient->GetContentLength());
+                    	//Log(fURL.Ptr, fClient->GetContentBody(), fClient->GetContentLength());
                         fM3U8Parser.Parse(fClient->GetContentBody(), fClient->GetContentLength());
                         //RewriteM3U8(&fM3U8Parser);
                         fGetIndex = 0;
@@ -497,7 +497,7 @@ SInt64 HTTPClientSession::Run()
                     else
                     {
                     	fprintf(stdout, "%s: get %s done.\n", __PRETTY_FUNCTION__, fM3U8Parser.fSegments[fGetIndex].relative_url);
-                    	Log(fM3U8Parser.fSegments[fGetIndex].relative_url, fClient->GetContentBody(), fClient->GetContentLength());
+                    	//Log(fM3U8Parser.fSegments[fGetIndex].relative_url, fClient->GetContentBody(), fClient->GetContentLength());
                     	MemoSegment(&(fM3U8Parser.fSegments[fGetIndex]), fClient->GetContentBody(), fClient->GetContentLength());
                     	memcpy(&(fDownloadSegments[fDownloadIndex]), &(fM3U8Parser.fSegments[fGetIndex]), sizeof(SEGMENT_T));
                     	fDownloadIndex ++;
