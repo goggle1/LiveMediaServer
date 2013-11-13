@@ -456,7 +456,7 @@ SInt64 HTTPClientSession::Run()
             	{
 	            	if(IsDownloaded(&(fM3U8Parser.fSegments[fGetIndex])))
 	            	{
-	            		fprintf(stdout, "%s: %s downloaded\n", __PRETTY_FUNCTION__, fM3U8Parser.fSegments[fGetIndex].url);
+	            		fprintf(stdout, "%s: %s downloaded\n", __PRETTY_FUNCTION__, fM3U8Parser.fSegments[fGetIndex].relative_url);
 	            		fGetIndex ++;
 	            		if(fGetIndex >= fM3U8Parser.fSegmentsNum)
 		            	{
