@@ -293,7 +293,7 @@ int HTTPClientSession::MemoM3U8(M3U8Parser* parserp)
 			content.PutFmtStr("%s\n", segp->m3u8_relative_url);
 		}
 	
-		content.PutTerminator();
+		//content.PutTerminator();
 		m3u8p->len = content.GetBytesWritten();
 	}
 	
@@ -447,7 +447,7 @@ SInt64 HTTPClientSession::Run()
             	if(fM3U8Parser.fSegmentsNum <= 0)
             	{
             		fState = kSendingGetM3U8;
-            		RewriteM3U8(&fM3U8Parser);
+            		//RewriteM3U8(&fM3U8Parser);
             		MemoM3U8(&fM3U8Parser);
             		return MAX_SEMENT_TIME;
             	}
@@ -485,7 +485,7 @@ SInt64 HTTPClientSession::Run()
 	                        if(fGetIndex >= fM3U8Parser.fSegmentsNum)
 			            	{
 			            		fState = kSendingGetM3U8;
-			            		RewriteM3U8(&fM3U8Parser);
+			            		//RewriteM3U8(&fM3U8Parser);
 			            		MemoM3U8(&fM3U8Parser);
 			            		return MAX_SEMENT_TIME;
 			            	}
@@ -511,7 +511,7 @@ SInt64 HTTPClientSession::Run()
                         if(fGetIndex >= fM3U8Parser.fSegmentsNum)
 		            	{
 		            		fState = kSendingGetM3U8;
-		            		RewriteM3U8(&fM3U8Parser);
+		            		//RewriteM3U8(&fM3U8Parser);
 		            		MemoM3U8(&fM3U8Parser);
 		            		return MAX_SEMENT_TIME;
 		            	}
