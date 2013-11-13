@@ -417,17 +417,20 @@ SInt64 HTTPClientSession::Run()
             case kSendingGetM3U8:
             {
             	fGetIndex = 0;
-            	fprintf(stdout, "%s[0x%016lX][0x%016lX][%ld]: get %s\n", __PRETTY_FUNCTION__, this->fDefaultThread, this->fUseThisThread, pthread_self(), fURL.Ptr);
+            	//fprintf(stdout, "%s[0x%016lX][0x%016lX][%ld]: get %s\n", __PRETTY_FUNCTION__, this->fDefaultThread, this->fUseThisThread, pthread_self(), fURL.Ptr);
             	theErr = fClient->SendGetM3U8(fURL.Ptr);            	
             	if (theErr == OS_NoErr)
                 {   
-                    if (fClient->GetStatus() != 200)
+                	UInt32 get_status = fClient->GetStatus();
+                    if (get_status != 200)
                     {
+                    	fprintf(stdout, "%s[0x%016lX][0x%016lX][%ld]: get %s error: %d\n", __PRETTY_FUNCTION__, this->fDefaultThread, this->fUseThisThread, pthread_self(), fURL.Ptr, get_status);
                         theErr = ENOTCONN; // Exit the state machine
                         break;
                     }
                     else
                     {
+                    	fprintf(stdout, "%s[0x%016lX][0x%016lX][%ld]: get %s done\n", __PRETTY_FUNCTION__, this->fDefaultThread, this->fUseThisThread, pthread_self(), fURL.Ptr);
                     	Log(fURL.Ptr, fClient->GetContentBody(), fClient->GetContentLength());
                         fM3U8Parser.Parse(fClient->GetContentBody(), fClient->GetContentLength());
                         //RewriteM3U8(&fM3U8Parser);
@@ -470,9 +473,11 @@ SInt64 HTTPClientSession::Run()
             	theErr = fClient->SendGetSegment(fM3U8Parser.fSegments[fGetIndex].relative_url);
             	if (theErr == OS_NoErr)
                 {   
-                	if (fClient->GetStatus() != 200)
+                	UInt32 get_status = fClient->GetStatus();
+                	if (get_status != 200)
                     {
-                    	if (fClient->GetStatus() == 404)
+                    	fprintf(stdout, "%s: get %s error: %d.\n", __PRETTY_FUNCTION__, fM3U8Parser.fSegments[fGetIndex].relative_url, get_status);
+                    	if (get_status == 404)
 	                    {
 	                        fGetIndex ++;
 	                        // if all the segments downloaded, get m3u8 again
@@ -490,6 +495,7 @@ SInt64 HTTPClientSession::Run()
                     }
                     else
                     {
+                    	fprintf(stdout, "%s: get %s done.\n", __PRETTY_FUNCTION__, fM3U8Parser.fSegments[fGetIndex].relative_url);
                     	Log(fM3U8Parser.fSegments[fGetIndex].relative_url, fClient->GetContentBody(), fClient->GetContentLength());
                     	MemoSegment(&(fM3U8Parser.fSegments[fGetIndex]), fClient->GetContentBody(), fClient->GetContentLength());
                     	memcpy(&(fDownloadSegments[fDownloadIndex]), &(fM3U8Parser.fSegments[fGetIndex]), sizeof(SEGMENT_T));
