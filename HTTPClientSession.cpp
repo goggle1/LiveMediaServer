@@ -46,7 +46,7 @@ int make_dir(StrPtrLen& dir)
 
 HTTPClientSession::HTTPClientSession(const StrPtrLen& inURL, CHANNEL_T* channelp, char* type)
 	:fTimeoutTask(this, 60)
-{	
+{		
 	fSocket = new TCPClientSocket(Socket::kNonBlockingSocketType);	
 	//fSocket->Set(fInAddr, fInPort);
 	
@@ -68,7 +68,8 @@ HTTPClientSession::HTTPClientSession(const StrPtrLen& inURL, CHANNEL_T* channelp
 	{
 		channelp->memoryp_mp4 = fMemory;
 	}
-	
+
+	fState = kSendingGetM3U8;
 	this->Set(inURL);
 	this->Signal(Task::kStartEvent);
 
