@@ -128,7 +128,12 @@ OS_Error HTTPClient::DoTransaction()
         		//	__PRETTY_FUNCTION__, fStatus, fHeaderRecvLen, theErr, strerror(theErr));
     
         		if (theErr != OS_NoErr)
-        		{        	
+        		{       
+        			if(theErr != EAGAIN)
+        			{
+        				fprintf(stderr, "%s: ReceiveResponse fStatus=%d, fContentLength=%d, fContentRecvLen=%d, err = [%"_S32BITARG_"][%s]\n", 
+							__PRETTY_FUNCTION__, fStatus, fContentLength, fContentRecvLen, theErr, strerror(theErr));
+					}
         			// only 107 ? and other errno?
         			if(theErr == 107)
         			{

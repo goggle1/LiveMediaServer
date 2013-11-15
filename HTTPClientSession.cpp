@@ -433,9 +433,9 @@ SInt64 HTTPClientSession::Run()
                     }
                     else
                     {
-                    	fprintf(stdout, "%s[0x%016lX][0x%016lX][%ld]: get %s done\n", 
+                    	fprintf(stdout, "%s[0x%016lX][0x%016lX][%ld]: get %s done, len=%d\n", 
                     		__PRETTY_FUNCTION__, (long)this->fDefaultThread, (long)this->fUseThisThread, pthread_self(), 
-                    		fURL.Ptr);
+                    		fURL.Ptr, fClient->GetContentLength());
                     	//Log(fURL.Ptr, fClient->GetContentBody(), fClient->GetContentLength());
                         fM3U8Parser.Parse(fClient->GetContentBody(), fClient->GetContentLength());
                         //RewriteM3U8(&fM3U8Parser);
@@ -481,7 +481,8 @@ SInt64 HTTPClientSession::Run()
                 	UInt32 get_status = fClient->GetStatus();
                 	if (get_status != 200)
                     {
-                    	fprintf(stdout, "%s: get %s return error: %d\n", __PRETTY_FUNCTION__, fM3U8Parser.fSegments[fGetIndex].relative_url, get_status);
+                    	fprintf(stdout, "%s: get %s return error: %d\n", 
+                    		__PRETTY_FUNCTION__, fM3U8Parser.fSegments[fGetIndex].relative_url, get_status);
                     	if (get_status == 404)
 	                    {
 	                        fGetIndex ++;
@@ -500,24 +501,33 @@ SInt64 HTTPClientSession::Run()
                     }
                     else
                     {
-                    	fprintf(stdout, "%s: get %s done\n", __PRETTY_FUNCTION__, fM3U8Parser.fSegments[fGetIndex].relative_url);
-                    	//Log(fM3U8Parser.fSegments[fGetIndex].relative_url, fClient->GetContentBody(), fClient->GetContentLength());
-                    	MemoSegment(&(fM3U8Parser.fSegments[fGetIndex]), fClient->GetContentBody(), fClient->GetContentLength());
-                    	memcpy(&(fDownloadSegments[fDownloadIndex]), &(fM3U8Parser.fSegments[fGetIndex]), sizeof(SEGMENT_T));
-                    	fDownloadIndex ++;
-                    	if(fDownloadIndex >= MAX_SEGMENT_NUM)
+                    	fprintf(stdout, "%s: get %s done, len=%d\n", 
+                    		__PRETTY_FUNCTION__, fM3U8Parser.fSegments[fGetIndex].relative_url, fClient->GetContentLength());
+                    	if(fClient->GetContentLength() > 0)
                     	{
-                    		fDownloadIndex = 0;
-                    	}
-                    	
-                    	fGetIndex ++;
-                        // if all the segments downloaded, get m3u8 again
-                        if(fGetIndex >= fM3U8Parser.fSegmentsNum)
+	                    	//Log(fM3U8Parser.fSegments[fGetIndex].relative_url, fClient->GetContentBody(), fClient->GetContentLength());
+	                    	MemoSegment(&(fM3U8Parser.fSegments[fGetIndex]), fClient->GetContentBody(), fClient->GetContentLength());
+	                    	memcpy(&(fDownloadSegments[fDownloadIndex]), &(fM3U8Parser.fSegments[fGetIndex]), sizeof(SEGMENT_T));
+	                    	fDownloadIndex ++;
+	                    	if(fDownloadIndex >= MAX_SEGMENT_NUM)
+	                    	{
+	                    		fDownloadIndex = 0;
+	                    	}
+	                    	
+	                    	fGetIndex ++;
+	                        // if all the segments downloaded, get m3u8 again
+	                        if(fGetIndex >= fM3U8Parser.fSegmentsNum)
+			            	{
+			            		fState = kSendingGetM3U8;
+			            		//RewriteM3U8(&fM3U8Parser);
+			            		MemoM3U8(&fM3U8Parser);
+			            		return MAX_SEMENT_TIME;
+			            	}
+		            	}
+		            	else
 		            	{
-		            		fState = kSendingGetM3U8;
-		            		//RewriteM3U8(&fM3U8Parser);
-		            		MemoM3U8(&fM3U8Parser);
-		            		return MAX_SEMENT_TIME;
+		            		theErr = ENOTCONN; // Exit the state machine
+                        	break;
 		            	}
                     }
                 }
