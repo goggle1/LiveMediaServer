@@ -425,13 +425,17 @@ SInt64 HTTPClientSession::Run()
                 	UInt32 get_status = fClient->GetStatus();
                     if (get_status != 200)
                     {
-                    	fprintf(stdout, "%s[0x%016lX][0x%016lX][%ld]: get %s error: %d\n", __PRETTY_FUNCTION__, this->fDefaultThread, this->fUseThisThread, pthread_self(), fURL.Ptr, get_status);
+                    	fprintf(stdout, "%s[0x%016lX][0x%016lX][%ld]: get %s return error: %d\n", 
+                    		__PRETTY_FUNCTION__, (long)this->fDefaultThread, (long)this->fUseThisThread, pthread_self(), 
+                    		fURL.Ptr, get_status);
                         theErr = ENOTCONN; // Exit the state machine
                         break;
                     }
                     else
                     {
-                    	fprintf(stdout, "%s[0x%016lX][0x%016lX][%ld]: get %s done\n", __PRETTY_FUNCTION__, this->fDefaultThread, this->fUseThisThread, pthread_self(), fURL.Ptr);
+                    	fprintf(stdout, "%s[0x%016lX][0x%016lX][%ld]: get %s done\n", 
+                    		__PRETTY_FUNCTION__, (long)this->fDefaultThread, (long)this->fUseThisThread, pthread_self(), 
+                    		fURL.Ptr);
                     	//Log(fURL.Ptr, fClient->GetContentBody(), fClient->GetContentLength());
                         fM3U8Parser.Parse(fClient->GetContentBody(), fClient->GetContentLength());
                         //RewriteM3U8(&fM3U8Parser);
@@ -477,7 +481,7 @@ SInt64 HTTPClientSession::Run()
                 	UInt32 get_status = fClient->GetStatus();
                 	if (get_status != 200)
                     {
-                    	fprintf(stdout, "%s: get %s error: %d.\n", __PRETTY_FUNCTION__, fM3U8Parser.fSegments[fGetIndex].relative_url, get_status);
+                    	fprintf(stdout, "%s: get %s return error: %d\n", __PRETTY_FUNCTION__, fM3U8Parser.fSegments[fGetIndex].relative_url, get_status);
                     	if (get_status == 404)
 	                    {
 	                        fGetIndex ++;
@@ -496,7 +500,7 @@ SInt64 HTTPClientSession::Run()
                     }
                     else
                     {
-                    	fprintf(stdout, "%s: get %s done.\n", __PRETTY_FUNCTION__, fM3U8Parser.fSegments[fGetIndex].relative_url);
+                    	fprintf(stdout, "%s: get %s done\n", __PRETTY_FUNCTION__, fM3U8Parser.fSegments[fGetIndex].relative_url);
                     	//Log(fM3U8Parser.fSegments[fGetIndex].relative_url, fClient->GetContentBody(), fClient->GetContentLength());
                     	MemoSegment(&(fM3U8Parser.fSegments[fGetIndex]), fClient->GetContentBody(), fClient->GetContentLength());
                     	memcpy(&(fDownloadSegments[fDownloadIndex]), &(fM3U8Parser.fSegments[fGetIndex]), sizeof(SEGMENT_T));

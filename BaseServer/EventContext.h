@@ -145,6 +145,16 @@ class EventContext
 			{
 				EventFlags = EventFlags | Task::kWriteEvent;
 			}
+			if(eventBits & EV_EX)
+			{
+				EventFlags = EventFlags | Task::kErrorEvent;
+			}
+
+			if( EventFlags == 0)
+	        {
+	        	fprintf(stdout, "%s events=0x%08X, flags=0x%08X\n", __PRETTY_FUNCTION__, eventBits, EventFlags);
+	        }
+			
 			
             if (fTask != NULL)
             {

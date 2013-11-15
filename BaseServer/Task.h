@@ -74,7 +74,11 @@ class Task
             kWriteEvent =       0x1 << 0x5,
            
            //update event
-            kUpdateEvent =      0x1 << 0x6
+            kUpdateEvent =      0x1 << 0x6,
+
+			// by guoq
+            //error event
+            kErrorEvent =       0x1 << 0x7
         };
         
         //CONSTRUCTOR / DESTRUCTOR

@@ -30,12 +30,6 @@ static int 		s_CurrentFDPos = 0;
 int construct_event_req(struct eventreq* req, int fd_pos, int event)
 {	
 	int fd = s_epoll_events[fd_pos].data.fd;
-
-	if(event == 0x00000000)
-	{
-		fprintf(stdout, "%s: fd %d, events=0x00000000\n", __FUNCTION__, fd);
-	}
-	
 	#if 0
     Assert(fd < (int)(sizeof(fd_set) * 8));
     if (fd >=(int)(sizeof(fd_set) * 8) )
@@ -58,12 +52,15 @@ int construct_event_req(struct eventreq* req, int fd_pos, int event)
     FD_CLR(fd, &sReadSet);
     #endif
 
-	#if 0    
+	#if 1    
     struct epoll_event ev;
     ev.data.fd = fd;
     ev.events = 0;
     int ret = epoll_ctl(s_epoll_fd, EPOLL_CTL_MOD, fd, &ev);    
-    fprintf(stdout, "%s: epoll_ctl mod %d, return %d, errno=%d, %s\n", __FUNCTION__, fd, ret, errno, strerror(errno));
+    if(ret != 0)
+    {
+    	fprintf(stderr, "%s: epoll_ctl mod %d, return %d, errno=%d, %s\n", __FUNCTION__, fd, ret, errno, strerror(errno));
+    }
     #endif
     
     return 0;
@@ -356,7 +353,8 @@ int epoll_waitevent(struct eventreq *req, void* /*onlyForMacOSX*/)
             #endif
             while( s_CurrentFDPos<s_NumFDsBackFromEpoll )
             {
-            	if((s_epoll_events[s_CurrentFDPos].events | EPOLLIN) || (s_epoll_events[s_CurrentFDPos].events | EPOLLOUT))
+            	//if((s_epoll_events[s_CurrentFDPos].events | EPOLLIN) || (s_epoll_events[s_CurrentFDPos].events | EPOLLOUT))
+            	if(s_epoll_events[s_CurrentFDPos].events != 0)
             	{
             		if(s_epoll_events[s_CurrentFDPos].data.fd == s_Pipes[0])
             		{
@@ -386,6 +384,19 @@ int epoll_waitevent(struct eventreq *req, void* /*onlyForMacOSX*/)
                 if(s_epoll_events[s_CurrentFDPos].events & EPOLLOUT)
                 {
                 	event |= EV_WR;
+                }                
+                if(s_epoll_events[s_CurrentFDPos].events & EPOLLHUP)
+                {
+                	event |= EV_RE;
+                }
+                if(s_epoll_events[s_CurrentFDPos].events & EPOLLERR)
+                {
+                	event |= EV_EX;
+                }	
+                if(event == 0)
+                {
+                	fprintf(stderr, "%s[%d]: event=%d, events=0x%08X \n",
+                		__PRETTY_FUNCTION__, __LINE__, event, s_epoll_events[s_CurrentFDPos].events);
                 }
                 return construct_event_req(req, s_CurrentFDPos, event);
             }

@@ -344,7 +344,9 @@ HTTPSession::HTTPSession():
     fStrRemained(fStrResponse),
     fResponse(NULL, 0)    
 {
-	fprintf(stdout, "%s %s[%d][0x%016lX] \n", __FILE__, __PRETTY_FUNCTION__, __LINE__, (long)this);
+	fprintf(stdout, "%s[0x%016lX] remote_ip=0x%08X, port=%u \n", 
+		__PRETTY_FUNCTION__, (long)this,
+		fSocket.GetRemoteAddr(), fSocket.GetRemotePort());
 	fFd	= -1;
 	fData = NULL;
 	fDataPosition = 0;
@@ -359,7 +361,9 @@ HTTPSession::~HTTPSession()
 		close(fFd);
 		fFd = -1;
 	}
-    fprintf(stdout, "%s %s[%d][0x%016lX] \n", __FILE__, __PRETTY_FUNCTION__, __LINE__, (long)this);
+    fprintf(stdout, "%s[0x%016lX] remote_ip=0x%08X, port=%u \n", 
+		__PRETTY_FUNCTION__, (long)this,
+		fSocket.GetRemoteAddr(), fSocket.GetRemotePort());
 }
 
 TCPSocket* HTTPSession::GetSocket() 
@@ -372,18 +376,29 @@ SInt64     HTTPSession::Run()
     Task::EventFlags events = this->GetEvents();    
     if(events == 0x00000000)
     {
-    	// epoll_wait EPOLLERR or EPOLLHUP
-    	// man epoll_ctl
-    	fprintf(stdout, "%s %s[%d][0x%016lX] events=0x%08X\n",
-			__FILE__, __PRETTY_FUNCTION__, __LINE__, (long)this, events);
+    	// this will never happen.
+    	fprintf(stdout, "%s[%d][0x%016lX][%ld] remote_ip=0x%08X, port=%u events=0x%08X, errno=%d, %s !!!\n", 
+			__PRETTY_FUNCTION__, __LINE__, (long)this, pthread_self(),
+			fSocket.GetRemoteAddr(), fSocket.GetRemotePort(), events,
+			errno, strerror(errno));		
+    	return 1;
+    }
+    else if(events & Task::kErrorEvent)
+    {
+    	// epoll_wait EPOLLERR or EPOLLHUP, man epoll_ctl
+    	fprintf(stdout, "%s[%d][0x%016lX][%ld] remote_ip=0x%08X, port=%u events=0x%08X, errno=%d, %s\n", 
+			__PRETTY_FUNCTION__, __LINE__, (long)this, pthread_self(),
+			fSocket.GetRemoteAddr(), fSocket.GetRemotePort(), events,
+			errno, strerror(errno));
 		Disconnect();
     	return -1;
     }
     
     if(events & Task::kKillEvent)
     {
-        fprintf(stdout, "%s %s[%d][0x%016lX]: get kKillEvent[0x%08X] \n", 
-            __FILE__, __PRETTY_FUNCTION__, __LINE__, (long)this, events); 
+        fprintf(stdout, "%s[%d][0x%016lX] remote_ip=0x%08X, port=%u events=0x%08X\n", 
+			__PRETTY_FUNCTION__, __LINE__, (long)this,
+			fSocket.GetRemoteAddr(), fSocket.GetRemotePort(), events);
         return -1;
     } 
 
@@ -391,7 +406,9 @@ SInt64     HTTPSession::Run()
 
 	if(events & Task::kUpdateEvent)
     {
-    	fprintf(stdout, "%s: kUpdateEvent fDefaultThread=0x%016lX, fUseThisThread=0x%016lX, %ld\n", __PRETTY_FUNCTION__, this->fDefaultThread, this->fUseThisThread, pthread_self());
+    	fprintf(stdout, "%s: kUpdateEvent [0x%016lX][0x%016lX][%ld] remote_ip=0x%08X, port=%u\n", 
+    		__PRETTY_FUNCTION__, (long)this->fDefaultThread, (long)this->fUseThisThread, pthread_self(),
+    		fSocket.GetRemoteAddr(), fSocket.GetRemotePort());
     	QTSS_Error ok = ContinueLive();
     	if(ok != QTSS_RequestFailed)
         {
@@ -407,30 +424,48 @@ SInt64     HTTPSession::Run()
 	
     if(events & Task::kWriteEvent)
     {
-    	Bool16 sendDone = SendData();    
-    	if(!sendDone)
+    	QTSS_Error theErr = SendData();    
+		//if(!sendDone)
+    	if(theErr == QTSS_NoErr)    	
     	{
     		willRequestEvent = willRequestEvent | EV_WR;
     	}
-    	else if(fFd != -1)
-    	{
-    		Bool16 haveContent = ReadFileContent();
-    		if(haveContent)
-    		{
-    			willRequestEvent = willRequestEvent | EV_WR;
-    		}
+    	// sendDone
+    	else if(theErr == QTSS_ResponseDone)
+	    {
+	    	if(fFd != -1)
+	    	{
+	    		Bool16 haveContent = ReadFileContent();
+	    		if(haveContent)
+	    		{
+	    			willRequestEvent = willRequestEvent | EV_WR;
+	    		}
+	    	}
+	    	else if(fData != NULL)
+	    	{
+	    		Bool16 haveContent = ReadSegmentContent();
+	    		if(haveContent)
+	    		{
+	    			willRequestEvent = willRequestEvent | EV_WR;
+	    		}
+	    	}
+	    	else
+	    	{
+	    		willRequestEvent = willRequestEvent | EV_RE;
+	    	}
     	}
-    	else if(fData != NULL)
+    	else if(theErr == EAGAIN)
     	{
-    		Bool16 haveContent = ReadSegmentContent();
-    		if(haveContent)
-    		{
-    			willRequestEvent = willRequestEvent | EV_WR;
-    		}
+    		willRequestEvent = willRequestEvent | EV_RE;
     	}
     	else
     	{
-    		willRequestEvent = willRequestEvent | EV_RE;
+    		fprintf(stderr, "%s[%d][0x%016lX] remote_ip=0x%08X, port=%u, theErr=%u, %s \n", 
+	            __PRETTY_FUNCTION__, __LINE__, (long)this, 
+	            fSocket.GetRemoteAddr(), fSocket.GetRemotePort(),
+	            theErr, strerror(theErr));
+	        Disconnect();    
+	        return -1;
     	}
    	}
 
@@ -442,7 +477,7 @@ SInt64     HTTPSession::Run()
 	        QTSS_Error ok = this->ProcessRequest(); 
 	        if(ok == QTSS_NotPreemptiveSafe)
 	        {
-	        	this->SetSignal(Task::kUpdateEvent);
+	        	//this->SetSignal(Task::kUpdateEvent);
 	        	return -2;
 	        }
 	        else if(ok != QTSS_RequestFailed)
@@ -465,16 +500,22 @@ SInt64     HTTPSession::Run()
 	    }
 	    else if(theErr == EAGAIN)
 	    {
-	        fprintf(stderr, "%s %s[%d][0x%016lX] theErr == EAGAIN %u, %s \n", 
-	            __FILE__, __PRETTY_FUNCTION__, __LINE__, (long)this, theErr, strerror(theErr));
+	    	/*
+	       		 fprintf(stderr, "%s[%d][0x%016lX] remote_ip=0x%08X, port=%u, theErr == EAGAIN %u, %s \n", 
+	            		__PRETTY_FUNCTION__, __LINE__, (long)this, 
+	           		fSocket.GetRemoteAddr(), fSocket.GetRemotePort(),
+	            		theErr, strerror(theErr));
+	              */
 	        willRequestEvent = willRequestEvent | EV_RE;
 	        //fSocket.RequestEvent(EV_RE);
 	        //return 0;
 	    }
 	    else
 	    {
-	        fprintf(stderr, "%s %s[%d][0x%016lX] theErr %u, %s \n", 
-	            __FILE__, __PRETTY_FUNCTION__, __LINE__, (long)this, theErr, strerror(theErr));
+	        fprintf(stderr, "%s[%d][0x%016lX] remote_ip=0x%08X, port=%u, theErr=%u, %s \n", 
+	            __PRETTY_FUNCTION__, __LINE__, (long)this, 
+	            fSocket.GetRemoteAddr(), fSocket.GetRemotePort(),
+	            theErr, strerror(theErr));
 	        Disconnect();    
 	        return -1;
 	    }   
@@ -482,10 +523,11 @@ SInt64     HTTPSession::Run()
 
 	if(willRequestEvent == 0)
 	{
-		// strange.
-		// it will be never happened.
-		fprintf(stdout, "%s %s[%d][0x%016lX] events=0x%08X\n",
-			__FILE__, __PRETTY_FUNCTION__, __LINE__, (long)this, events);
+		// it will never happen.
+		fprintf(stdout, "%s[%d][0x%016lX] remote_ip=0x%08X, port=%u, willRequestEvent=0x%08X !!!\n",
+			__PRETTY_FUNCTION__, __LINE__, (long)this, 
+			fSocket.GetRemoteAddr(), fSocket.GetRemotePort(),
+			willRequestEvent);
 		Disconnect();    
 	    return -1;		
 	}
@@ -510,10 +552,12 @@ QTSS_Error  HTTPSession::RecvData()
 
     UInt32 read_len = 0;
     theErr = fSocket.Read(start_pos, blank_len, &read_len);
-    if(theErr != QTSS_NoErr)
+    if(theErr != OS_NoErr)
     {
-        fprintf(stderr, "%s %s[%d][0x%016lX] errno=%d, %s, recv %u, \n", 
-            __FILE__, __PRETTY_FUNCTION__, __LINE__, (long)this, errno, strerror(errno), read_len);
+        fprintf(stderr, "%s[%d][0x%016lX] remote_ip=0x%08X, port=%u, recv=%u, errno=%d, %s\n", 
+            __PRETTY_FUNCTION__, __LINE__, (long)this, 
+            fSocket.GetRemoteAddr(), fSocket.GetRemotePort(),
+            read_len, errno, strerror(errno));
         return theErr;
     }
     
@@ -531,11 +575,11 @@ QTSS_Error  HTTPSession::RecvData()
     return QTSS_NoErr;
 }
 
-Bool16 HTTPSession::SendData()
+QTSS_Error HTTPSession::SendData()
 {  	
     if(fStrRemained.Len <= 0)
     {
-    	return true;
+    	return QTSS_ResponseDone;
     }
     
     OS_Error theErr;
@@ -548,19 +592,26 @@ Bool16 HTTPSession::SendData()
         fStrRemained.Ptr += send_len;
         fStrRemained.Len -= send_len;
         ::memmove(fResponseBuffer, fStrRemained.Ptr, fStrRemained.Len);
-        fStrRemained.Ptr = fResponseBuffer;        
+        fStrRemained.Ptr = fResponseBuffer; 
+        return QTSS_NoErr;
     }
     else
     {
-        fprintf(stderr, "%s %s[%d][0x%016lX] send %u, return %u, errno=%d, %s\n", 
-            __FILE__, __PRETTY_FUNCTION__, __LINE__, (long)this, fStrRemained.Len, send_len, 
+        fprintf(stderr, "%s[%d][0x%016lX] remote_ip=0x%08X, port=%u, send %u done %u return %u, errno=%d, %s\n", 
+            __PRETTY_FUNCTION__, __LINE__, (long)this, 
+            fSocket.GetRemoteAddr(), fSocket.GetRemotePort(),
+            fStrRemained.Len, send_len, theErr,
             errno, strerror(errno));
+        return theErr;
     }
-    
+
+    #if 0
     if(theErr == EAGAIN)
     {
-        fprintf(stderr, "%s %s[%d][0x%016lX] theErr[%d] == EAGAIN[%d], errno=%d, %s \n", 
-            __FILE__, __PRETTY_FUNCTION__, __LINE__, (long)this, theErr, EAGAIN, 
+        fprintf(stderr, "%s[%d][0x%016lX] remote_ip=0x%08X, port=%u, theErr[%d] == EAGAIN[%d], errno=%d, %s \n", 
+            __PRETTY_FUNCTION__, __LINE__, (long)this, 
+            fSocket.GetRemoteAddr(), fSocket.GetRemotePort(),
+            theErr, EAGAIN, 
             errno, strerror(errno));
         // If we get this error, we are currently flow-controlled and should
         // wait for the socket to become writeable again
@@ -580,6 +631,7 @@ Bool16 HTTPSession::SendData()
     }
 
     return true;
+    #endif
 }
 
 bool  HTTPSession::IsFullRequest()
@@ -630,7 +682,10 @@ QTSS_Error  HTTPSession::ProcessRequest()
 	{
 		case httpGetMethod:
 			theError = ResponseGet();
-			break;		
+			break;
+		case httpHeadMethod:
+			theError = ResponseGet();
+			break;
 		default:
 		   //unhandled method.
 			fprintf(stderr, "%s %s[%d][0x%016lX] unhandled method: %d", 
@@ -1160,7 +1215,15 @@ Bool16 HTTPSession::ResponseContent(char* content, int len, char* type)
     	fResponse.Put("\r\n");
     }
 	fResponse.Put("\r\n"); 
-	fResponse.Put(content, len);
+
+	if(fRequest.fMethod == httpGetMethod)
+	{
+		fResponse.Put(content, len);		
+	}
+	else if(fRequest.fMethod == httpHeadMethod)
+	{
+		// do nothing.
+	}
 	
 	fStrResponse.Set(fResponse.GetBufPtr(), fResponse.GetBytesWritten());
 	//append to fStrRemained
@@ -1278,11 +1341,14 @@ QTSS_Error HTTPSession::ResponseLiveM3U8()
 		return ret;
 	}
 
-	fprintf(stdout, "%s: before fDefaultThread=0x%016lX, fUseThisThread=0x%016lX, %ld\n", __PRETTY_FUNCTION__, this->fDefaultThread, this->fUseThisThread, pthread_self());
+	fprintf(stdout, "%s: before fDefaultThread=0x%016lX, fUseThisThread=0x%016lX, %ld\n", 
+		__PRETTY_FUNCTION__, (long)this->fDefaultThread, (long)this->fUseThisThread, pthread_self());
 	TaskThread* threadp = fHttpClientSession->GetDefaultThread();
+	this->SetSignal(Task::kUpdateEvent);
 	this->SetDefaultThread(threadp);	
 	this->SetTaskThread(threadp);
-	fprintf(stdout, "%s: after  fDefaultThread=0x%016lX, fUseThisThread=0x%016lX, %ld\n", __PRETTY_FUNCTION__, this->fDefaultThread, this->fUseThisThread, pthread_self());
+	fprintf(stdout, "%s: after  fDefaultThread=0x%016lX, fUseThisThread=0x%016lX, %ld\n", 
+		__PRETTY_FUNCTION__, (long)this->fDefaultThread, (long)this->fUseThisThread, pthread_self());
 	return QTSS_NotPreemptiveSafe;
 
 }
@@ -1384,7 +1450,7 @@ QTSS_Error HTTPSession::ContinueLiveM3U8()
 				break;
 			}
 		}
-		content.PutTerminator();
+		//content.PutTerminator();
 
 		ResponseContent(m3u8_buffer, content.GetBytesWritten(), CONTENT_TYPE_APPLICATION_M3U8);
 		
@@ -1401,7 +1467,6 @@ QTSS_Error HTTPSession::ResponseLiveSegment()
 	
 	// /livestream/3702892333/78267cf4a7864a887540cf4af3c432dca3d52050/ts/2013/10/31/20131017T171949_03_20131031_140823_3059413.ts
 	//char liveid[MAX_LIVE_ID];
-	// todo:
 	StringParser parser(&(fRequest.fRelativeURI));
 	parser.ConsumeLength(NULL, strlen(URI_LIVESTREAM));
 	StrPtrLen seg1;
@@ -1465,11 +1530,14 @@ QTSS_Error HTTPSession::ResponseLiveSegment()
 		return ret;
 	}
 
-	fprintf(stdout, "%s: before fDefaultThread=0x%016lX, fUseThisThread=0x%016lX\n", __PRETTY_FUNCTION__, this->fDefaultThread, this->fUseThisThread);
+	fprintf(stdout, "%s: before fDefaultThread=0x%016lX, fUseThisThread=0x%016lX, %ld\n", 
+		__PRETTY_FUNCTION__, (long)this->fDefaultThread, (long)this->fUseThisThread, pthread_self());
 	TaskThread* threadp = fHttpClientSession->GetDefaultThread();
+	this->SetSignal(Task::kUpdateEvent);
 	this->SetDefaultThread(threadp);
 	this->SetTaskThread(threadp);
-	fprintf(stdout, "%s: after  fDefaultThread=0x%016lX, fUseThisThread=0x%016lX\n", __PRETTY_FUNCTION__, this->fDefaultThread, this->fUseThisThread);
+	fprintf(stdout, "%s: after  fDefaultThread=0x%016lX, fUseThisThread=0x%016lX, %ld\n", 
+		__PRETTY_FUNCTION__, (long)this->fDefaultThread, (long)this->fUseThisThread, pthread_self());
 	return QTSS_NotPreemptiveSafe;
 	
 }
@@ -1542,6 +1610,15 @@ QTSS_Error HTTPSession::ContinueLiveSegment()
     //fResponse.PutFmtStr("Content-Type: %s; charset=utf-8\r\n", content_type);
     fResponse.PutFmtStr("Content-Type: %s\r\n", mime_type);    
     fResponse.Put("\r\n"); 
+
+    if(fRequest.fMethod == httpGetMethod)
+	{
+		// do nothing.		
+	}
+	else if(fRequest.fMethod == httpHeadMethod)
+	{
+		fData = NULL;
+	}
     
     fStrResponse.Set(fResponse.GetBufPtr(), fResponse.GetBytesWritten());
     //append to fStrRemained
@@ -1669,10 +1746,21 @@ QTSS_Error HTTPSession::ResponseFile(char* abs_path)
     	fResponse.Put("\r\n");
     }    
     fResponse.Put("\r\n"); 
+    #if 0
     char* only_log = fResponse.GetAsCString();
     fprintf(stdout, "%s %s[%d][0x%016lX] %u, \n%s", 
         __FILE__, __PRETTY_FUNCTION__, __LINE__, (long)this, fResponse.GetBytesWritten(), only_log);
     delete only_log;
+    #endif
+	if(fRequest.fMethod == httpGetMethod)
+	{
+		// do nothing.		
+	}
+	else if(fRequest.fMethod == httpHeadMethod)
+	{
+		close(fFd);
+		fFd = -1;
+	}    
     
     fStrResponse.Set(fResponse.GetBufPtr(), fResponse.GetBytesWritten());
     //append to fStrRemained

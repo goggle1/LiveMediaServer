@@ -23,7 +23,7 @@ virtual     SInt64      Run();
 
 protected:
 			QTSS_Error      RecvData();
-        	Bool16          SendData();
+        	QTSS_Error      SendData();
        	 	bool            IsFullRequest();
         	Bool16          Disconnect();
         	QTSS_Error      ProcessRequest();
@@ -34,11 +34,6 @@ protected:
         	QTSS_Error 		ResponseCmdListChannel();
         	QTSS_Error 		ResponseCmdAddChannel();
         	QTSS_Error 		ResponseCmdDelChannel();  
-#if 0
-        	Bool16 			ResponseCmdListSource();
-        	Bool16 			ResponseCmdAddSource();
-        	Bool16 			ResponseCmdDelSource();  
-#endif
         	Bool16 			ResponseContent(char* content, int len, char* type);
         	QTSS_Error		ResponseFile(char* absolute_path);
         	QTSS_Error		ResponseError(HTTPStatusCode StatusCode);

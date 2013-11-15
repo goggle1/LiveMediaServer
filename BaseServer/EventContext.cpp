@@ -260,6 +260,11 @@ void EventThread::Entry()
                 theErrno = theReturnValue;
             else
                 theErrno = OSThread::GetErrno();
+
+           	if( (theErrno!= EINTR) && (theCurrentEvent.er_eventbits == 0))
+	        {
+	        	fprintf(stdout, "%s events=0x%08X, return=%d, errno=%d\n", __PRETTY_FUNCTION__, theCurrentEvent.er_eventbits, theReturnValue, theErrno);
+	        }
         }
         
         AssertV(theErrno == 0, theErrno);

@@ -36,6 +36,8 @@ enum
 };
 typedef SInt32 QTSS_Error;
 
+#define QTSS_ResponseDone	QTSS_RequestArrived
+
 enum
 {
     qtssContinue                        = 0,        //100

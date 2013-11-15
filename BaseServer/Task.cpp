@@ -101,7 +101,12 @@ void Task::SetSignal(EventFlags events)
 {
     if (!this->Valid())
         return;
-        
+
+	/*
+    fprintf(stdout, "%s[0x%016lX][%ld]: fEvents=0x%08X, events=0x%08X\n", 
+    	__PRETTY_FUNCTION__, (long)this, pthread_self(),
+    	fEvents, events);
+    */
     //Fancy no mutex implementation. We atomically mask the new events into
     //the event mask. Because atomic_or returns the old state of the mask,
     //we only schedule this task once.
@@ -114,7 +119,12 @@ void Task::Signal(EventFlags events)
 {
     if (!this->Valid())
         return;
-        
+
+	/*
+    fprintf(stdout, "%s[0x%016lX][%ld]: fEvents=0x%08X, events=0x%08X\n", 
+    	__PRETTY_FUNCTION__, (long)this, pthread_self(),
+    	fEvents, events);
+    	*/
     //Fancy no mutex implementation. We atomically mask the new events into
     //the event mask. Because atomic_or returns the old state of the mask,
     //we only schedule this task once.
