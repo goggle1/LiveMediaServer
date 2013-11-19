@@ -696,7 +696,7 @@ QTSS_Error  HTTPSession::ProcessRequest()
 			break;		  
 	}	
 
-    if(theError == QTSS_NoErr)
+    //if(theError == QTSS_NoErr)
     {
         this->MoveOnRequest();
     }
@@ -1632,7 +1632,8 @@ QTSS_Error HTTPSession::ContinueLiveSegment()
 QTSS_Error HTTPSession::ResponseLive()
 {
 	QTSS_Error ret = QTSS_NoErr;
-	if(strcasestr(fRequest.fAbsoluteURI.Ptr, ".m3u8") != NULL)
+	//if(strcasestr(fRequest.fAbsoluteURI.Ptr, ".m3u8") != NULL)
+	if(strcasestr(fRequest.fRequestPath, ".m3u8") != NULL)
 	{	
 		ret = ResponseLiveM3U8();
 	}

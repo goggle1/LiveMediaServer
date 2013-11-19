@@ -289,7 +289,7 @@ int HTTPClientSession::MemoM3U8(M3U8Parser* parserp)
 		{
 			SEGMENT_T* segp = &(parserp->fSegments[index]);
 			content.PutFmtStr("#EXTINF:%u,\n", segp->inf);
-			content.PutFmtStr("#EXT-X-BYTERANGE:%lu,\n", segp->byte_range);
+			//content.PutFmtStr("#EXT-X-BYTERANGE:%lu,\n", segp->byte_range);
 			content.PutFmtStr("%s\n", segp->m3u8_relative_url);
 		}
 	
