@@ -3,6 +3,7 @@
 #include <sys/types.h>
 //#include <sys/stat.h>
 #include <fcntl.h>
+#include <sys/time.h>
 
 #include "BaseServer/StringParser.h"
 #include "BaseServer/StringFormatter.h"
@@ -12,7 +13,17 @@
 #include "HTTPClientSession.h"
 
 // 10 seconds
-#define MAX_SEMENT_TIME	5000	
+#define MAX_SEMENT_TIME	10000	
+
+time_t timeval_diff(struct timeval* t2, struct timeval* t1)
+{
+	time_t ret1 = 0;
+	time_t ret2 = 0;
+	ret1 = t2->tv_sec - t1->tv_sec;
+	ret2 = ret1 * 1000 + (t2->tv_usec - t1->tv_usec)/1000;
+	return ret2;
+}
+
 
 int make_dir(StrPtrLen& dir)
 {
@@ -419,6 +430,7 @@ SInt64 HTTPClientSession::Run()
             {
             	fGetIndex = 0;
             	//fprintf(stdout, "%s[0x%016lX][0x%016lX][%ld]: get %s\n", __PRETTY_FUNCTION__, this->fDefaultThread, this->fUseThisThread, pthread_self(), fURL.Ptr);
+            	gettimeofday(&fGetTime, NULL);
             	theErr = fClient->SendGetM3U8(fURL.Ptr);            	
             	if (theErr == OS_NoErr)
                 {   
@@ -452,7 +464,7 @@ SInt64 HTTPClientSession::Run()
             	{
             		fState = kSendingGetM3U8;
             		//RewriteM3U8(&fM3U8Parser);
-            		MemoM3U8(&fM3U8Parser);
+            		MemoM3U8(&fM3U8Parser);            		
             		return MAX_SEMENT_TIME;
             	}
 				
@@ -521,7 +533,21 @@ SInt64 HTTPClientSession::Run()
 			            		fState = kSendingGetM3U8;
 			            		//RewriteM3U8(&fM3U8Parser);
 			            		MemoM3U8(&fM3U8Parser);
-			            		return MAX_SEMENT_TIME;
+			            		struct timeval now;
+			            		gettimeofday(&now, NULL);
+			            		time_t diff_time = timeval_diff(&now, &fGetTime);      		
+			            		time_t break_time = MAX_SEMENT_TIME;			            		
+			            		if(diff_time>=MAX_SEMENT_TIME)
+			            		{
+			            			break_time = 1;
+			            		}
+			            		else
+			            		{
+			            			break_time = MAX_SEMENT_TIME - diff_time;
+			            		}
+			            		fprintf(stdout, "%s: diff_time=%ld, break_time=%ld\n", 
+                    				__PRETTY_FUNCTION__, diff_time, break_time);
+			            		return break_time;
 			            	}
 		            	}
 		            	else
