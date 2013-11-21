@@ -707,6 +707,39 @@ QTSS_Error  HTTPSession::ProcessRequest()
 QTSS_Error HTTPSession::ResponseGet()
 {
 	QTSS_Error ret = QTSS_NoErr;
+
+	char absolute_uri[fRequest.fAbsoluteURI.Len + 1];
+	strncpy(absolute_uri, fRequest.fAbsoluteURI.Ptr, fRequest.fAbsoluteURI.Len);
+	absolute_uri[fRequest.fAbsoluteURI.Len] = '\0';
+	fprintf(stdout, "%s[%d][0x%016lX][%ld] remote_ip=0x%08X, port=%u absolute_uri=%s\n", 
+			__PRETTY_FUNCTION__, __LINE__, (long)this, pthread_self(),
+			fSocket.GetRemoteAddr(), fSocket.GetRemotePort(), absolute_uri);	
+	
+	// parser range if any.
+	fHaveRange = false;
+	fRangeStart = 0;
+	fRangeStop = -1;
+	StrPtrLen range = fRequest.fFieldValues[httpRangeHeader];	
+	if(range.Len > 0)
+	{
+		fHaveRange = true;
+		
+		StringParser parser(&range);
+		parser.ConsumeUntil(NULL, '=');
+		parser.Expect('=');
+		StrPtrLen start;
+		parser.ConsumeUntil(&start, '-');
+		fRangeStart = atol(start.Ptr);
+		parser.Expect('-');
+		if(parser.GetDataRemaining() > 0)
+		{
+			fRangeStop = atol(parser.GetCurrentPosition());
+		}
+		else
+		{
+			fRangeStop = -1;
+		}
+	}
 	
 	if(strncmp(fRequest.fAbsoluteURI.Ptr, URI_CMD, strlen(URI_CMD)) == 0)
 	{
@@ -718,11 +751,6 @@ QTSS_Error HTTPSession::ResponseGet()
 		ret = ResponseLive();
 		return ret;
 	}
-	
-	char absolute_uri[fRequest.fAbsoluteURI.Len + 1];
-	strncpy(absolute_uri, fRequest.fAbsoluteURI.Ptr, fRequest.fAbsoluteURI.Len);
-	absolute_uri[fRequest.fAbsoluteURI.Len] = '\0';
-	//fprintf(stdout, "%s: absolute_uri=%s\n", __FUNCTION__, absolute_uri);
 
 	char* request_file = absolute_uri;
 	if(strcmp(absolute_uri, "/") == 0)
@@ -754,7 +782,7 @@ Bool16 HTTPSession::ReadSegmentContent()
 		return false;
 	}
 
-	int remain_len = fData->len - fDataPosition;
+	int remain_len = fRangeStop + 1 - fDataPosition;
 	int count = kReadBufferSize;
 	if(count >= remain_len)
 	{		
@@ -763,7 +791,7 @@ Bool16 HTTPSession::ReadSegmentContent()
 
 	memcpy(fBuffer, (char*)fData->datap+fDataPosition, count);
 	fDataPosition = fDataPosition + count;
-	if(fDataPosition >= fData->len)
+	if(fDataPosition > fRangeStop)
 	{
 		fData = NULL;
 		fDataPosition = 0;
@@ -1598,15 +1626,32 @@ QTSS_Error HTTPSession::ContinueLiveSegment()
 	}
 
 	fData = &(clipp->data);
-	fDataPosition = 0;
+	fDataPosition = fRangeStart;
+	if(fRangeStop == -1)
+	{
+		fRangeStop = fData->len-1;
+	}
+
+	HTTPStatusCode status_code = httpOK;	
+	if(fHaveRange)
+	{
+		fprintf(stdout, "%s: range=%ld-%ld", __PRETTY_FUNCTION__, fRangeStart, fRangeStop);
+		status_code = httpPartialContent;
+	}
 	
 	fResponse.Set(fStrRemained.Ptr+fStrRemained.Len, kResponseBufferSizeInBytes-fStrRemained.Len);
 	fResponse.PutFmtStr("%s %s %s\r\n", 
 			HTTPProtocol::GetVersionString(http11Version)->Ptr,
-			HTTPProtocol::GetStatusCodeAsString(httpOK)->Ptr,
-			HTTPProtocol::GetStatusCodeString(httpOK)->Ptr);
+			HTTPProtocol::GetStatusCodeAsString(status_code)->Ptr,
+			HTTPProtocol::GetStatusCodeString(status_code)->Ptr);
     fResponse.PutFmtStr("Server: %s/%s\r\n", BASE_SERVER_NAME, BASE_SERVER_VERSION);
-    fResponse.PutFmtStr("Content-Length: %ld\r\n", fData->len);
+    fResponse.PutFmtStr("Accept-Ranges: bytes\r\n");	
+    fResponse.PutFmtStr("Content-Length: %ld\r\n", fRangeStop+1-fRangeStart);    
+    if(fHaveRange)
+    {
+    	//Content-Range: 1000-3000/5000
+    	fResponse.PutFmtStr("Content-Range: bytes %ld-%ld/%ld\r\n", fRangeStart, fRangeStop, fData->len);    
+    }
     //fResponse.PutFmtStr("Content-Type: %s; charset=utf-8\r\n", content_type);
     fResponse.PutFmtStr("Content-Type: %s\r\n", mime_type);    
     fResponse.Put("\r\n"); 
@@ -1667,29 +1712,7 @@ QTSS_Error HTTPSession::ResponseFile(char* abs_path)
 	if(fFd == -1)
 	{
 		return false;
-	}
-	// parser range if any.
-	fRangeStart = 0;
-	fRangeStop = -1;
-	StrPtrLen range = fRequest.fFieldValues[httpRangeHeader];	
-	if(range.Len > 0)
-	{
-		StringParser parser(&range);
-		parser.ConsumeUntil(NULL, '=');
-		parser.Expect('=');
-		StrPtrLen start;
-		parser.ConsumeUntil(&start, '-');
-		fRangeStart = atol(start.Ptr);
-		parser.Expect('-');
-		if(parser.GetDataRemaining() > 0)
-		{
-			fRangeStop = atol(parser.GetCurrentPosition());
-		}
-		else
-		{
-			fRangeStop = -1;
-		}
-	}
+	}	
 	
 	off_t file_len = lseek(fFd, 0L, SEEK_END);	
 	lseek(fFd, fRangeStart, SEEK_SET);
@@ -1697,19 +1720,16 @@ QTSS_Error HTTPSession::ResponseFile(char* abs_path)
 	{
 		fRangeStop = file_len - 1;
 	}
-	if(range.Len > 0)
-	{
-		fprintf(stdout, "range: %ld-%ld\n", fRangeStart, fRangeStop);
-	}
-
+	
 	char* suffix = file_suffix(abs_path);
 	char* content_type = content_type_by_suffix(suffix);
 	
 	fResponse.Set(fStrRemained.Ptr+fStrRemained.Len, kResponseBufferSizeInBytes-fStrRemained.Len);
 
 	HTTPStatusCode status_code = httpOK;	
-	if(range.Len > 0)
+	if(fHaveRange)
 	{
+		fprintf(stdout, "%s: range=%ld-%ld", __PRETTY_FUNCTION__, fRangeStart, fRangeStop);
 		status_code = httpPartialContent;
 	}
 	/*
@@ -1731,7 +1751,7 @@ QTSS_Error HTTPSession::ResponseFile(char* abs_path)
     fResponse.PutFmtStr("Server: %s/%s\r\n", BASE_SERVER_NAME, BASE_SERVER_VERSION);
     fResponse.PutFmtStr("Accept-Ranges: bytes\r\n");	
     fResponse.PutFmtStr("Content-Length: %ld\r\n", fRangeStop+1-fRangeStart);    
-    if(range.Len > 0)
+    if(fHaveRange)
     {
     	//Content-Range: 1000-3000/5000
     	fResponse.PutFmtStr("Content-Range: bytes %ld-%ld/%ld\r\n", fRangeStart, fRangeStop, file_len);    

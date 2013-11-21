@@ -77,6 +77,7 @@ protected:
 			// file
 			int			fFd;
 			char		fBuffer[kReadBufferSize];
+			Bool16		fHaveRange;
 			int64_t		fRangeStart;
 			int64_t		fRangeStop;
 			//livestream
