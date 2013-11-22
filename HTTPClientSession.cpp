@@ -395,20 +395,20 @@ SInt64 HTTPClientSession::Run()
 	
 	if (theEvents & Task::kStartEvent)
     {
-    	// todo:
+    	// do nothing.
     }
 
-	/*
-    if (theEvents & Task::kTimeoutEvent)
-    {
+	#if 0
+	if (theEvents & Task::kTimeoutEvent)
+	{
 		if(fState == kDone)
 			return 0;
 			
-        fDeathReason = kSessionTimedout;
-        fState = kDone;
-        return 0;
-    }
-    */
+	    fDeathReason = kSessionTimedout;
+	    fState = kDone;
+	    return 0;
+	}
+	#endif
 
     // We have been told to delete ourselves. Do so... NOW!!!!!!!!!!!!!!!
     if (theEvents & Task::kKillEvent)
@@ -417,7 +417,9 @@ SInt64 HTTPClientSession::Run()
     }
 
     // Refresh the timeout. There is some legit activity going on...
+    #if 0
     fTimeoutTask.RefreshTimeout();
+    #endif
 
     OS_Error theErr = OS_NoErr;    
     while ((theErr == OS_NoErr) && (fState != kDone))
@@ -429,11 +431,13 @@ SInt64 HTTPClientSession::Run()
             case kSendingGetM3U8:
             {
             	fGetIndex = 0;
-            	//fprintf(stdout, "%s[0x%016lX][0x%016lX][%ld]: get %s\n", __PRETTY_FUNCTION__, this->fDefaultThread, this->fUseThisThread, pthread_self(), fURL.Ptr);
-            	gettimeofday(&fGetTime, NULL);
+            	fGetTryCount = 0;
+            	//fprintf(stdout, "%s[0x%016lX][0x%016lX][%ld]: get %s\n", __PRETTY_FUNCTION__, this->fDefaultThread, this->fUseThisThread, pthread_self(), fURL.Ptr);            	
             	theErr = fClient->SendGetM3U8(fURL.Ptr);            	
             	if (theErr == OS_NoErr)
                 {   
+                	fM3U8BeginTime = fClient->fBeginTime;
+                	fM3U8EndTime = fClient->fEndTime;
                 	UInt32 get_status = fClient->GetStatus();
                     if (get_status != 200)
                     {
@@ -451,7 +455,6 @@ SInt64 HTTPClientSession::Run()
                     	//Log(fURL.Ptr, fClient->GetContentBody(), fClient->GetContentLength());
                         fM3U8Parser.Parse(fClient->GetContentBody(), fClient->GetContentLength());
                         //RewriteM3U8(&fM3U8Parser);
-                        fGetIndex = 0;
                         fState = kSendingGetSegment;
                     }
                 }
@@ -467,7 +470,7 @@ SInt64 HTTPClientSession::Run()
             		MemoM3U8(&fM3U8Parser);   
             		struct timeval now;
             		gettimeofday(&now, NULL);
-            		time_t diff_time = timeval_diff(&now, &fGetTime);      		
+            		time_t diff_time = timeval_diff(&now, &fM3U8BeginTime);      		
             		time_t break_time = MAX_SEMENT_TIME;			            		
             		if(diff_time>=MAX_SEMENT_TIME)
             		{
@@ -488,12 +491,13 @@ SInt64 HTTPClientSession::Run()
 	            	{
 	            		fprintf(stdout, "%s: %s downloaded\n", __PRETTY_FUNCTION__, fM3U8Parser.fSegments[fGetIndex].relative_url);
 	            		fGetIndex ++;
+	            		fGetTryCount = 0;
 	            		if(fGetIndex >= fM3U8Parser.fSegmentsNum)
 		            	{
 		            		fState = kSendingGetM3U8;		            		
 		            		struct timeval now;
 		            		gettimeofday(&now, NULL);
-		            		time_t diff_time = timeval_diff(&now, &fGetTime);      		
+		            		time_t diff_time = timeval_diff(&now, &fM3U8BeginTime);      		
 		            		time_t break_time = MAX_SEMENT_TIME;			            		
 		            		if(diff_time>=MAX_SEMENT_TIME)
 		            		{
@@ -518,6 +522,8 @@ SInt64 HTTPClientSession::Run()
             	theErr = fClient->SendGetSegment(fM3U8Parser.fSegments[fGetIndex].relative_url);
             	if (theErr == OS_NoErr)
                 {   
+                	fSegmentBeginTime = fClient->fBeginTime;
+                	fSegmentEndTime = fClient->fEndTime;
                 	UInt32 get_status = fClient->GetStatus();
                 	if (get_status != 200)
                     {
@@ -526,6 +532,7 @@ SInt64 HTTPClientSession::Run()
                     	if (get_status == 404)
 	                    {
 	                        fGetIndex ++;
+	                        fGetTryCount = 0;
 	                        // if all the segments downloaded, get m3u8 again
 	                        if(fGetIndex >= fM3U8Parser.fSegmentsNum)
 			            	{
@@ -534,7 +541,7 @@ SInt64 HTTPClientSession::Run()
 			            		MemoM3U8(&fM3U8Parser);
 			            		struct timeval now;
 			            		gettimeofday(&now, NULL);
-			            		time_t diff_time = timeval_diff(&now, &fGetTime);      		
+			            		time_t diff_time = timeval_diff(&now, &fM3U8BeginTime);      		
 			            		time_t break_time = MAX_SEMENT_TIME;			            		
 			            		if(diff_time>=MAX_SEMENT_TIME)
 			            		{
@@ -549,9 +556,11 @@ SInt64 HTTPClientSession::Run()
 			            		return break_time;
 			            	}
 	                    }
-
+	                    
+						#if 0
                         theErr = ENOTCONN; // Exit the state machine
                         break;
+                        #endif
                     }
                     else
                     {
@@ -569,6 +578,7 @@ SInt64 HTTPClientSession::Run()
 	                    	}
 	                    	
 	                    	fGetIndex ++;
+	                    	fGetTryCount = 0;
 	                        // if all the segments downloaded, get m3u8 again
 	                        if(fGetIndex >= fM3U8Parser.fSegmentsNum)
 			            	{
@@ -577,7 +587,7 @@ SInt64 HTTPClientSession::Run()
 			            		MemoM3U8(&fM3U8Parser);
 			            		struct timeval now;
 			            		gettimeofday(&now, NULL);
-			            		time_t diff_time = timeval_diff(&now, &fGetTime);      		
+			            		time_t diff_time = timeval_diff(&now, &fM3U8BeginTime);      		
 			            		time_t break_time = MAX_SEMENT_TIME;			            		
 			            		if(diff_time>=MAX_SEMENT_TIME)
 			            		{
@@ -591,11 +601,19 @@ SInt64 HTTPClientSession::Run()
                     				__PRETTY_FUNCTION__, diff_time, break_time);
 			            		return break_time;
 			            	}
-		            	}
-		            	else
+		            	}		            
+		            	else // get_status==200 but content-length == 0,
 		            	{
-		            		theErr = ENOTCONN; // Exit the state machine
-                        	break;
+		            		//theErr = ENOTCONN; // Exit the state machine
+                        	//break;
+		            		fGetTryCount ++;
+		            		if(fGetTryCount >= 3)
+		            		{
+		            			fState = kSendingGetM3U8;
+			            		//RewriteM3U8(&fM3U8Parser);
+			            		MemoM3U8(&fM3U8Parser);
+		            		}
+		            		return MAX_SEMENT_TIME/2;	            		
 		            	}
                     }
                 }
@@ -627,7 +645,7 @@ SInt64 HTTPClientSession::Run()
         //fState = kDone;
         struct timeval now;
 		gettimeofday(&now, NULL);
-		time_t diff_time = timeval_diff(&now, &fGetTime);      		
+		time_t diff_time = timeval_diff(&now, &fM3U8BeginTime);      		
 		time_t break_time = MAX_SEMENT_TIME;			            		
 		if(diff_time>=MAX_SEMENT_TIME)
 		{

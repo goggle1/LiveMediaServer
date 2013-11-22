@@ -3,6 +3,7 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <string.h>
+#include <sys/time.h>
 
 #include "BaseServer/StringFormatter.h"
 #include "BaseServer/StringParser.h"
@@ -92,7 +93,8 @@ OS_Error HTTPClient::DoTransaction()
 		{
 			//Initial state: getting ready to send the request; the authenticator is initialized if it exists.
 			//This is the only state where a new request can be made.
-			case kInitial:				
+			case kInitial:		
+				gettimeofday(&fBeginTime, NULL);
 				fState = kRequestSending;
 				break;
 
@@ -158,6 +160,7 @@ OS_Error HTTPClient::DoTransaction()
             	}
 
 				//The response has been completely received and parsed.  If the response is 401 unauthorized, then redo the request with authorization
+				gettimeofday(&fEndTime, NULL);
 				fState = kInitial;
 				if (fStatus == 401)
 					break;

@@ -64,8 +64,12 @@ virtual     SInt64      Run();
 		TimeoutTask     	fTimeoutTask; // Kills this connection in the event the server isn't responding
 
 		M3U8Parser		   	fM3U8Parser;  
-		struct timeval		fGetTime;
+		struct timeval		fM3U8BeginTime;
+		struct timeval		fM3U8EndTime;
+		struct timeval		fSegmentBeginTime;
+		struct timeval		fSegmentEndTime;
 		int					fGetIndex;
+		int					fGetTryCount;
 		SEGMENT_T			fDownloadSegments[MAX_SEGMENT_NUM];
 		int					fDownloadIndex;
 		

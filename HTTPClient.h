@@ -27,14 +27,17 @@ class HTTPClient
 		Bool16      IsTransactionInProgress() { return fState != kInitial; }
 		UInt32      GetContentLength()      { return fContentLength; }
         char*       GetContentBody()        { return fRecvContentBuffer; }        
-		
+
+		struct timeval		fBeginTime;
+        struct timeval		fEndTime;
+        
 	protected:
 		TCPClientSocket*	fSocket;	
 		CHANNEL_T*			fChannel;
 		DEQUE_NODE*			fSource;
 		
 		enum { kInitial, kRequestSending, kResponseReceiving, kHeaderReceived };
-        UInt32      	fState;
+        UInt32      		fState;        
 
         // Information we need to send the request
         //StrPtrLen   	fURL;
