@@ -464,8 +464,22 @@ SInt64 HTTPClientSession::Run()
             	{
             		fState = kSendingGetM3U8;
             		//RewriteM3U8(&fM3U8Parser);
-            		MemoM3U8(&fM3U8Parser);            		
-            		return MAX_SEMENT_TIME;
+            		MemoM3U8(&fM3U8Parser);   
+            		struct timeval now;
+            		gettimeofday(&now, NULL);
+            		time_t diff_time = timeval_diff(&now, &fGetTime);      		
+            		time_t break_time = MAX_SEMENT_TIME;			            		
+            		if(diff_time>=MAX_SEMENT_TIME)
+            		{
+            			break_time = 1;
+            		}
+            		else
+            		{
+            			break_time = MAX_SEMENT_TIME - diff_time;
+            		}
+            		fprintf(stdout, "%s: diff_time=%ld, break_time=%ld\n", 
+        				__PRETTY_FUNCTION__, diff_time, break_time);
+            		return break_time;
             	}
 				
             	while(1)
@@ -477,7 +491,21 @@ SInt64 HTTPClientSession::Run()
 	            		if(fGetIndex >= fM3U8Parser.fSegmentsNum)
 		            	{
 		            		fState = kSendingGetM3U8;		            		
-		            		return MAX_SEMENT_TIME;
+		            		struct timeval now;
+		            		gettimeofday(&now, NULL);
+		            		time_t diff_time = timeval_diff(&now, &fGetTime);      		
+		            		time_t break_time = MAX_SEMENT_TIME;			            		
+		            		if(diff_time>=MAX_SEMENT_TIME)
+		            		{
+		            			break_time = 1;
+		            		}
+		            		else
+		            		{
+		            			break_time = MAX_SEMENT_TIME - diff_time;
+		            		}
+		            		fprintf(stdout, "%s: diff_time=%ld, break_time=%ld\n", 
+		        				__PRETTY_FUNCTION__, diff_time, break_time);
+		            		return break_time;
 		            	}
 	            	}
 	            	else
@@ -504,7 +532,21 @@ SInt64 HTTPClientSession::Run()
 			            		fState = kSendingGetM3U8;
 			            		//RewriteM3U8(&fM3U8Parser);
 			            		MemoM3U8(&fM3U8Parser);
-			            		return MAX_SEMENT_TIME;
+			            		struct timeval now;
+			            		gettimeofday(&now, NULL);
+			            		time_t diff_time = timeval_diff(&now, &fGetTime);      		
+			            		time_t break_time = MAX_SEMENT_TIME;			            		
+			            		if(diff_time>=MAX_SEMENT_TIME)
+			            		{
+			            			break_time = 1;
+			            		}
+			            		else
+			            		{
+			            			break_time = MAX_SEMENT_TIME - diff_time;
+			            		}
+			            		fprintf(stdout, "%s: diff_time=%ld, break_time=%ld\n", 
+			        				__PRETTY_FUNCTION__, diff_time, break_time);
+			            		return break_time;
 			            	}
 	                    }
 
@@ -583,7 +625,21 @@ SInt64 HTTPClientSession::Run()
 		//this->Reconnect();
 		
         //fState = kDone;
-        return MAX_SEMENT_TIME;
+        struct timeval now;
+		gettimeofday(&now, NULL);
+		time_t diff_time = timeval_diff(&now, &fGetTime);      		
+		time_t break_time = MAX_SEMENT_TIME;			            		
+		if(diff_time>=MAX_SEMENT_TIME)
+		{
+			break_time = 1;
+		}
+		else
+		{
+			break_time = MAX_SEMENT_TIME - diff_time;
+		}
+		fprintf(stdout, "%s: diff_time=%ld, break_time=%ld\n", 
+			__PRETTY_FUNCTION__, diff_time, break_time);
+		return break_time;
     }    
 	
 	return 0;
