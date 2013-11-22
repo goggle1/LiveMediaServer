@@ -101,11 +101,11 @@ HTTPClientSession::~HTTPClientSession()
 		int index = 0;
 		for(index=0; index<MAX_M3U8_NUM; index++)
 		{
-			if(fMemory->m3u8s[index].datap != NULL)
+			if(fMemory->m3u8s[index].data.datap != NULL)
 			{
-				fMemory->m3u8s[index].len = 0;
-				fMemory->m3u8s[index].size = 0;
-				free(fMemory->m3u8s[index].datap);				
+				fMemory->m3u8s[index].data.len = 0;
+				fMemory->m3u8s[index].data.size = 0;
+				free(fMemory->m3u8s[index].data.datap);				
 			}
 		}
 		for(index=0; index<MAX_CLIP_NUM; index++)
@@ -283,15 +283,15 @@ int HTTPClientSession::MemoM3U8(M3U8Parser* parserp)
 	}
 	
 
-	if(m3u8p->datap == NULL)
+	if(m3u8p->data.datap == NULL)
 	{	
-		m3u8p->datap = malloc(MAX_M3U8_CONTENT_LEN);
-		m3u8p->size = MAX_M3U8_CONTENT_LEN;		
+		m3u8p->data.datap = malloc(MAX_M3U8_CONTENT_LEN);
+		m3u8p->data.size = MAX_M3U8_CONTENT_LEN;		
 	}
 		
-	if(m3u8p->datap != NULL)
+	if(m3u8p->data.datap != NULL)
 	{
-		StringFormatter content((char*)m3u8p->datap, m3u8p->size);	
+		StringFormatter content((char*)m3u8p->data.datap, m3u8p->data.size);	
 		content.Put("#EXTM3U\n");
 		content.PutFmtStr("#EXT-X-TARGETDURATION:%d\n", parserp->fTargetDuration);
 		content.PutFmtStr("#EXT-X-MEDIA-SEQUENCE:%lu\n", parserp->fMediaSequence);
@@ -305,7 +305,7 @@ int HTTPClientSession::MemoM3U8(M3U8Parser* parserp)
 		}
 	
 		//content.PutTerminator();
-		m3u8p->len = content.GetBytesWritten();
+		m3u8p->data.len = content.GetBytesWritten();
 	}
 	
 	fMemory->m3u8_num ++;

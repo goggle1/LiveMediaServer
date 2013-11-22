@@ -24,9 +24,7 @@ typedef struct data_t
 {
 	void*		datap;	
 	u_int64_t 	size;	// total size
-	int64_t 	len;	// used length
-	// reference count.
-	int32_t		reference_count;
+	int64_t 	len;	// used length	
 } DATA_T;
 
 typedef struct clip_t
@@ -42,7 +40,11 @@ typedef struct clip_t
 	DATA_T		data;
 } CLIP_T;
 
-typedef DATA_T M3U8_T;
+//typedef DATA_T M3U8_T;
+typedef struct m3u8_t
+{	
+	DATA_T		data;
+} M3U8_T;
 
 typedef struct memory_t
 {

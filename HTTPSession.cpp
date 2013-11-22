@@ -1407,7 +1407,7 @@ QTSS_Error HTTPSession::ContinueLiveM3U8()
 			index = MAX_M3U8_NUM-1;		
 		}
 		
-		ResponseContent((char*)memoryp->m3u8s[index].datap, memoryp->m3u8s[index].len, CONTENT_TYPE_APPLICATION_M3U8);
+		ResponseContent((char*)memoryp->m3u8s[index].data.datap, memoryp->m3u8s[index].data.len, CONTENT_TYPE_APPLICATION_M3U8);
 	}
 	else
 	{	
