@@ -174,14 +174,14 @@ void TCPListenerSocket::ProcessEvent(int /*eventBits*/)
         //we are a server, always disable nagle algorithm
         int one = 1;
         int err = ::setsockopt(osSocket, IPPROTO_TCP, TCP_NODELAY, (char*)&one, sizeof(int));
-        AssertV(err == 0, OSThread::GetErrno());
+        //AssertV(err == 0, OSThread::GetErrno());
         
         err = ::setsockopt(osSocket, SOL_SOCKET, SO_KEEPALIVE, (char*)&one, sizeof(int));
-        AssertV(err == 0, OSThread::GetErrno());
+        //AssertV(err == 0, OSThread::GetErrno());
     
         int sndBufSize = 96L * 1024L;
         err = ::setsockopt(osSocket, SOL_SOCKET, SO_SNDBUF, (char*)&sndBufSize, sizeof(int));
-        AssertV(err == 0, OSThread::GetErrno());
+        //AssertV(err == 0, OSThread::GetErrno());
     
         //setup the socket. When there is data on the socket,
         //theTask will get an kReadEvent event

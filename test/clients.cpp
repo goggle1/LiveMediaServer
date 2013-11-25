@@ -164,13 +164,15 @@ int do_http_client(THREAD_STAT_T* statp)
 	int client_fd = socket(AF_INET, SOCK_STREAM, 0);
 	if(client_fd < 0)
 	{
-		printf("socket() failure!\n");
+		printf("socket() failure! errno=%d, %s\n", errno, strerror(errno));
 		return -1; 
 	}
 	
 	if(connect(client_fd, (struct sockaddr*)&client_addr, sizeof(client_addr)) < 0)
 	{
-		printf("connect() failure!\n");
+		printf("connect() failure! errno=%d, %s\n", errno, strerror(errno));
+		close(client_fd);
+		client_fd = -1;
 		return -1;
 	}
 
