@@ -673,9 +673,12 @@ QTSS_Error  HTTPSession::ProcessRequest()
 	{
 		fprintf(stderr, "%s %s[%d][0x%016lX] HTTPRequest Parse error: %d\n", 
 			__FILE__, __PRETTY_FUNCTION__, __LINE__, (long)this, theError);
-
+		fStatusCode = httpBadRequest;
+		theError = ResponseError(fStatusCode);
+		
 		this->MoveOnRequest();
-		return QTSS_RequestFailed;
+		//return QTSS_RequestFailed;
+		return theError;
 	}
 	  
 	switch(fRequest.fMethod)
@@ -711,9 +714,9 @@ QTSS_Error HTTPSession::ResponseGet()
 	char absolute_uri[fRequest.fAbsoluteURI.Len + 1];
 	strncpy(absolute_uri, fRequest.fAbsoluteURI.Ptr, fRequest.fAbsoluteURI.Len);
 	absolute_uri[fRequest.fAbsoluteURI.Len] = '\0';
-	fprintf(stdout, "%s[%d][0x%016lX][%ld] remote_ip=0x%08X, port=%u absolute_uri=%s\n", 
-			__PRETTY_FUNCTION__, __LINE__, (long)this, pthread_self(),
-			fSocket.GetRemoteAddr(), fSocket.GetRemotePort(), absolute_uri);	
+	//fprintf(stdout, "%s[%d][0x%016lX][%ld] remote_ip=0x%08X, port=%u absolute_uri=%s\n", 
+	//		__PRETTY_FUNCTION__, __LINE__, (long)this, pthread_self(),
+	//		fSocket.GetRemoteAddr(), fSocket.GetRemotePort(), absolute_uri);	
 	
 	// parser range if any.
 	fHaveRange = false;
