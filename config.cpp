@@ -1,11 +1,14 @@
 #include <libxml/xmlmemory.h>
 #include <libxml/parser.h>
 
+#include "public.h"
 #include "config.h"
 
 int parse_config(CONFIG_T* configp, xmlDocPtr doc, xmlNodePtr cur)
 {	
 	int ret = 0;
+
+	configp->max_clip_num = MAX_CLIP_NUM + 1;
 	
 	xmlNodePtr child;	
 	child = cur->xmlChildrenNode;
@@ -36,6 +39,17 @@ int parse_config(CONFIG_T* configp, xmlDocPtr doc, xmlNodePtr cur)
 			xmlChar* szValue = xmlNodeGetContent(child);
 			snprintf(configp->channels_file, PATH_MAX-1, "%s", (const char*)szValue);
 			configp->channels_file[PATH_MAX-1] = '\0';
+			xmlFree(szValue);
+		}
+		else if((!xmlStrcmp(child->name, (const xmlChar*)"max_clip_num")))
+		{
+			xmlChar* szValue = xmlNodeGetContent(child);
+			int max_clip_num = atoi((const char*)szValue);
+			if(max_clip_num < 3)
+			{
+				max_clip_num = 3;
+			}
+			configp->max_clip_num = max_clip_num + 1;
 			xmlFree(szValue);
 		}
 		

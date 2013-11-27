@@ -59,7 +59,7 @@ HTTPClientSession::HTTPClientSession(const StrPtrLen& inURL, CHANNEL_T* channelp
 	:fTimeoutTask(this, 60)
 {		
 	fSocket = new TCPClientSocket(Socket::kNonBlockingSocketType);	
-	//fSocket->Set(fInAddr, fInPort);
+	//fSocket->SetUrl(fInAddr, fInPort);
 	
 	fClient = new HTTPClient(fSocket, channelp);	
 
@@ -67,6 +67,8 @@ HTTPClientSession::HTTPClientSession(const StrPtrLen& inURL, CHANNEL_T* channelp
 	fType	= strdup(type);
 	fMemory = (MEMORY_T*)malloc(sizeof(MEMORY_T));	
 	memset(fMemory, 0, sizeof(MEMORY_T));
+	fMemory->clips = (CLIP_T*)malloc(g_config.max_clip_num * sizeof(CLIP_T));
+	memset(fMemory->clips, 0, g_config.max_clip_num * sizeof(CLIP_T));
 	if(strcasecmp(fType, "ts") == 0)
 	{
 		channelp->memoryp_ts = fMemory;
@@ -81,7 +83,7 @@ HTTPClientSession::HTTPClientSession(const StrPtrLen& inURL, CHANNEL_T* channelp
 	}
 
 	fState = kSendingGetM3U8;
-	this->Set(inURL);
+	this->SetUrl(inURL);
 	this->Signal(Task::kStartEvent);
 
 	fDownloadIndex = 0;
@@ -108,7 +110,7 @@ HTTPClientSession::~HTTPClientSession()
 				free(fMemory->m3u8s[index].data.datap);				
 			}
 		}
-		for(index=0; index<MAX_CLIP_NUM; index++)
+		for(index=0; index<g_config.max_clip_num; index++)
 		{
 			if(fMemory->clips[index].data.datap != NULL)
 			{
@@ -141,7 +143,7 @@ HTTPClientSession::~HTTPClientSession()
 	fprintf(stdout, "%s\n", __PRETTY_FUNCTION__);
 }
 
-void HTTPClientSession::Set(const StrPtrLen& inURL)
+void HTTPClientSession::SetUrl(const StrPtrLen& inURL)
 {
     delete [] fURL.Ptr;
     fURL.Ptr = new char[inURL.Len + 2];
@@ -178,6 +180,12 @@ void HTTPClientSession::Set(const StrPtrLen& inURL)
     
 }
 
+int HTTPClientSession::SetSources(DEQUE_NODE* source_list)
+{
+	int ret = 0;
+	ret = fClient->SetSources(source_list);
+	return ret;
+}
 
 Bool16 HTTPClientSession::IsDownloaded(SEGMENT_T * segp)
 {
@@ -228,7 +236,7 @@ int HTTPClientSession::Log(char * url,char * datap, UInt32 len)
 	return ret;
 }
 
-int HTTPClientSession::MemoSegment(SEGMENT_T* onep, char * datap, UInt32 len)
+int HTTPClientSession::MemoSegment(SEGMENT_T* onep, char * datap, UInt32 len, time_t begin_time, time_t end_time)
 {	
 	CLIP_T* clipp = &(fMemory->clips[fMemory->clip_index]);	
 
@@ -256,22 +264,25 @@ int HTTPClientSession::MemoSegment(SEGMENT_T* onep, char * datap, UInt32 len)
 		clipp->data.len = len;
 	}
 
+	clipp->begin_time = begin_time;
+	clipp->end_time = end_time;
+
 	fMemory->clip_index ++;
-	if(fMemory->clip_index >= MAX_CLIP_NUM)
+	if(fMemory->clip_index >= g_config.max_clip_num)
 	{
 		fMemory->clip_index = 0;
 	}
 	
 	fMemory->clip_num ++;
-	if(fMemory->clip_num > MAX_CLIP_NUM-1)
+	if(fMemory->clip_num > g_config.max_clip_num-1)
 	{
-		fMemory->clip_num = MAX_CLIP_NUM-1;
+		fMemory->clip_num = g_config.max_clip_num-1;
 	}	
     
 	return 0;
 }
 
-int HTTPClientSession::MemoM3U8(M3U8Parser* parserp)
+int HTTPClientSession::MemoM3U8(M3U8Parser* parserp, time_t begin_time, time_t end_time)
 {
 	fMemory->target_duration = parserp->fTargetDuration;
 	
@@ -307,6 +318,9 @@ int HTTPClientSession::MemoM3U8(M3U8Parser* parserp)
 		//content.PutTerminator();
 		m3u8p->data.len = content.GetBytesWritten();
 	}
+
+	m3u8p->begin_time = begin_time;
+	m3u8p->end_time = end_time;
 	
 	fMemory->m3u8_num ++;
 	if(fMemory->m3u8_num > MAX_M3U8_NUM-1)
@@ -467,7 +481,7 @@ SInt64 HTTPClientSession::Run()
             	{
             		fState = kSendingGetM3U8;
             		//RewriteM3U8(&fM3U8Parser);
-            		MemoM3U8(&fM3U8Parser);   
+					MemoM3U8(&fM3U8Parser, fM3U8BeginTime.tv_sec, fM3U8EndTime.tv_sec);
             		struct timeval now;
             		gettimeofday(&now, NULL);
             		time_t diff_time = timeval_diff(&now, &fM3U8BeginTime);      		
@@ -538,7 +552,7 @@ SInt64 HTTPClientSession::Run()
 			            	{
 			            		fState = kSendingGetM3U8;
 			            		//RewriteM3U8(&fM3U8Parser);
-			            		MemoM3U8(&fM3U8Parser);
+								MemoM3U8(&fM3U8Parser, fM3U8BeginTime.tv_sec, fM3U8EndTime.tv_sec);
 			            		struct timeval now;
 			            		gettimeofday(&now, NULL);
 			            		time_t diff_time = timeval_diff(&now, &fM3U8BeginTime);      		
@@ -569,7 +583,8 @@ SInt64 HTTPClientSession::Run()
                     	if(fClient->GetContentLength() > 0)
                     	{
 	                    	//Log(fM3U8Parser.fSegments[fGetIndex].relative_url, fClient->GetContentBody(), fClient->GetContentLength());
-	                    	MemoSegment(&(fM3U8Parser.fSegments[fGetIndex]), fClient->GetContentBody(), fClient->GetContentLength());
+	                    	MemoSegment(&(fM3U8Parser.fSegments[fGetIndex]), fClient->GetContentBody(), fClient->GetContentLength(), 
+	                    		fSegmentBeginTime.tv_sec, fSegmentEndTime.tv_sec);
 	                    	memcpy(&(fDownloadSegments[fDownloadIndex]), &(fM3U8Parser.fSegments[fGetIndex]), sizeof(SEGMENT_T));
 	                    	fDownloadIndex ++;
 	                    	if(fDownloadIndex >= MAX_SEGMENT_NUM)
@@ -584,7 +599,7 @@ SInt64 HTTPClientSession::Run()
 			            	{
 			            		fState = kSendingGetM3U8;
 			            		//RewriteM3U8(&fM3U8Parser);
-			            		MemoM3U8(&fM3U8Parser);
+			            		MemoM3U8(&fM3U8Parser, fM3U8BeginTime.tv_sec, fM3U8EndTime.tv_sec);
 			            		struct timeval now;
 			            		gettimeofday(&now, NULL);
 			            		time_t diff_time = timeval_diff(&now, &fM3U8BeginTime);      		
@@ -611,7 +626,7 @@ SInt64 HTTPClientSession::Run()
 		            		{
 		            			fState = kSendingGetM3U8;
 			            		//RewriteM3U8(&fM3U8Parser);
-			            		MemoM3U8(&fM3U8Parser);
+			            		MemoM3U8(&fM3U8Parser, fM3U8BeginTime.tv_sec, fM3U8EndTime.tv_sec);
 		            		}
 		            		return MAX_SEMENT_TIME/2;	            		
 		            	}

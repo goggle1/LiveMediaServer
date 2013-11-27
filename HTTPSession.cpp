@@ -16,7 +16,9 @@
 #include "HTTPSession.h"
 
 #define BASE_SERVER_NAME 	"TeslaStreamingServer"
-#define BASE_SERVER_VERSION "1.0"
+//#define BASE_SERVER_VERSION "1.0"
+#define BASE_SERVER_VERSION MY_VERSION
+
 
 #define CONTENT_TYPE_TEXT_PLAIN					"text/plain"
 #define CONTENT_TYPE_TEXT_HTML					"text/html"
@@ -65,10 +67,14 @@
 
 #define CHARSET_UTF8		"utf-8"
 
-#define URI_CMD  			"/cmd/"
-#define CMD_LIST_CHANNEL  	"/cmd/list_channel/"
-#define CMD_ADD_CHANNEL  	"/cmd/add_channel/"
-#define CMD_DEL_CHANNEL  	"/cmd/del_channel/"
+#define URI_CMD  			"/macross/"
+#define CMD_LIST_CHANNEL  	"list_channel"
+#define CMD_ADD_CHANNEL  	"add_channel"
+#define CMD_DEL_CHANNEL  	"del_channel"
+#define CMD_UPDATE_CHANNEL 	"update_channel"
+#define CMD_CHANNEL_STATUS 	"channel_status"
+#define CMD_QUERY_VERSION 	"queryversion"
+
 #define URI_LIVESTREAM		"/livestream/"
 #define LIVE_TS				"ts"
 #define LIVE_FLV			"flv"
@@ -76,6 +82,135 @@
 
 #define MAX_REASON_LEN		256
 
+int cmd_read_params(CMD_T* cmdp, DEQUE_NODE* param_list)
+{
+	DEQUE_NODE* nodep = param_list;
+	while(nodep)
+	{
+		UriParam* paramp = (UriParam*)nodep->datap;
+		if(strcmp(paramp->key, "cmd") == 0)
+		{
+			strncpy(cmdp->cmd, paramp->value, MAX_CMD_LEN-1);
+			cmdp->cmd[MAX_CMD_LEN-1] = '\0';
+		}
+		else if(strcmp(paramp->key, "format") == 0)
+		{
+			cmdp->format = atoi(paramp->value);
+		}		
+		
+		
+		if(nodep->nextp == param_list)
+		{
+			break;
+		}
+		nodep = nodep->nextp;
+	}
+
+	return 0;
+}
+
+int channel_read_params(CHANNEL_T* channelp, DEQUE_NODE* param_list)
+{
+	DEQUE_NODE* nodep = param_list;
+	while(nodep)
+	{
+		UriParam* paramp = (UriParam*)nodep->datap;
+		if(strcmp(paramp->key, "channel_id") == 0)
+		{
+			channelp->channel_id = atoi(paramp->value);
+		}
+		else if(strcmp(paramp->key, "liveid") == 0)
+		{
+			strncpy(channelp->liveid, paramp->value, HASH_LEN);
+		}
+		else if(strcmp(paramp->key, "bitrate") == 0)
+		{
+			channelp->bitrate = atoi(paramp->value);
+		}
+		else if(strcmp(paramp->key, "channel_name") == 0)
+		{
+			strncpy(channelp->channel_name, paramp->value, MAX_CHANNEL_NAME-1);
+		}
+		else if(strcmp(paramp->key, "codec_ts") == 0)
+		{
+			int codec = atoi(paramp->value);
+			if(codec == 1)
+			{
+				channelp->codec_ts = 1;
+			}
+			else
+			{
+				channelp->codec_ts = 0;
+			}
+		}
+		else if(strcmp(paramp->key, "codec_flv") == 0)
+		{
+			int codec = atoi(paramp->value);
+			if(codec == 1)
+			{
+				channelp->codec_flv = 1;
+			}
+			else
+			{
+				channelp->codec_flv = 0;
+			}
+		}
+		else if(strcmp(paramp->key, "codec_mp4") == 0)
+		{
+			int codec = atoi(paramp->value);
+			if(codec == 1)
+			{
+				channelp->codec_mp4 = 1;
+			}
+			else
+			{
+				channelp->codec_mp4 = 0;
+			}
+		}
+		else if(strcmp(paramp->key, "source") == 0 && strlen(paramp->value)>0)
+		{			
+			u_int32_t ip = 0;
+			u_int16_t port = 80;
+			#define MAX_IP_LEN			16
+			#define MAX_PORT_LEN		8
+			char ip_str[MAX_IP_LEN];			
+			char* temp = strstr(paramp->value, ":");
+			if(temp == NULL)
+			{				
+				ip = inet_network(paramp->value);
+			}
+			else
+			{
+				int ip_len = temp - paramp->value;
+				if(ip_len>MAX_IP_LEN-1)
+				{
+					ip_len = MAX_IP_LEN-1;
+				}
+				strncpy(ip_str, paramp->value, ip_len);
+				ip_str[ip_len] = '\0';
+				ip = inet_network(ip_str);
+
+				temp ++;
+				port = atoi(temp);
+			}
+
+			DEQUE_NODE* nodep = channel_find_source(channelp, ip, port);
+			if(nodep == NULL)
+			{
+				channel_add_source(channelp, ip, port);
+			}
+		}
+		
+		
+		if(nodep->nextp == param_list)
+		{
+			break;
+		}
+		nodep = nodep->nextp;
+	}
+
+	return 0;
+}
 
 Bool16 file_exist(char* abs_path)
 {
@@ -866,7 +1001,16 @@ QTSS_Error HTTPSession::ResponseCmdAddChannel()
 {
 	QTSS_Error ret = QTSS_NoErr;
 
-	if(fRequest.fParamPairs == NULL)
+	CHANNEL_T* channelp = (CHANNEL_T*)malloc(sizeof(CHANNEL_T));
+	if(channelp == NULL)
+	{
+		ret = ResponseCmdResult(CMD_ADD_CHANNEL, "error", "failure", "not enough memory!");
+		return ret;
+	}
+	memset(channelp, 0, sizeof(CHANNEL_T));	
+	channel_read_params(channelp, fRequest.fParamPairs);	
+
+	if(strlen(channelp->liveid) == 0)
 	{
 		char* request_file = "/add_channel.html";
 		char abs_path[PATH_MAX];
@@ -874,124 +1018,33 @@ QTSS_Error HTTPSession::ResponseCmdAddChannel()
 		abs_path[PATH_MAX-1] = '\0';	
 		
 		ret = ResponseFile(abs_path);
-		return ret;
-	}
 
-	CHANNEL_T* channelp = (CHANNEL_T*)malloc(sizeof(CHANNEL_T));
-	if(channelp == NULL)
-	{
-		ret = ResponseCmdResult("add_channel", "failure", "not enough memory!");
-		return ret;
-	}
-	memset(channelp, 0, sizeof(CHANNEL_T));
-
-	DEQUE_NODE* nodep = fRequest.fParamPairs;
-	while(nodep)
-	{
-		UriParam* paramp = (UriParam*)nodep->datap;
-		if(strcmp(paramp->key, "channel_id") == 0)
-		{
-			channelp->channel_id = atoi(paramp->value);
-		}
-		else if(strcmp(paramp->key, "liveid") == 0)
-		{
-			strncpy(channelp->liveid, paramp->value, HASH_LEN);
-		}
-		else if(strcmp(paramp->key, "bitrate") == 0)
-		{
-			channelp->bitrate = atoi(paramp->value);
-		}
-		else if(strcmp(paramp->key, "channel_name") == 0)
-		{
-			strncpy(channelp->channel_name, paramp->value, MAX_CHANNEL_NAME-1);
-		}
-		else if(strcmp(paramp->key, "codec_ts") == 0)
-		{
-			channelp->codec_ts = atoi(paramp->value);
-		}
-		else if(strcmp(paramp->key, "codec_flv") == 0)
-		{
-			channelp->codec_flv = atoi(paramp->value);
-		}
-		else if(strcmp(paramp->key, "codec_mp4") == 0)
-		{
-			channelp->codec_mp4 = atoi(paramp->value);
-		}
-		else if(strcmp(paramp->key, "source") == 0 && strlen(paramp->value)>0)
-		{			
-			u_int32_t ip = 0;
-			u_int16_t port = 80;
-			#define MAX_IP_LEN			16
-			#define MAX_PORT_LEN		8
-			char ip_str[MAX_IP_LEN];			
-			char* temp = strstr(paramp->value, ":");
-			if(temp == NULL)
-			{				
-				ip = inet_network(paramp->value);
-			}
-			else
-			{
-				int ip_len = temp - paramp->value;
-				if(ip_len>MAX_IP_LEN-1)
-				{
-					ip_len = MAX_IP_LEN-1;
-				}
-				strncpy(ip_str, paramp->value, ip_len);
-				ip_str[ip_len] = '\0';
-				ip = inet_network(ip_str);
-
-				temp ++;
-				port = atoi(temp);
-			}
-
-			DEQUE_NODE* nodep = channel_find_source(channelp, ip);
-			if(nodep == NULL)
-			{
-				channel_add_source(channelp, ip, port);
-			}
-		}
-		
-		
-		if(nodep->nextp == fRequest.fParamPairs)
-		{
-			break;
-		}
-		nodep = nodep->nextp;
-	}
-
-	CHANNEL_T* findp = NULL;
-	/*
-	findp = g_channels.FindChannelById(channelp->channel_id);
-	if(findp != NULL)
-	{
-		char reason[MAX_REASON_LEN] = "";
-		snprintf(reason, MAX_REASON_LEN-1, "channel_id [%d] exist", channelp->channel_id);
-		reason[MAX_REASON_LEN-1] = '\0';
-		ResponseCmdResult("add_channel", "failure", reason);
 		channel_release(channelp);
 		channelp = NULL;
-		return true;
+		
+		return ret;
 	}
-	*/
+
+	CHANNEL_T* findp = NULL;	
 	findp = g_channels.FindChannelByHash(channelp->liveid);
 	if(findp != NULL)
 	{
+	#if 0
 		char reason[MAX_REASON_LEN] = "";
 		snprintf(reason, MAX_REASON_LEN-1, "liveid [%s] exist", channelp->liveid);
 		reason[MAX_REASON_LEN-1] = '\0';
 		ret = ResponseCmdResult("add_channel", "failure", reason);
 		channel_release(channelp);
 		channelp = NULL;
+	#endif
+		ret = ResponseCmdUpdateChannel(findp, channelp);
 		return ret;
 	}
 	
 	int result = g_channels.AddChannel(channelp);
 	if(result != 0)
 	{
-		char reason[MAX_REASON_LEN] = "";
-		snprintf(reason, MAX_REASON_LEN-1, "AddChannel() internal failure");
-		reason[MAX_REASON_LEN-1] = '\0';
-		ret = ResponseCmdResult("add_channel", "failure", reason);
+		ret = ResponseCmdResult(CMD_ADD_CHANNEL, "error", "failure", "AddChannel() internal failure");
 		channel_release(channelp);
 		channelp = NULL;
 		return ret;
@@ -1002,10 +1055,7 @@ QTSS_Error HTTPSession::ResponseCmdAddChannel()
 		result = start_channel(channelp);
 		if(result != 0)
 		{
-			char reason[MAX_REASON_LEN] = "";
-			snprintf(reason, MAX_REASON_LEN-1, "start_channel() internal failure");
-			reason[MAX_REASON_LEN-1] = '\0';
-			ret = ResponseCmdResult("add_source", "failure", reason);
+			ret = ResponseCmdResult(CMD_ADD_CHANNEL, "error", "failure", "start_channel() internal failure");
 			free(channelp);
 			channelp = NULL;
 			return ret;
@@ -1015,23 +1065,164 @@ QTSS_Error HTTPSession::ResponseCmdAddChannel()
 	result = g_channels.WriteConfig(g_config.channels_file);
 	if(result != 0)
 	{
-		char reason[MAX_REASON_LEN] = "";
-		snprintf(reason, MAX_REASON_LEN-1, "WriteConfig() internal failure");
-		reason[MAX_REASON_LEN-1] = '\0';
-		ret = ResponseCmdResult("add_channel", "failure", reason);
+		ret = ResponseCmdResult(CMD_ADD_CHANNEL, "error", "failure", "WriteConfig() internal failure");
 		channel_release(channelp);
 		channelp = NULL;
 		return ret;
 	}
 	
-	ret = ResponseCmdResult("add_channel", "success", "");	
+	ret = ResponseCmdResult(CMD_ADD_CHANNEL, "ok", "success", "");	
+	return ret;
+}
+
+QTSS_Error HTTPSession::ResponseCmdUpdateChannel(CHANNEL_T* findp, CHANNEL_T* channelp)
+{
+	QTSS_Error ret = QTSS_NoErr;
+	
+	findp->channel_id = channelp->channel_id;
+	findp->bitrate	= channelp->bitrate;
+	strcpy(findp->channel_name, channelp->channel_name);
+	findp->source_list = channelp->source_list;
+	
+	if(findp->codec_ts != channelp->codec_ts)
+	{
+		if(findp->sessionp_ts != NULL)
+		{
+			// stop it
+			channelp->sessionp_ts->Signal(Task::kKillEvent);
+			channelp->sessionp_ts = NULL;
+		}
+		else
+		{
+			if(channelp->codec_ts == 1 && channelp->source_list != NULL)
+			{
+				// start it
+				char* type = "ts";
+				char url[MAX_URL_LEN];
+				snprintf(url, MAX_URL_LEN-1, "/livestream/%s.m3u8?codec=%s", channelp->liveid, type);
+				url[MAX_URL_LEN-1] = '\0';
+				StrPtrLen inURL(url);
+				HTTPClientSession* sessionp = new HTTPClientSession(inURL, channelp, type);	
+				if(sessionp == NULL)
+				{
+					return -1;
+				}
+				channelp->sessionp_ts = sessionp;
+			}
+		}
+
+		findp->codec_ts = channelp->codec_ts;
+	}
+	else
+	{
+		if(findp->sessionp_ts)
+		{
+			findp->sessionp_ts->SetSources(channelp->source_list);
+		}
+	}
+
+	if(findp->codec_flv != channelp->codec_flv)
+	{
+		if(findp->sessionp_flv != NULL)
+		{
+			// stop it
+			channelp->sessionp_flv->Signal(Task::kKillEvent);
+			channelp->sessionp_flv = NULL;
+		}
+		else
+		{
+			if(channelp->codec_flv == 1 && channelp->source_list != NULL)
+			{
+				// start it
+				char* type = "flv";
+				char url[MAX_URL_LEN];
+				snprintf(url, MAX_URL_LEN-1, "/livestream/%s.m3u8?codec=%s", channelp->liveid, type);
+				url[MAX_URL_LEN-1] = '\0';
+				StrPtrLen inURL(url);
+				HTTPClientSession* sessionp = new HTTPClientSession(inURL, channelp, type);	
+				if(sessionp == NULL)
+				{
+					return -1;
+				}
+				channelp->sessionp_flv = sessionp;
+			}
+		}
+
+		findp->codec_flv = channelp->codec_flv;
+	}
+	else
+	{
+		if(findp->sessionp_flv)
+		{
+			findp->sessionp_flv->SetSources(channelp->source_list);
+		}
+	}
+
+	if(findp->codec_mp4 != channelp->codec_mp4)
+	{
+		if(findp->sessionp_mp4 != NULL)
+		{
+			// stop it
+			channelp->sessionp_mp4->Signal(Task::kKillEvent);
+			channelp->sessionp_mp4 = NULL;
+		}
+		else
+		{
+			if(channelp->codec_mp4 == 1 && channelp->source_list != NULL)
+			{
+				// start it
+				char* type = "mp4";
+				char url[MAX_URL_LEN];
+				snprintf(url, MAX_URL_LEN-1, "/livestream/%s.m3u8?codec=%s", channelp->liveid, type);
+				url[MAX_URL_LEN-1] = '\0';
+				StrPtrLen inURL(url);
+				HTTPClientSession* sessionp = new HTTPClientSession(inURL, channelp, type);	
+				if(sessionp == NULL)
+				{
+					return -1;
+				}
+				channelp->sessionp_mp4 = sessionp;
+			}
+		}
+
+		findp->codec_mp4 = channelp->codec_mp4;
+	}
+	else
+	{
+		if(findp->sessionp_mp4)
+		{
+			findp->sessionp_mp4->SetSources(channelp->source_list);
+		}
+	}
+
+	int result = g_channels.WriteConfig(g_config.channels_file);
+	if(result != 0)
+	{
+		ret = ResponseCmdResult(CMD_UPDATE_CHANNEL, "error", "failure", "WriteConfig() internal failure");
+		free(channelp);
+		channelp = NULL;
+		return ret;
+	}
+	
+	ret = ResponseCmdResult(CMD_UPDATE_CHANNEL, "ok", "success", "");
+	
 	return ret;
 }
 
 QTSS_Error HTTPSession::ResponseCmdDelChannel()
 {
 	QTSS_Error ret = QTSS_NoErr;
-	if(fRequest.fParamPairs == NULL)
+
+	CHANNEL_T* channelp = (CHANNEL_T*)malloc(sizeof(CHANNEL_T));
+	if(channelp == NULL)
+	{
+		ret = ResponseCmdResult(CMD_DEL_CHANNEL, "error", "failure", "not enough memory!");
+		return ret;
+	}
+	memset(channelp, 0, sizeof(CHANNEL_T));	
+	channel_read_params(channelp, fRequest.fParamPairs);	
+
+	if(strlen(channelp->liveid) == 0)
 	{
 		char* request_file = "/del_channel.html";
 		char abs_path[PATH_MAX];
@@ -1039,67 +1230,59 @@ QTSS_Error HTTPSession::ResponseCmdDelChannel()
 		abs_path[PATH_MAX-1] = '\0';	
 		
 		ret = ResponseFile(abs_path);
-		return ret;
-	}
 
-	int channel_id = 0;
-	char* liveid = NULL;
-	DEQUE_NODE* nodep = fRequest.fParamPairs;
-	while(nodep)
-	{
-		UriParam* paramp = (UriParam*)nodep->datap;
-		if(strcmp(paramp->key, "channel_id") == 0)
-		{
-			channel_id = atoi(paramp->value);
-		}
-		else if(strcmp(paramp->key, "liveid") == 0)
-		{
-			liveid = paramp->value;
-		}		
+		channel_release(channelp);
+		channelp = NULL;
 		
-		if(nodep->nextp == fRequest.fParamPairs)
-		{
-			break;
-		}
-		nodep = nodep->nextp;
-	}
-
-	if(liveid == NULL)
-	{
-		ret = ResponseCmdResult("del_channel", "failure", "param[liveid] need");	
 		return ret;
 	}
 
-	CHANNEL_T* channelp = g_channels.FindChannelByHash(liveid);
-	if(channelp == NULL)
+	CHANNEL_T* findp = g_channels.FindChannelByHash(channelp->liveid);
+	if(findp == NULL)
 	{
 		char reason[MAX_REASON_LEN] = "";
-		snprintf(reason, MAX_REASON_LEN-1, "can not find liveid[%s]", liveid);
+		snprintf(reason, MAX_REASON_LEN-1, "can not find liveid[%s]", channelp->liveid);
 		reason[MAX_REASON_LEN-1] = '\0';
-		ret = ResponseCmdResult("del_channel", "failure", reason);
+		ret = ResponseCmdResult(CMD_DEL_CHANNEL, "error", "failure", reason);
+
+		channel_release(channelp);
+		channelp = NULL;
+		
 		return ret;
 	}
 	
-	if(channelp->source_list)
+	if(findp->source_list)
 	{
-		stop_channel(channelp);		
+		stop_channel(findp);		
 	}
 
-	int result = g_channels.DeleteChannel(liveid);
+	int result = g_channels.DeleteChannel(channelp->liveid);
 	if(result != 0)
 	{
-		ret = ResponseCmdResult("del_channel", "failure", "DeleteChannel() internal failure");		
+		ret = ResponseCmdResult(CMD_DEL_CHANNEL, "error", "failure", "DeleteChannel() internal failure");	
+
+		channel_release(channelp);
+		channelp = NULL;
+		
 		return ret;
 	}
 		
 	result = g_channels.WriteConfig(g_config.channels_file);
 	if(result != 0)
 	{
-		ret = ResponseCmdResult("del_channel", "failure", "WriteConfig() internal failure");
+		ret = ResponseCmdResult(CMD_DEL_CHANNEL, "error", "failure", "WriteConfig() internal failure");
+
+		channel_release(channelp);
+		channelp = NULL;
+		
 		return ret;
 	}
 	
-	ret = ResponseCmdResult("del_channel", "success", "");	
+	ret = ResponseCmdResult(CMD_DEL_CHANNEL, "ok", "success", "");
+
+	channel_release(channelp);
+	channelp = NULL;
+		
 	return ret;
 }
 
@@ -1161,67 +1344,218 @@ QTSS_Error HTTPSession::ResponseCmdListChannel()
 	return ret;
 }
 
-QTSS_Error HTTPSession::ResponseCmdResult(char* cmd, char* result, char* reason)
+QTSS_Error HTTPSession::ResponseCmdChannelStatus()
+{
+	QTSS_Error ret = QTSS_NoErr;
+	
+	char buffer[1024*4];
+	StringFormatter content(buffer, sizeof(buffer));
+	content.Put("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n");
+	content.Put("<channels>\n");
+
+	DEQUE_NODE* channel_list = g_channels.GetChannels();
+	DEQUE_NODE* nodep = channel_list;
+	while(nodep)
+	{
+		CHANNEL_T* channelp = (CHANNEL_T*)nodep->datap;		
+		content.PutFmtStr("\t<channel channel_id=\"%d\" liveid=\"%s\" bitrate=\"%d\" channel_name=\"%s\" "
+			"codec_ts=\"%d\" codec_flv=\"%d\" codec_mp4=\"%d\">\n", 
+			channelp->channel_id, channelp->liveid, channelp->bitrate, channelp->channel_name,
+			channelp->codec_ts, channelp->codec_flv, channelp->codec_mp4);
+
+		content.Put("\t\t<sources>\n");
+		DEQUE_NODE* node2p = channelp->source_list;
+		while(node2p)
+		{
+			SOURCE_T* sourcep = (SOURCE_T*)node2p->datap;
+
+			struct in_addr in;
+			in.s_addr = htonl(sourcep->ip);
+			char* str_ip = inet_ntoa(in);
+			
+			content.PutFmtStr("\t\t\t<source ip=\"%s\" port=\"%d\">\n",
+				str_ip, sourcep->port);
+			content.Put("\t\t\t</source>\n");
+			
+			if(node2p->nextp == channelp->source_list)
+			{
+				break;
+			}
+			node2p = node2p->nextp;
+		}		
+		content.Put("\t\t</sources>\n");
+		
+		content.Put("\t\t<status>\n");
+		if(channelp->memoryp_ts)
+		{
+			MEMORY_T* memoryp = channelp->memoryp_ts;
+			int m3u8_index = memoryp->m3u8_index;
+			m3u8_index --;
+			if(m3u8_index < 0)
+			{
+				m3u8_index = MAX_M3U8_NUM - 1;
+			}
+			M3U8_T* m3u8p = &(memoryp->m3u8s[m3u8_index]);
+			int clip_index = memoryp->clip_index;
+			clip_index --;
+			if(clip_index < 0)
+			{
+				clip_index = g_config.max_clip_num - 1;
+			}
+			CLIP_T* clipp = &(memoryp->clips[clip_index]);
+			content.PutFmtStr("\t\t\t<%s m3u8_num=\"%d\" clip_num=\"%d\" "
+				"m3u8_begin_time=\"%ld\" m3u8_end_time=\"%ld\" "
+				"clip_begin_time=\"%ld\" clip_end_time=\"%ld\" />\n",
+				"tss", memoryp->m3u8_num, memoryp->clip_num,
+				m3u8p->begin_time, m3u8p->end_time,
+				clipp->begin_time, clipp->end_time);
+		}
+		if(channelp->memoryp_flv)
+		{
+			MEMORY_T* memoryp = channelp->memoryp_flv;
+			int m3u8_index = memoryp->m3u8_index;
+			m3u8_index --;
+			if(m3u8_index < 0)
+			{
+				m3u8_index = MAX_M3U8_NUM - 1;
+			}
+			M3U8_T* m3u8p = &(memoryp->m3u8s[m3u8_index]);
+			int clip_index = memoryp->clip_index;
+			clip_index --;
+			if(clip_index < 0)
+			{
+				clip_index = g_config.max_clip_num - 1;
+			}
+			CLIP_T* clipp = &(memoryp->clips[clip_index]);
+			content.PutFmtStr("\t\t\t<%s m3u8_num=\"%d\" clip_num=\"%d\" "
+				"m3u8_begin_time=\"%ld\" m3u8_end_time=\"%ld\" "
+				"clip_begin_time=\"%ld\" clip_end_time=\"%ld\" />\n",
+				"flv", memoryp->m3u8_num, memoryp->clip_num,
+				m3u8p->begin_time, m3u8p->end_time,
+				clipp->begin_time, clipp->end_time);
+		}
+		if(channelp->memoryp_mp4)
+		{
+			MEMORY_T* memoryp = channelp->memoryp_mp4;
+			int m3u8_index = memoryp->m3u8_index;
+			m3u8_index --;
+			if(m3u8_index < 0)
+			{
+				m3u8_index = MAX_M3U8_NUM - 1;
+			}
+			M3U8_T* m3u8p = &(memoryp->m3u8s[m3u8_index]);
+			int clip_index = memoryp->clip_index;
+			clip_index --;
+			if(clip_index < 0)
+			{
+				clip_index = g_config.max_clip_num - 1;
+			}
+			CLIP_T* clipp = &(memoryp->clips[clip_index]);
+			content.PutFmtStr("\t\t\t<%s m3u8_num=\"%d\" clip_num=\"%d\" "
+				"m3u8_begin_time=\"%ld\" m3u8_end_time=\"%ld\" "
+				"clip_begin_time=\"%ld\" clip_end_time=\"%ld\" />\n",
+				"mp4", memoryp->m3u8_num, memoryp->clip_num,
+				m3u8p->begin_time, m3u8p->end_time,
+				clipp->begin_time, clipp->end_time);
+		}		
+		content.Put("\t\t</status>\n");
+
+		content.Put("\t</channel>\n");
+		
+		if(nodep->nextp == channel_list)
+		{
+			break;
+		}
+		nodep = nodep->nextp;
+	}
+	content.Put("</channels>\n");
+
+	ResponseContent(content.GetBufPtr(), content.GetBytesWritten(), CONTENT_TYPE_APPLICATION_XML);
+
+	return ret;
+}
+
+
+QTSS_Error HTTPSession::ResponseCmdResult(char* cmd, char* return_val, char* result, char* reason)
 {
 	char	buffer[1024];
 	StringFormatter content(buffer, sizeof(buffer));
-	
-	content.Put("<HTML>\n");
-	content.Put("<BODY>\n");
-	content.Put("<TABLE border=\"0\" cellspacing=\"2\">\n");
 
-	content.Put("<TR>\n");	
-	content.Put("<TH align=\"right\">\n");
-	content.Put("cmd:\n");
-	content.Put("</TH>\n");
-	content.Put("<TD align=\"left\">\n");
-	content.PutFmtStr("%s\n", cmd);
-	content.Put("</TD>\n");	
-	content.Put("</TR>\n");	
-	
-	content.Put("<TR>\n");	
-	content.Put("<TH align=\"right\">\n");
-	content.Put("result:\n");
-	content.Put("</TH>\n");
-	content.Put("<TD align=\"left\">\n");
-	content.PutFmtStr("%s\n", result);
-	content.Put("</TD>\n");	
-	content.Put("</TR>\n");
+	if(fCmd.format == 0)
+	{
+		content.PutFmtStr("return=%s\r\n", return_val);
+		content.PutFmtStr("result=%s\r\n", result);
+		
+		ResponseContent(content.GetBufPtr(), content.GetBytesWritten(), CONTENT_TYPE_TEXT_PLAIN);
+	}
+	else
+	{
+		content.Put("<HTML>\n");
+		content.Put("<BODY>\n");
+		content.Put("<TABLE border=\"0\" cellspacing=\"2\">\n");
 
-	content.Put("<TR>\n");	
-	content.Put("<TH align=\"right\">\n");
-	content.Put("reason:\n");
-	content.Put("</TH>\n");
-	content.Put("<TD align=\"left\">\n");
-	content.PutFmtStr("%s\n", reason);
-	content.Put("</TD>\n");	
-	content.Put("</TR>\n");
+		content.Put("<TR>\n");	
+		content.Put("<TH align=\"right\">\n");
+		content.Put("cmd:\n");
+		content.Put("</TH>\n");
+		content.Put("<TD align=\"left\">\n");
+		content.PutFmtStr("%s\n", cmd);
+		content.Put("</TD>\n");	
+		content.Put("</TR>\n");	
 
-	content.Put("<TR>\n");	
-	content.Put("<TD>\n");
-	content.Put("server:\n");
-	content.Put("</TD>\n");
-	content.Put("<TD>\n");
-	content.PutFmtStr("%s/%s\n", BASE_SERVER_NAME, BASE_SERVER_VERSION);	
-	content.Put("</TD>\n");	
-	content.Put("</TR>\n");
+		content.Put("<TR>\n");	
+		content.Put("<TH align=\"right\">\n");
+		content.Put("return:\n");
+		content.Put("</TH>\n");
+		content.Put("<TD align=\"left\">\n");
+		content.PutFmtStr("%s\n", return_val);
+		content.Put("</TD>\n");	
+		content.Put("</TR>\n");	
+		
+		content.Put("<TR>\n");	
+		content.Put("<TH align=\"right\">\n");
+		content.Put("result:\n");
+		content.Put("</TH>\n");
+		content.Put("<TD align=\"left\">\n");
+		content.PutFmtStr("%s\n", result);
+		content.Put("</TD>\n");	
+		content.Put("</TR>\n");
 
-	content.Put("<TR>\n");	
-	content.Put("<TD>\n");
-	content.Put("time:");
-	content.Put("</TD>\n");
-	content.Put("<TD>\n");
-	time_t now = time(NULL);
-	char* now_str = ctime(&now);
-	content.PutFmtStr("%s\n", now_str);
-	content.Put("</TD>\n");	
-	content.Put("</TR>\n");
+		content.Put("<TR>\n");	
+		content.Put("<TH align=\"right\">\n");
+		content.Put("reason:\n");
+		content.Put("</TH>\n");
+		content.Put("<TD align=\"left\">\n");
+		content.PutFmtStr("%s\n", reason);
+		content.Put("</TD>\n");	
+		content.Put("</TR>\n");
 
-	content.Put("</TABLE>\n");		
-	content.Put("</BODY>\n");
-	content.Put("</HTML>\n");
+		content.Put("<TR>\n");	
+		content.Put("<TD>\n");
+		content.Put("server:\n");
+		content.Put("</TD>\n");
+		content.Put("<TD>\n");
+		content.PutFmtStr("%s/%s\n", BASE_SERVER_NAME, BASE_SERVER_VERSION);	
+		content.Put("</TD>\n");	
+		content.Put("</TR>\n");
 
-    ResponseContent(content.GetBufPtr(), content.GetBytesWritten(), CONTENT_TYPE_TEXT_HTML);
+		content.Put("<TR>\n");	
+		content.Put("<TD>\n");
+		content.Put("time:");
+		content.Put("</TD>\n");
+		content.Put("<TD>\n");
+		time_t now = time(NULL);
+		char* now_str = ctime(&now);
+		content.PutFmtStr("%s\n", now_str);
+		content.Put("</TD>\n");	
+		content.Put("</TR>\n");
+
+		content.Put("</TABLE>\n");		
+		content.Put("</BODY>\n");
+		content.Put("</HTML>\n");
+		
+		ResponseContent(content.GetBufPtr(), content.GetBytesWritten(), CONTENT_TYPE_TEXT_HTML);
+	}
     
 	return QTSS_NoErr;
 }
@@ -1270,18 +1604,30 @@ Bool16 HTTPSession::ResponseContent(char* content, int len, char* type)
 QTSS_Error HTTPSession::ResponseCmd()
 {
 	QTSS_Error ret = QTSS_NoErr;
-	if(strncmp(fRequest.fAbsoluteURI.Ptr, CMD_LIST_CHANNEL, strlen(CMD_LIST_CHANNEL)) == 0)
+
+	memset(&fCmd, 0, sizeof(CMD_T));
+	cmd_read_params(&fCmd, fRequest.fParamPairs);
+	
+	if(strcmp(fCmd.cmd, CMD_LIST_CHANNEL) == 0)
 	{
 		ret = ResponseCmdListChannel();
-	}	
-	else if(strncmp(fRequest.fAbsoluteURI.Ptr, CMD_ADD_CHANNEL, strlen(CMD_ADD_CHANNEL)) == 0)
-	{
-		ret = ResponseCmdAddChannel();		
 	}
-	else if(strncmp(fRequest.fAbsoluteURI.Ptr, CMD_DEL_CHANNEL, strlen(CMD_DEL_CHANNEL)) == 0)
+	else if(strcmp(fCmd.cmd, CMD_ADD_CHANNEL) == 0)
+	{
+		ret = ResponseCmdAddChannel();
+	}
+	else if(strcmp(fCmd.cmd, CMD_DEL_CHANNEL) == 0)
 	{
 		ret = ResponseCmdDelChannel();
-	}		
+	}
+	else if(strcmp(fCmd.cmd, CMD_CHANNEL_STATUS) == 0)
+	{
+		ret = ResponseCmdChannelStatus();
+	}
+	else if(strcmp(fCmd.cmd, CMD_QUERY_VERSION) == 0)
+	{		
+		ret = ResponseCmdResult(CMD_QUERY_VERSION, "ok", CMD_VERSION"|"MY_VERSION, "");
+	}
 	else 
 	{
 		ret = ResponseError(httpBadRequest);
@@ -1423,7 +1769,7 @@ QTSS_Error HTTPSession::ContinueLiveM3U8()
 		int index = memoryp->clip_index - 1;	
 		if(index<0)
 		{
-			index = MAX_CLIP_NUM - 1;
+			index = g_config.max_clip_num - 1;
 		}
 			
 		int count = 0;
@@ -1440,7 +1786,7 @@ QTSS_Error HTTPSession::ContinueLiveM3U8()
 			index --;
 			if(index<0)
 			{
-				index = MAX_CLIP_NUM - 1;
+				index = g_config.max_clip_num - 1;
 			}
 
 			if(count >= memoryp->clip_num || (fLiveLen !=-1 && count >= fLiveLen) )
@@ -1450,7 +1796,7 @@ QTSS_Error HTTPSession::ContinueLiveM3U8()
 		}
 
 		index ++;
-		if(index>=MAX_CLIP_NUM)
+		if(index>=g_config.max_clip_num)
 		{
 			index = 0;
 		}
@@ -1471,7 +1817,7 @@ QTSS_Error HTTPSession::ContinueLiveM3U8()
 
 			count2 ++;
 			index ++;
-			if(index>=MAX_CLIP_NUM)
+			if(index>=g_config.max_clip_num)
 			{
 				index = 0;
 			}
@@ -1602,7 +1948,7 @@ QTSS_Error HTTPSession::ContinueLiveSegment()
 	int index = memoryp->clip_index - 1;	
 	if(index<0)
 	{
-		index = MAX_CLIP_NUM - 1;
+		index = g_config.max_clip_num - 1;
 	}
 		
 	int count = 0;
@@ -1619,7 +1965,7 @@ QTSS_Error HTTPSession::ContinueLiveSegment()
 		index --;
 		if(index<0)
 		{
-			index = MAX_CLIP_NUM - 1;
+			index = g_config.max_clip_num - 1;
 		}
 	}
 	if(clipp == NULL)
@@ -1638,6 +1984,13 @@ QTSS_Error HTTPSession::ContinueLiveSegment()
 	HTTPStatusCode status_code = httpOK;	
 	if(fHaveRange)
 	{
+		if(fRangeStart > fRangeStop)
+		{
+			ret = ResponseError(httpRequestRangeNotSatisfiable);
+			fData = NULL;
+			return ret;
+		}
+		
 		fprintf(stdout, "%s: range=%ld-%ld", __PRETTY_FUNCTION__, fRangeStart, fRangeStop);
 		status_code = httpPartialContent;
 	}
@@ -1711,18 +2064,22 @@ QTSS_Error HTTPSession::ContinueLive()
 
 QTSS_Error HTTPSession::ResponseFile(char* abs_path)
 {
+	int ret = QTSS_NoErr;
+	
 	fFd = open(abs_path, O_RDONLY);
 	if(fFd == -1)
 	{
-		return false;
+		ret = ResponseError(httpInternalServerError);
+		return ret;
 	}	
 	
 	off_t file_len = lseek(fFd, 0L, SEEK_END);	
-	lseek(fFd, fRangeStart, SEEK_SET);
 	if(fRangeStop == -1)
 	{
 		fRangeStop = file_len - 1;
-	}
+	}	
+
+	lseek(fFd, fRangeStart, SEEK_SET);
 	
 	char* suffix = file_suffix(abs_path);
 	char* content_type = content_type_by_suffix(suffix);
@@ -1732,6 +2089,13 @@ QTSS_Error HTTPSession::ResponseFile(char* abs_path)
 	HTTPStatusCode status_code = httpOK;	
 	if(fHaveRange)
 	{
+		if(fRangeStart > fRangeStop)
+		{
+			ret = ResponseError(httpRequestRangeNotSatisfiable);
+			close(fFd);
+			fFd = -1;
+			return ret;
+		}
 		fprintf(stdout, "%s: range=%ld-%ld", __PRETTY_FUNCTION__, fRangeStart, fRangeStop);
 		status_code = httpPartialContent;
 	}

@@ -13,6 +13,7 @@ typedef struct config_t
 	u_int16_t	port;
 	char		work_path[PATH_MAX];
 	char		channels_file[PATH_MAX];
+	int32_t		max_clip_num;
 } CONFIG_T;
 
 extern CONFIG_T	g_config;

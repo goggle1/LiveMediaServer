@@ -16,6 +16,8 @@
 
 #define MY_VERSION 	"1.0"
 #define MAX_IP_LEN	16
+#define MAX_ID_LEN	44
+#define MAX_CODEC_LEN 4
 #define MAX_BUF_LEN	4096
 
 //stat: statistics.
@@ -32,6 +34,8 @@ typedef struct config_t
 {
 	char		server_ip[MAX_IP_LEN];	
 	u_int16_t	server_port;
+	char		live_id[MAX_ID_LEN];
+	char		codec[MAX_CODEC_LEN];
 	int			thread_num;
 } CONFIG_T;
 
@@ -39,6 +43,8 @@ CONFIG_T g_config =
 {
 	"192.168.160.202",
 	5050,
+	"0b49884b3b85f7ccddbe4e96e4ae2eae7a6dec56",
+	"ts",
 	10
 };
 
@@ -46,12 +52,12 @@ int do_http_request(int client_fd, THREAD_STAT_T* statp)
 {
 	char send_buffer[MAX_BUF_LEN];
 	snprintf(send_buffer, MAX_BUF_LEN-1, 
-		"GET %s HTTP/1.1\r\n"
+		"GET /livestream/%s.m3u8?codec=%s HTTP/1.1\r\n"
 		"User-Agent: %s\r\n"
 		"HOST: %s:%u\r\n"
 		"Accept: */*\r\n"
 		"\r\n", 
-		"/index.html", "TeslaBrowser", g_config.server_ip, g_config.server_port);
+		g_config.live_id, g_config.codec, "TeslaBrowser", g_config.server_ip, g_config.server_port);
 	send_buffer[MAX_BUF_LEN-1] = '\0';
 	
 	int total_len = strlen(send_buffer);
@@ -139,6 +145,7 @@ int do_http_request(int client_fd, THREAD_STAT_T* statp)
 					if(total_content_len >= http_response.fContentLength)
 					{
 						//fprintf(stdout, "http response success\n");
+						//do_m3u8(content_buffer, http_response.fContentLength);
 						statp->total_count_response ++;
 						break;
 					}
@@ -221,10 +228,10 @@ void print_usage(char* program_name)
 	fprintf(stdout, "%s --version\n", program_name);
 	fprintf(stdout, "%s -v\n", program_name);
 	
-	fprintf(stdout, "%s --server_ip=%s --server_port=%d --thread_num=%d\n", 
-		program_name, g_config.server_ip, g_config.server_port, g_config.thread_num);
-	fprintf(stdout, "%s -i %s -p %d -t %d\n", 
-		program_name, g_config.server_ip, g_config.server_port, g_config.thread_num);
+	fprintf(stdout, "%s --server_ip=%s --server_port=%d --live_id=%s --codec=%s --thread_num=%d\n", 
+		program_name, g_config.server_ip, g_config.server_port, g_config.live_id, g_config.codec, g_config.thread_num);
+	fprintf(stdout, "%s -i %s -p %d -l %s -c %s -t %d\n", 
+		program_name, g_config.server_ip, g_config.server_port, g_config.live_id, g_config.codec, g_config.thread_num);
 }
 
 int main(int argc, char* argv[])
@@ -235,7 +242,9 @@ int main(int argc, char* argv[])
     bool  have_unknown_opts = false;
     // command line
     // -i,   --server_ip
-    // -p,  --server_port    
+    // -p,  --server_port   
+    // -l,   --live_id
+    // -c,  --codec
     // -t, --thread_num
     // -v, --version
     // -h, --help
@@ -244,6 +253,8 @@ int main(int argc, char* argv[])
     {
     	{ "server_ip",	  1, 0, 'i' },
     	{ "server_port",  1, 0, 'p' },
+    	{ "live_id",	  1, 0, 'l' },
+    	{ "codec",  	  1, 0, 'c' },
         { "thread_num",   1, 0, 't' },
         { "version",      0, 0, 'v' },
         { "help",         0, 0, 'h' },        
@@ -254,7 +265,7 @@ int main(int argc, char* argv[])
 	    int c = -1;
 	    int option_index = 0;
 	  
-	    c = getopt_long_only(argc, argv, "i:p:t:vh", orig_options, &option_index);
+	    c = getopt_long_only(argc, argv, "i:p:l:c:t:vh", orig_options, &option_index);
     	if (c == -1)
 	        break;
 
@@ -266,7 +277,15 @@ int main(int argc, char* argv[])
 	            break;
 	        case 'p':	
 	            g_config.server_port = atoi(optarg);
-	            break;	        
+	            break;
+	        case 'l':	
+	            strncpy(g_config.live_id, optarg, MAX_ID_LEN-1);
+	            g_config.live_id[MAX_ID_LEN-1] = '\0';
+	            break;
+	        case 'c':	
+	            strncpy(g_config.codec, optarg, MAX_CODEC_LEN-1);
+	            g_config.codec[MAX_CODEC_LEN-1] = '\0';
+	            break;
 	        case 't':	
 	            g_config.thread_num  = atoi(optarg);
 	            break;	        

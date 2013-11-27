@@ -22,7 +22,30 @@ HTTPClient::HTTPClient(TCPClientSocket* inSocket, CHANNEL_T* channelp)
     fPacketDataInHeaderBuffer(NULL)
 {	
 	fChannel = channelp;
-	fSource = fChannel->source_list;
+	fSource = NULL;
+	
+	SetSources(fChannel->source_list);
+
+	::memset(fSendBuffer, 0,kReqBufSize + 1);
+    ::memset(fRecvHeaderBuffer, 0,kReqBufSize + 1);
+}
+
+HTTPClient::~HTTPClient()
+{
+	delete [] fRecvContentBuffer;	
+}
+
+int HTTPClient::SetSources(DEQUE_NODE * source_list)
+{
+	if(fSource != NULL)
+	{
+		fSocket->Disconnect((TCPSocket*)fSocket->GetSocket());
+		fSocket->Close((TCPSocket*)fSocket->GetSocket());
+		deque_release(fSource, source_release);
+		fSource = NULL;
+	}
+	
+	fSource = source_list;
 	SOURCE_T* sourcep = (SOURCE_T*)fSource->datap;
 	fSocket->Set(sourcep->ip, sourcep->port);
 
@@ -36,13 +59,7 @@ HTTPClient::HTTPClient(TCPClientSocket* inSocket, CHANNEL_T* channelp)
 	fHost[MAX_HOST_LEN-1] = '\0';
 	fprintf(stdout, "%s: fHost=%s\n", __PRETTY_FUNCTION__, fHost);
 
-	::memset(fSendBuffer, 0,kReqBufSize + 1);
-    ::memset(fRecvHeaderBuffer, 0,kReqBufSize + 1);
-}
-
-HTTPClient::~HTTPClient()
-{
-	delete [] fRecvContentBuffer;	
+	return 0;
 }
 
 OS_Error HTTPClient::SendGetM3U8(char* url)

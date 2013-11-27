@@ -12,9 +12,6 @@
 #define MAX_CHANNEL_NAME	64
 #define MAX_LIVE_TYPE     	4
 
-
-//#define MAX_CLIP_NUM			40
-#define MAX_CLIP_NUM			41
 #define MAX_M3U8_NUM		2
 #define MAX_URL_LEN			256
 
@@ -38,12 +35,16 @@ typedef struct clip_t
 	char 		relative_url[MAX_URL_LEN];	
 	char 		m3u8_relative_url[MAX_URL_LEN];
 	DATA_T		data;
+	time_t		begin_time;
+	time_t		end_time;
 } CLIP_T;
 
 //typedef DATA_T M3U8_T;
 typedef struct m3u8_t
 {	
 	DATA_T		data;
+	time_t		begin_time;
+	time_t		end_time;
 } M3U8_T;
 
 typedef struct memory_t
@@ -54,7 +55,8 @@ typedef struct memory_t
 	M3U8_T		m3u8s[MAX_M3U8_NUM];	
 	int			clip_index;
 	int			clip_num;
-	CLIP_T		clips[MAX_CLIP_NUM];
+	//CLIP_T		clips[MAX_CLIP_NUM];
+	CLIP_T*		clips;
 } MEMORY_T;
 
 typedef struct source_t
@@ -85,8 +87,9 @@ typedef struct channel_t
 	MEMORY_T* 	memoryp_mp4;
 } CHANNEL_T;
 
+void source_release(void* datap);
 void channel_release(void* datap);
-DEQUE_NODE* channel_find_source(CHANNEL_T* channelp, u_int32_t ip);
+DEQUE_NODE* channel_find_source(CHANNEL_T* channelp, u_int32_t ip, u_int16_t port);
 int channel_add_source(CHANNEL_T* channelp, u_int32_t ip, u_int16_t port);
 int start_channel(CHANNEL_T* channelp);
 int stop_channel(CHANNEL_T* channelp);

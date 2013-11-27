@@ -12,6 +12,13 @@
 #include "channel.h"
 #include "HTTPClientSession.h"
 
+#define MAX_CMD_LEN	64
+typedef struct cmd_t
+{
+	char	cmd[MAX_CMD_LEN];
+	int		format;	// 0. plain, 1. html
+} CMD_T;
+
 class HTTPSession : public Task
 {
 public:
@@ -30,10 +37,12 @@ protected:
         	QTSS_Error      ResponseGet();
         	Bool16 			ReadFileContent();
         	QTSS_Error		ResponseCmd();
-        	QTSS_Error		ResponseCmdResult(char* cmd, char* result, char* reason);
+        	QTSS_Error		ResponseCmdResult(char* cmd, char* return_val, char* result, char* reason);
         	QTSS_Error 		ResponseCmdListChannel();
         	QTSS_Error 		ResponseCmdAddChannel();
-        	QTSS_Error 		ResponseCmdDelChannel();  
+        	QTSS_Error 		ResponseCmdDelChannel(); 
+        	QTSS_Error 		ResponseCmdUpdateChannel(CHANNEL_T* findp, CHANNEL_T* channelp);
+        	QTSS_Error 		ResponseCmdChannelStatus();
         	Bool16 			ResponseContent(char* content, int len, char* type);
         	QTSS_Error		ResponseFile(char* absolute_path);
         	QTSS_Error		ResponseError(HTTPStatusCode StatusCode);
@@ -94,6 +103,8 @@ protected:
 			HTTPClientSession*	fHttpClientSession;
 			DATA_T* 	fData;
 			int64_t		fDataPosition;
+			// cmd for macross
+			CMD_T		fCmd;
 			
 	        HTTPStatusCode fStatusCode;  	        
 

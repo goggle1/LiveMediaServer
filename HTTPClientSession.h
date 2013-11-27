@@ -18,12 +18,13 @@ class HTTPClientSession : public Task
 virtual	~HTTPClientSession();
 virtual     SInt64      Run();
 	Bool16	IsDownloaded(SEGMENT_T* segp);
-	void 	Set(const StrPtrLen& inURL);
+	void 	SetUrl(const StrPtrLen& inURL);
+	int		SetSources(DEQUE_NODE* source_list);
 	int 	Log(char* url, char* datap, UInt32 len);	
 	int 	Write(StrPtrLen& file_name, char* datap, UInt32 len);
 	int 	RewriteM3U8(M3U8Parser* parserp);	
-	int 	MemoM3U8(M3U8Parser* parserp);
-	int 	MemoSegment(SEGMENT_T* segp, char* datap, UInt32 len);
+	int 	MemoM3U8(M3U8Parser* parserp, time_t begin_time, time_t end_time);
+	int 	MemoSegment(SEGMENT_T* segp, char* datap, UInt32 len, time_t begin_time, time_t end_time);
 	MEMORY_T*	GetMemory() { return fMemory; }
 
 		//

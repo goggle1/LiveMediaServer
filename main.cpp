@@ -2,7 +2,7 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
-
+#include <getopt.h>
 
 #include "BaseServer/OS.h"
 #include "BaseServer/Socket.h"
@@ -16,11 +16,13 @@
 #include "channel.h"
 #include "HTTPClientSession.h"
 
+#define DEFAULT_CONFIG_FILE          	"./LiveMediaServer.xml"
 #define DEFAULT_HTTP_SERVER_IP          0
 #define DEFAULT_HTTP_SERVER_PORT        5050
 
 #define MAX_URL_LEN		256
 
+char* 		g_config_file = DEFAULT_CONFIG_FILE;
 CONFIG_T	g_config = {};
 ChannelList g_channels;
 
@@ -165,15 +167,86 @@ int start_clients()
 	return 0;
 }
 
+void print_usage(char* program_name)
+{
+	fprintf(stdout, "%s --help\n", program_name);
+	fprintf(stdout, "%s -h\n", program_name);
+	fprintf(stdout, "%s --version\n", program_name);
+	fprintf(stdout, "%s -v\n", program_name);
+	
+	fprintf(stdout, "%s --config_file=%s\n", 
+		program_name, DEFAULT_CONFIG_FILE);
+	fprintf(stdout, "%s -c %s\n", 
+		program_name, DEFAULT_CONFIG_FILE);
+}
+
+int parse_cmd_line(int argc, char* argv[])
+{		
+	bool  have_unknown_opts = false;
+	// command line
+	// -c, --config_file
+	// -v, --version
+	// -h, --help
+	// parse_cmd_line();
+	static struct option orig_options[] = 
+	{
+		{ "config_file",  1, 0, 'c' },
+		{ "version",	  0, 0, 'v' },
+		{ "help",		  0, 0, 'h' },		  
+		{ NULL, 		  0, 0, 0	}
+	};	
+	while (true) 
+	{
+		int c = -1;
+		int option_index = 0;
+	  
+		c = getopt_long_only(argc, argv, "c:vh", orig_options, &option_index);
+		if (c == -1)
+			break;
+
+		switch (c) 
+		{			
+			case 'c':	
+				g_config_file = strdup(optarg);
+				break;					
+			case 'h':
+				print_usage(argv[0]);						
+				exit(0);
+				break;			  
+			case 'v':
+				fprintf(stdout, "%s: version %s\n", argv[0], MY_VERSION);
+				exit(0);
+				break;
+			case '?':
+			default:
+				have_unknown_opts = true;
+				break;
+		}
+	}
+
+	if(have_unknown_opts)
+	{
+		return -1;
+	}
+
+	return 0;
+}
+
 int main(int argc, char* argv[])
 {
 	int ret = 0;
 
-	char* config_file = "/etc/LiveMediaServer.xml";
-	ret = config_read(&g_config, config_file);
+	ret = parse_cmd_line(argc, argv);
 	if(ret != 0)
 	{
-		fprintf(stderr, "config_read %s error!\n", config_file);
+		fprintf(stderr, "parse_cmd_line error!\n");
+		return ret;
+	}
+
+	ret = config_read(&g_config, g_config_file);
+	if(ret != 0)
+	{
+		fprintf(stderr, "config_read %s error!\n", g_config_file);
 		return ret;
 	}
 	

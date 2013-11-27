@@ -13,7 +13,8 @@ class HTTPClient
 {
 	public:
 		HTTPClient(TCPClientSocket* inSocket, CHANNEL_T* channelp);
-		~HTTPClient();				
+		~HTTPClient();		
+		
 		OS_Error    SendGetM3U8(char* url);
 		OS_Error    SendGetSegment(char* url);
 		//
@@ -27,6 +28,8 @@ class HTTPClient
 		Bool16      IsTransactionInProgress() { return fState != kInitial; }
 		UInt32      GetContentLength()      { return fContentLength; }
         char*       GetContentBody()        { return fRecvContentBuffer; }        
+
+        int			SetSources(DEQUE_NODE* source_list);
 
 		struct timeval		fBeginTime;
         struct timeval		fEndTime;
