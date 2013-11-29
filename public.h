@@ -2,7 +2,7 @@
 #ifndef __PUBLIC_H__
 #define __PUBLIC_H__
 
-#define PROGRAM_VERSION		"0.1.0.003"
+#define PROGRAM_VERSION		"0.1.0.004"
 #define MY_VERSION			PROGRAM_VERSION"@"OS_VERSION
 #define CMD_VERSION			"2.1"
 

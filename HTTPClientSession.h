@@ -27,6 +27,8 @@ virtual     SInt64      Run();
 	int 	MemoM3U8(M3U8Parser* parserp, time_t begin_time, time_t end_time);
 	int 	MemoSegment(SEGMENT_T* segp, char* datap, UInt32 len, time_t begin_time, time_t end_time);
 	MEMORY_T*	GetMemory() { return fMemory; }
+	char*	GetSourceHost() { return fHost; }
+	time_t	CalcBreakTime();
 
 		//
         // States. Find out what the object is currently doing
@@ -51,7 +53,9 @@ virtual     SInt64      Run();
 
 	protected:
 		int		SwitchSource();
-		
+		int		SetSource(SOURCE_T* sourcep);
+
+		char				fHost[MAX_HOST_LEN];		
 		//UInt32				fInAddr;
 		//UInt16				fInPort;
 		TCPClientSocket* 	fSocket;

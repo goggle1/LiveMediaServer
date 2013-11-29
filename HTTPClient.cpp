@@ -40,11 +40,11 @@ int HTTPClient::SetSource(u_int32_t ip, u_int16_t port)
 	// disconnect, if connected.
 	fSocket->Disconnect((TCPSocket*)fSocket->GetSocket());
 	fSocket->Close((TCPSocket*)fSocket->GetSocket());
+	
 	fState = kInitial;
 						
 	fSourceIp = ip;
-	fSourcePort = port;
-	fSocket->Set(fSourceIp, fSourcePort);
+	fSourcePort = port;	
 
 	UInt32	ip_net = htonl(ip);
 	struct in_addr in;
@@ -52,6 +52,8 @@ int HTTPClient::SetSource(u_int32_t ip, u_int16_t port)
 	char* 	ip_str = inet_ntoa(in);	
 	snprintf(fHost, MAX_HOST_LEN-1, "%s:%d", ip_str, port);
 	fHost[MAX_HOST_LEN-1] = '\0';
+
+	fSocket->Set(fSourceIp, fSourcePort);
 	
 	fprintf(stdout, "%s: fHost=%s\n", __PRETTY_FUNCTION__, fHost);
 

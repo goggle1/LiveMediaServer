@@ -1409,6 +1409,7 @@ QTSS_Error HTTPSession::ResponseCmdChannelStatus()
 		if(channelp->memoryp_ts)
 		{
 			MEMORY_T* memoryp = channelp->memoryp_ts;
+			HTTPClientSession* sessionp = channelp->sessionp_ts;
 			int m3u8_index = memoryp->m3u8_index;
 			m3u8_index --;
 			if(m3u8_index < 0)
@@ -1431,16 +1432,17 @@ QTSS_Error HTTPSession::ResponseCmdChannelStatus()
 			ctime_r(&m3u8p->end_time, str_m3u8_end_time);
 			ctime_r(&clipp->begin_time, str_clip_begin_time);
 			ctime_r(&clipp->end_time, str_clip_end_time);
-			content.PutFmtStr("\t\t\t<%s m3u8_num=\"%d\" clip_num=\"%d\" "
+			content.PutFmtStr("\t\t\t<%s source=\"%s\" m3u8_num=\"%d\" clip_num=\"%d\" "
 				"m3u8_begin_time=\"%ld[%s]\" m3u8_end_time=\"%ld[%s]\" "
 				"clip_begin_time=\"%ld[%s]\" clip_end_time=\"%ld[%s]\" />\n",
-				"tss", memoryp->m3u8_num, memoryp->clip_num,
+				"tss", sessionp->GetSourceHost(), memoryp->m3u8_num, memoryp->clip_num,
 				m3u8p->begin_time, str_m3u8_begin_time, m3u8p->end_time, str_m3u8_end_time,
 				clipp->begin_time, str_clip_begin_time, clipp->end_time, str_clip_end_time);
 		}
 		if(channelp->memoryp_flv)
 		{
 			MEMORY_T* memoryp = channelp->memoryp_flv;
+			HTTPClientSession* sessionp = channelp->sessionp_flv;
 			int m3u8_index = memoryp->m3u8_index;
 			m3u8_index --;
 			if(m3u8_index < 0)
@@ -1463,16 +1465,17 @@ QTSS_Error HTTPSession::ResponseCmdChannelStatus()
 			ctime_r(&m3u8p->end_time, str_m3u8_end_time);
 			ctime_r(&clipp->begin_time, str_clip_begin_time);
 			ctime_r(&clipp->end_time, str_clip_end_time);
-			content.PutFmtStr("\t\t\t<%s m3u8_num=\"%d\" clip_num=\"%d\" "
+			content.PutFmtStr("\t\t\t<%s source=\"%s\" m3u8_num=\"%d\" clip_num=\"%d\" "
 				"m3u8_begin_time=\"%ld[%s]\" m3u8_end_time=\"%ld[%s]\" "
 				"clip_begin_time=\"%ld[%s]\" clip_end_time=\"%ld[%s]\" />\n",
-				"tss", memoryp->m3u8_num, memoryp->clip_num,
+				"flv", sessionp->GetSourceHost(), memoryp->m3u8_num, memoryp->clip_num,
 				m3u8p->begin_time, str_m3u8_begin_time, m3u8p->end_time, str_m3u8_end_time,
 				clipp->begin_time, str_clip_begin_time, clipp->end_time, str_clip_end_time);
 		}
 		if(channelp->memoryp_mp4)
 		{
 			MEMORY_T* memoryp = channelp->memoryp_mp4;
+			HTTPClientSession* sessionp = channelp->sessionp_mp4;
 			int m3u8_index = memoryp->m3u8_index;
 			m3u8_index --;
 			if(m3u8_index < 0)
@@ -1495,10 +1498,10 @@ QTSS_Error HTTPSession::ResponseCmdChannelStatus()
 			ctime_r(&m3u8p->end_time, str_m3u8_end_time);
 			ctime_r(&clipp->begin_time, str_clip_begin_time);
 			ctime_r(&clipp->end_time, str_clip_end_time);
-			content.PutFmtStr("\t\t\t<%s m3u8_num=\"%d\" clip_num=\"%d\" "
+			content.PutFmtStr("\t\t\t<%s source=\"%s\" m3u8_num=\"%d\" clip_num=\"%d\" "
 				"m3u8_begin_time=\"%ld[%s]\" m3u8_end_time=\"%ld[%s]\" "
 				"clip_begin_time=\"%ld[%s]\" clip_end_time=\"%ld[%s]\" />\n",
-				"tss", memoryp->m3u8_num, memoryp->clip_num,
+				"mp4", sessionp->GetSourceHost(), memoryp->m3u8_num, memoryp->clip_num,
 				m3u8p->begin_time, str_m3u8_begin_time, m3u8p->end_time, str_m3u8_end_time,
 				clipp->begin_time, str_clip_begin_time, clipp->end_time, str_clip_end_time);
 		}		

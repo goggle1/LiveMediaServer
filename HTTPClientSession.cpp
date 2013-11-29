@@ -4,6 +4,9 @@
 //#include <sys/stat.h>
 #include <fcntl.h>
 #include <sys/time.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
 
 #include "BaseServer/StringParser.h"
 #include "BaseServer/StringFormatter.h"
@@ -200,8 +203,7 @@ int HTTPClientSession::SetSources(DEQUE_NODE* source_list)
 	fSourceList = source_list;
 	fSourceNow = fSourceList;
 	SOURCE_T* sourcep = (SOURCE_T*)fSourceNow->datap;	
-	//ret = fClient->SetSources(source_list);
-	ret = fClient->SetSource(sourcep->ip, sourcep->port);
+	ret = SetSource(sourcep);
 	
 	return ret;
 }
@@ -215,13 +217,27 @@ int HTTPClientSession::SwitchSource()
 	fState = kSendingGetM3U8;
 	
 	fSourceNow = fSourceNow->nextp;
-	SOURCE_T* sourcep = (SOURCE_T*)fSourceNow->datap;	
-	//ret = fClient->SetSources(source_list);
-	ret = fClient->SetSource(sourcep->ip, sourcep->port);
+	SOURCE_T* sourcep = (SOURCE_T*)fSourceNow->datap;		
+	ret = SetSource(sourcep);
 	
 	return ret;
 }
 
+int HTTPClientSession::SetSource(SOURCE_T* sourcep)
+{
+	int ret = 0;
+	
+	UInt32	ip_net = htonl(sourcep->ip);
+	struct in_addr in;
+	in.s_addr = ip_net;
+	char* 	ip_str = inet_ntoa(in);	
+	snprintf(fHost, MAX_HOST_LEN-1, "%s:%d", ip_str, sourcep->port);
+	fHost[MAX_HOST_LEN-1] = '\0';
+	
+	ret = fClient->SetSource(sourcep->ip, sourcep->port);
+
+	return ret;
+}
 
 Bool16 HTTPClientSession::IsDownloaded(SEGMENT_T * segp)
 {
@@ -439,6 +455,25 @@ int HTTPClientSession::Write(StrPtrLen& file_name, char * datap, UInt32 len)
 	return 0;
 }
 
+time_t HTTPClientSession::CalcBreakTime()
+{
+	struct timeval now;
+	gettimeofday(&now, NULL);
+	time_t diff_time = timeval_diff(&now, &fM3U8BeginTime);      		
+	time_t break_time = MAX_SEMENT_TIME;			            		
+	if(diff_time>=MAX_SEMENT_TIME)
+	{
+		break_time = 1;
+	}
+	else
+	{
+		break_time = MAX_SEMENT_TIME - diff_time;
+	}
+	fprintf(stdout, "%s: diff_time=%ld, break_time=%ld\n", 
+		__PRETTY_FUNCTION__, diff_time, break_time);
+	return break_time;
+}
+
 SInt64 HTTPClientSession::Run()
 {	
 	Task::EventFlags theEvents = this->GetEvents(); 
@@ -518,20 +553,7 @@ SInt64 HTTPClientSession::Run()
             		fState = kSendingGetM3U8;
             		//RewriteM3U8(&fM3U8Parser);
 					MemoM3U8(&fM3U8Parser, fM3U8BeginTime.tv_sec, fM3U8EndTime.tv_sec);
-            		struct timeval now;
-            		gettimeofday(&now, NULL);
-            		time_t diff_time = timeval_diff(&now, &fM3U8BeginTime);      		
-            		time_t break_time = MAX_SEMENT_TIME;			            		
-            		if(diff_time>=MAX_SEMENT_TIME)
-            		{
-            			break_time = 1;
-            		}
-            		else
-            		{
-            			break_time = MAX_SEMENT_TIME - diff_time;
-            		}
-            		fprintf(stdout, "%s: diff_time=%ld, break_time=%ld\n", 
-        				__PRETTY_FUNCTION__, diff_time, break_time);
+            		time_t break_time = CalcBreakTime();
             		return break_time;
             	}
 				
@@ -544,21 +566,9 @@ SInt64 HTTPClientSession::Run()
 	            		fGetTryCount = 0;
 	            		if(fGetIndex >= fM3U8Parser.fSegmentsNum)
 		            	{
-		            		fState = kSendingGetM3U8;		            		
-		            		struct timeval now;
-		            		gettimeofday(&now, NULL);
-		            		time_t diff_time = timeval_diff(&now, &fM3U8BeginTime);      		
-		            		time_t break_time = MAX_SEMENT_TIME;			            		
-		            		if(diff_time>=MAX_SEMENT_TIME)
-		            		{
-		            			break_time = 1;
-		            		}
-		            		else
-		            		{
-		            			break_time = MAX_SEMENT_TIME - diff_time;
-		            		}
-		            		fprintf(stdout, "%s: diff_time=%ld, break_time=%ld\n", 
-		        				__PRETTY_FUNCTION__, diff_time, break_time);
+		            		fState = kSendingGetM3U8;	   
+		            		MemoM3U8(&fM3U8Parser, fM3U8BeginTime.tv_sec, fM3U8EndTime.tv_sec);
+		            		time_t break_time = CalcBreakTime();
 		            		return break_time;
 		            	}
 	            	}
@@ -589,20 +599,7 @@ SInt64 HTTPClientSession::Run()
 		            		fState = kSendingGetM3U8;
 		            		//RewriteM3U8(&fM3U8Parser);
 							MemoM3U8(&fM3U8Parser, fM3U8BeginTime.tv_sec, fM3U8EndTime.tv_sec);
-		            		struct timeval now;
-		            		gettimeofday(&now, NULL);
-		            		time_t diff_time = timeval_diff(&now, &fM3U8BeginTime);      		
-		            		time_t break_time = MAX_SEMENT_TIME;			            		
-		            		if(diff_time>=MAX_SEMENT_TIME)
-		            		{
-		            			break_time = 1;
-		            		}
-		            		else
-		            		{
-		            			break_time = MAX_SEMENT_TIME - diff_time;
-		            		}
-		            		fprintf(stdout, "%s: diff_time=%ld, break_time=%ld\n", 
-		        				__PRETTY_FUNCTION__, diff_time, break_time);
+		            		time_t break_time = CalcBreakTime();
 		            		return break_time;
 		            	}
 	                    //}
@@ -634,21 +631,8 @@ SInt64 HTTPClientSession::Run()
 			            		fState = kSendingGetM3U8;
 			            		//RewriteM3U8(&fM3U8Parser);
 			            		MemoM3U8(&fM3U8Parser, fM3U8BeginTime.tv_sec, fM3U8EndTime.tv_sec);
-			            		struct timeval now;
-			            		gettimeofday(&now, NULL);
-			            		time_t diff_time = timeval_diff(&now, &fM3U8BeginTime);      		
-			            		time_t break_time = MAX_SEMENT_TIME;			            		
-			            		if(diff_time>=MAX_SEMENT_TIME)
-			            		{
-			            			break_time = 1;
-			            		}
-			            		else
-			            		{
-			            			break_time = MAX_SEMENT_TIME - diff_time;
-			            		}
-			            		fprintf(stdout, "%s: diff_time=%ld, break_time=%ld\n", 
-                    				__PRETTY_FUNCTION__, diff_time, break_time);
-			            		return break_time;
+			            		time_t break_time = CalcBreakTime();
+		            			return break_time;
 			            	}
 		            	}		            
 		            	else // get_status==200 but content-length == 0,
@@ -658,9 +642,26 @@ SInt64 HTTPClientSession::Run()
 		            		fGetTryCount ++;
 		            		if(fGetTryCount >= 3)
 		            		{
-		            			fState = kSendingGetM3U8;
-			            		//RewriteM3U8(&fM3U8Parser);
-			            		MemoM3U8(&fM3U8Parser, fM3U8BeginTime.tv_sec, fM3U8EndTime.tv_sec);
+		            			MemoSegment(&(fM3U8Parser.fSegments[fGetIndex]), fClient->GetContentBody(), fClient->GetContentLength(), 
+	                    			fSegmentBeginTime.tv_sec, fSegmentEndTime.tv_sec);
+		                    	memcpy(&(fDownloadSegments[fDownloadIndex]), &(fM3U8Parser.fSegments[fGetIndex]), sizeof(SEGMENT_T));
+		                    	fDownloadIndex ++;
+		                    	if(fDownloadIndex >= MAX_SEGMENT_NUM)
+		                    	{
+		                    		fDownloadIndex = 0;
+		                    	}
+		                    	
+		                    	fGetIndex ++;
+		                    	fGetTryCount = 0;
+		                        // if all the segments downloaded, get m3u8 again
+		                        if(fGetIndex >= fM3U8Parser.fSegmentsNum)
+				            	{
+				            		fState = kSendingGetM3U8;
+				            		//RewriteM3U8(&fM3U8Parser);
+				            		MemoM3U8(&fM3U8Parser, fM3U8BeginTime.tv_sec, fM3U8EndTime.tv_sec);
+				            		time_t break_time = CalcBreakTime();
+			            			return break_time;
+				            	}
 		            		}
 		            		return MAX_SEMENT_TIME/2;	            		
 		            	}
@@ -689,23 +690,11 @@ SInt64 HTTPClientSession::Run()
         else
             fDeathReason = kConnectionFailed;
 
+		//fState = kDone;
 		SwitchSource();
-		
-        //fState = kDone;
-        struct timeval now;
-		gettimeofday(&now, NULL);
-		time_t diff_time = timeval_diff(&now, &fM3U8BeginTime);      		
-		time_t break_time = MAX_SEMENT_TIME;			            		
-		if(diff_time>=MAX_SEMENT_TIME)
-		{
-			break_time = 1;
-		}
-		else
-		{
-			break_time = MAX_SEMENT_TIME - diff_time;
-		}
-		fprintf(stdout, "%s: diff_time=%ld, break_time=%ld\n", 
-			__PRETTY_FUNCTION__, diff_time, break_time);
+        
+        MemoM3U8(&fM3U8Parser, fM3U8BeginTime.tv_sec, fM3U8EndTime.tv_sec);
+		time_t break_time = CalcBreakTime();
 		return break_time;
     }    
 	
