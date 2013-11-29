@@ -1,4 +1,5 @@
 #!/bin/bash
+export OS_VERSION=`cat /etc/redhat-release|awk '{print $1$3}'`
 make clean
 make
 cp -rf LiveMediaServer ./bin/ 

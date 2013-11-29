@@ -868,15 +868,28 @@ QTSS_Error HTTPSession::ResponseGet()
 		StrPtrLen start;
 		parser.ConsumeUntil(&start, '-');
 		fRangeStart = atol(start.Ptr);
+		if(fRangeStart < 0)
+		{
+			ret = ResponseError(httpRequestRangeNotSatisfiable);
+			return ret;
+		}
+		
 		parser.Expect('-');
 		if(parser.GetDataRemaining() > 0)
 		{
 			fRangeStop = atol(parser.GetCurrentPosition());
+			if(fRangeStop < 0 || fRangeStart>fRangeStop)
+			{
+				ret = ResponseError(httpRequestRangeNotSatisfiable);
+				return ret;
+			}
 		}
 		else
 		{
 			fRangeStop = -1;
 		}
+
+		
 	}
 	
 	if(strncmp(fRequest.fAbsoluteURI.Ptr, URI_CMD, strlen(URI_CMD)) == 0)
@@ -1086,11 +1099,12 @@ QTSS_Error HTTPSession::ResponseCmdUpdateChannel(CHANNEL_T* findp, CHANNEL_T* ch
 	
 	if(findp->codec_ts != channelp->codec_ts)
 	{
+		findp->codec_ts = channelp->codec_ts;
 		if(findp->sessionp_ts != NULL)
 		{
 			// stop it
-			channelp->sessionp_ts->Signal(Task::kKillEvent);
-			channelp->sessionp_ts = NULL;
+			findp->sessionp_ts->Signal(Task::kKillEvent);
+			findp->sessionp_ts = NULL;
 		}
 		else
 		{
@@ -1102,32 +1116,33 @@ QTSS_Error HTTPSession::ResponseCmdUpdateChannel(CHANNEL_T* findp, CHANNEL_T* ch
 				snprintf(url, MAX_URL_LEN-1, "/livestream/%s.m3u8?codec=%s", channelp->liveid, type);
 				url[MAX_URL_LEN-1] = '\0';
 				StrPtrLen inURL(url);
-				HTTPClientSession* sessionp = new HTTPClientSession(inURL, channelp, type);	
+				HTTPClientSession* sessionp = new HTTPClientSession(inURL, findp, type);	
 				if(sessionp == NULL)
 				{
 					return -1;
 				}
-				channelp->sessionp_ts = sessionp;
+				findp->sessionp_ts = sessionp;
+				sessionp->Start();
 			}
 		}
-
-		findp->codec_ts = channelp->codec_ts;
 	}
 	else
 	{
 		if(findp->sessionp_ts)
 		{
-			findp->sessionp_ts->SetSources(channelp->source_list);
+			findp->sessionp_ts->SetSources(findp->source_list);
+			findp->sessionp_ts->Start();
 		}
 	}
 
 	if(findp->codec_flv != channelp->codec_flv)
 	{
+		findp->codec_flv = channelp->codec_flv;
 		if(findp->sessionp_flv != NULL)
 		{
 			// stop it
-			channelp->sessionp_flv->Signal(Task::kKillEvent);
-			channelp->sessionp_flv = NULL;
+			findp->sessionp_flv->Signal(Task::kKillEvent);
+			findp->sessionp_flv = NULL;
 		}
 		else
 		{
@@ -1139,32 +1154,33 @@ QTSS_Error HTTPSession::ResponseCmdUpdateChannel(CHANNEL_T* findp, CHANNEL_T* ch
 				snprintf(url, MAX_URL_LEN-1, "/livestream/%s.m3u8?codec=%s", channelp->liveid, type);
 				url[MAX_URL_LEN-1] = '\0';
 				StrPtrLen inURL(url);
-				HTTPClientSession* sessionp = new HTTPClientSession(inURL, channelp, type);	
+				HTTPClientSession* sessionp = new HTTPClientSession(inURL, findp, type);	
 				if(sessionp == NULL)
 				{
 					return -1;
 				}
-				channelp->sessionp_flv = sessionp;
+				findp->sessionp_flv = sessionp;
+				sessionp->Start();
 			}
 		}
-
-		findp->codec_flv = channelp->codec_flv;
 	}
 	else
 	{
 		if(findp->sessionp_flv)
 		{
-			findp->sessionp_flv->SetSources(channelp->source_list);
+			findp->sessionp_flv->SetSources(findp->source_list);
+			findp->sessionp_flv->Start();
 		}
 	}
 
 	if(findp->codec_mp4 != channelp->codec_mp4)
 	{
+		findp->codec_mp4 = channelp->codec_mp4;
 		if(findp->sessionp_mp4 != NULL)
 		{
 			// stop it
-			channelp->sessionp_mp4->Signal(Task::kKillEvent);
-			channelp->sessionp_mp4 = NULL;
+			findp->sessionp_mp4->Signal(Task::kKillEvent);
+			findp->sessionp_mp4 = NULL;
 		}
 		else
 		{
@@ -1176,36 +1192,40 @@ QTSS_Error HTTPSession::ResponseCmdUpdateChannel(CHANNEL_T* findp, CHANNEL_T* ch
 				snprintf(url, MAX_URL_LEN-1, "/livestream/%s.m3u8?codec=%s", channelp->liveid, type);
 				url[MAX_URL_LEN-1] = '\0';
 				StrPtrLen inURL(url);
-				HTTPClientSession* sessionp = new HTTPClientSession(inURL, channelp, type);	
+				HTTPClientSession* sessionp = new HTTPClientSession(inURL, findp, type);	
 				if(sessionp == NULL)
 				{
 					return -1;
 				}
-				channelp->sessionp_mp4 = sessionp;
+				findp->sessionp_mp4 = sessionp;
+				sessionp->Start();
 			}
 		}
-
-		findp->codec_mp4 = channelp->codec_mp4;
 	}
 	else
 	{
 		if(findp->sessionp_mp4)
 		{
-			findp->sessionp_mp4->SetSources(channelp->source_list);
+			findp->sessionp_mp4->SetSources(findp->source_list);
+			findp->sessionp_mp4->Start();
 		}
 	}
 
+
+	if(channelp != NULL)
+	{
+		free(channelp);
+		channelp = NULL;
+	}
+		
 	int result = g_channels.WriteConfig(g_config.channels_file);
 	if(result != 0)
 	{
-		ret = ResponseCmdResult(CMD_UPDATE_CHANNEL, "error", "failure", "WriteConfig() internal failure");
-		free(channelp);
-		channelp = NULL;
+		ret = ResponseCmdResult(CMD_UPDATE_CHANNEL, "error", "failure", "WriteConfig() internal failure");		
 		return ret;
 	}
 	
-	ret = ResponseCmdResult(CMD_UPDATE_CHANNEL, "ok", "success", "");
-	
+	ret = ResponseCmdResult(CMD_UPDATE_CHANNEL, "ok", "success", "");	
 	return ret;
 }
 
@@ -1403,12 +1423,20 @@ QTSS_Error HTTPSession::ResponseCmdChannelStatus()
 				clip_index = g_config.max_clip_num - 1;
 			}
 			CLIP_T* clipp = &(memoryp->clips[clip_index]);
+			char str_m3u8_begin_time[MAX_TIME_LEN] = {0};
+			char str_m3u8_end_time[MAX_TIME_LEN] = {0};
+			char str_clip_begin_time[MAX_TIME_LEN] = {0};
+			char str_clip_end_time[MAX_TIME_LEN] = {0};
+			ctime_r(&m3u8p->begin_time, str_m3u8_begin_time);
+			ctime_r(&m3u8p->end_time, str_m3u8_end_time);
+			ctime_r(&clipp->begin_time, str_clip_begin_time);
+			ctime_r(&clipp->end_time, str_clip_end_time);
 			content.PutFmtStr("\t\t\t<%s m3u8_num=\"%d\" clip_num=\"%d\" "
-				"m3u8_begin_time=\"%ld\" m3u8_end_time=\"%ld\" "
-				"clip_begin_time=\"%ld\" clip_end_time=\"%ld\" />\n",
+				"m3u8_begin_time=\"%ld[%s]\" m3u8_end_time=\"%ld[%s]\" "
+				"clip_begin_time=\"%ld[%s]\" clip_end_time=\"%ld[%s]\" />\n",
 				"tss", memoryp->m3u8_num, memoryp->clip_num,
-				m3u8p->begin_time, m3u8p->end_time,
-				clipp->begin_time, clipp->end_time);
+				m3u8p->begin_time, str_m3u8_begin_time, m3u8p->end_time, str_m3u8_end_time,
+				clipp->begin_time, str_clip_begin_time, clipp->end_time, str_clip_end_time);
 		}
 		if(channelp->memoryp_flv)
 		{
@@ -1427,12 +1455,20 @@ QTSS_Error HTTPSession::ResponseCmdChannelStatus()
 				clip_index = g_config.max_clip_num - 1;
 			}
 			CLIP_T* clipp = &(memoryp->clips[clip_index]);
+			char str_m3u8_begin_time[MAX_TIME_LEN] = {0};
+			char str_m3u8_end_time[MAX_TIME_LEN] = {0};
+			char str_clip_begin_time[MAX_TIME_LEN] = {0};
+			char str_clip_end_time[MAX_TIME_LEN] = {0};
+			ctime_r(&m3u8p->begin_time, str_m3u8_begin_time);
+			ctime_r(&m3u8p->end_time, str_m3u8_end_time);
+			ctime_r(&clipp->begin_time, str_clip_begin_time);
+			ctime_r(&clipp->end_time, str_clip_end_time);
 			content.PutFmtStr("\t\t\t<%s m3u8_num=\"%d\" clip_num=\"%d\" "
-				"m3u8_begin_time=\"%ld\" m3u8_end_time=\"%ld\" "
-				"clip_begin_time=\"%ld\" clip_end_time=\"%ld\" />\n",
-				"flv", memoryp->m3u8_num, memoryp->clip_num,
-				m3u8p->begin_time, m3u8p->end_time,
-				clipp->begin_time, clipp->end_time);
+				"m3u8_begin_time=\"%ld[%s]\" m3u8_end_time=\"%ld[%s]\" "
+				"clip_begin_time=\"%ld[%s]\" clip_end_time=\"%ld[%s]\" />\n",
+				"tss", memoryp->m3u8_num, memoryp->clip_num,
+				m3u8p->begin_time, str_m3u8_begin_time, m3u8p->end_time, str_m3u8_end_time,
+				clipp->begin_time, str_clip_begin_time, clipp->end_time, str_clip_end_time);
 		}
 		if(channelp->memoryp_mp4)
 		{
@@ -1451,12 +1487,20 @@ QTSS_Error HTTPSession::ResponseCmdChannelStatus()
 				clip_index = g_config.max_clip_num - 1;
 			}
 			CLIP_T* clipp = &(memoryp->clips[clip_index]);
+			char str_m3u8_begin_time[MAX_TIME_LEN] = {0};
+			char str_m3u8_end_time[MAX_TIME_LEN] = {0};
+			char str_clip_begin_time[MAX_TIME_LEN] = {0};
+			char str_clip_end_time[MAX_TIME_LEN] = {0};
+			ctime_r(&m3u8p->begin_time, str_m3u8_begin_time);
+			ctime_r(&m3u8p->end_time, str_m3u8_end_time);
+			ctime_r(&clipp->begin_time, str_clip_begin_time);
+			ctime_r(&clipp->end_time, str_clip_end_time);
 			content.PutFmtStr("\t\t\t<%s m3u8_num=\"%d\" clip_num=\"%d\" "
-				"m3u8_begin_time=\"%ld\" m3u8_end_time=\"%ld\" "
-				"clip_begin_time=\"%ld\" clip_end_time=\"%ld\" />\n",
-				"mp4", memoryp->m3u8_num, memoryp->clip_num,
-				m3u8p->begin_time, m3u8p->end_time,
-				clipp->begin_time, clipp->end_time);
+				"m3u8_begin_time=\"%ld[%s]\" m3u8_end_time=\"%ld[%s]\" "
+				"clip_begin_time=\"%ld[%s]\" clip_end_time=\"%ld[%s]\" />\n",
+				"tss", memoryp->m3u8_num, memoryp->clip_num,
+				m3u8p->begin_time, str_m3u8_begin_time, m3u8p->end_time, str_m3u8_end_time,
+				clipp->begin_time, str_clip_begin_time, clipp->end_time, str_clip_end_time);
 		}		
 		content.Put("\t\t</status>\n");
 
@@ -1545,8 +1589,9 @@ QTSS_Error HTTPSession::ResponseCmdResult(char* cmd, char* return_val, char* res
 		content.Put("</TD>\n");
 		content.Put("<TD>\n");
 		time_t now = time(NULL);
-		char* now_str = ctime(&now);
-		content.PutFmtStr("%s\n", now_str);
+		char str_now[MAX_TIME_LEN] = {0};
+		ctime_r(&now, str_now);
+		content.PutFmtStr("%s\n", str_now);
 		content.Put("</TD>\n");	
 		content.Put("</TR>\n");
 
@@ -1721,6 +1766,12 @@ QTSS_Error HTTPSession::ResponseLiveM3U8()
 	fprintf(stdout, "%s: before fDefaultThread=0x%016lX, fUseThisThread=0x%016lX, %ld\n", 
 		__PRETTY_FUNCTION__, (long)this->fDefaultThread, (long)this->fUseThisThread, pthread_self());
 	TaskThread* threadp = fHttpClientSession->GetDefaultThread();
+	if(threadp == NULL)
+	{
+		ret = ResponseError(httpNotFound);
+		return ret;
+	}
+	
 	this->SetSignal(Task::kUpdateEvent);
 	this->SetDefaultThread(threadp);	
 	this->SetTaskThread(threadp);
@@ -1952,8 +2003,14 @@ QTSS_Error HTTPSession::ContinueLiveSegment()
 	}
 		
 	int count = 0;
-	while(count <= memoryp->clip_num)
+	while(1)
 	{
+		count ++;
+		if(count > memoryp->clip_num)
+		{
+			break;
+		}
+		
 		CLIP_T* onep = &(memoryp->clips[index]);
 		if(strncmp(onep->relative_url, fRequest.fRelativeURI.Ptr, strlen(onep->relative_url)) == 0)
 		{
@@ -1961,7 +2018,6 @@ QTSS_Error HTTPSession::ContinueLiveSegment()
 			break;
 		}
 		
-		count ++;
 		index --;
 		if(index<0)
 		{
@@ -1985,6 +2041,12 @@ QTSS_Error HTTPSession::ContinueLiveSegment()
 	if(fHaveRange)
 	{
 		if(fRangeStart > fRangeStop)
+		{
+			ret = ResponseError(httpRequestRangeNotSatisfiable);
+			fData = NULL;
+			return ret;
+		}
+		if(fRangeStop > fData->len-1)
 		{
 			ret = ResponseError(httpRequestRangeNotSatisfiable);
 			fData = NULL;
@@ -2079,13 +2141,6 @@ QTSS_Error HTTPSession::ResponseFile(char* abs_path)
 		fRangeStop = file_len - 1;
 	}	
 
-	lseek(fFd, fRangeStart, SEEK_SET);
-	
-	char* suffix = file_suffix(abs_path);
-	char* content_type = content_type_by_suffix(suffix);
-	
-	fResponse.Set(fStrRemained.Ptr+fStrRemained.Len, kResponseBufferSizeInBytes-fStrRemained.Len);
-
 	HTTPStatusCode status_code = httpOK;	
 	if(fHaveRange)
 	{
@@ -2096,21 +2151,24 @@ QTSS_Error HTTPSession::ResponseFile(char* abs_path)
 			fFd = -1;
 			return ret;
 		}
+		if(fRangeStop > file_len - 1)
+		{
+			ret = ResponseError(httpRequestRangeNotSatisfiable);
+			close(fFd);
+			fFd = -1;
+			return ret;
+		}
+		
 		fprintf(stdout, "%s: range=%ld-%ld", __PRETTY_FUNCTION__, fRangeStart, fRangeStop);
 		status_code = httpPartialContent;
 	}
-	/*
-	Accept-Ranges:bytes
-	Access-Control-Allow-Headers:Range
-	Access-Control-Allow-Origin:*
-	Connection:keep-alive
-	Content-Length:224533099
-	Content-Range:bytes 0-224533098/224533099
-	Content-Type:video/mp4
-	Date:Fri, 08 Nov 2013 05:02:21 GMT
-	Last-Modified:Mon, 12 Aug 2013 03:23:06 GMT
-	Server:funshion
-	*/	
+	
+	lseek(fFd, fRangeStart, SEEK_SET);
+	
+	char* suffix = file_suffix(abs_path);
+	char* content_type = content_type_by_suffix(suffix);
+	
+	fResponse.Set(fStrRemained.Ptr+fStrRemained.Len, kResponseBufferSizeInBytes-fStrRemained.Len);		
 	fResponse.PutFmtStr("%s %s %s\r\n", 
 			HTTPProtocol::GetVersionString(http11Version)->Ptr,
 			HTTPProtocol::GetStatusCodeAsString(status_code)->Ptr,			
@@ -2209,8 +2267,9 @@ QTSS_Error HTTPSession::ResponseError(HTTPStatusCode status_code)
 	content.Put("</TD>\n");
 	content.Put("<TD>\n");
 	time_t now = time(NULL);
-	char* now_str = ctime(&now);
-	content.PutFmtStr("%s\n", now_str);
+	char str_now[MAX_TIME_LEN] = {0};
+	ctime_r(&now, str_now);
+	content.PutFmtStr("%s\n", str_now);
 	content.Put("</TD>\n");	
 	content.Put("</TR>\n");
 

@@ -41,18 +41,21 @@ SRCEXTS   := .c .cpp
 # CPPFLAGS  := -Wall -Werror # show all warnings and take them as errors
 CPPFLAGS  := -g -Wall -Wno-write-strings -O0 -include BaseServer/PlatformHeader.h
 CPPFLAGS  += -I/usr/include/libxml2/
+CPPFLAGS  += -DOS_VERSION=\"$(OS_VERSION)\"
 
 # The compiling flags used only for C.
 # If it is a C++ program, no need to set these flags.
 # If it is a C and C++ merging program, set these flags for the C parts.
 CFLAGS    := -g -Wall -Wno-write-strings -O0 -include BaseServer/PlatformHeader.h
 CFLAGS    += -I/usr/include/libxml2/
+CFLAGS    += -DOS_VERSION=\"$(OS_VERSION)\"
 
 # The compiling flags used only for C++.
 # If it is a C program, no need to set these flags.
 # If it is a C and C++ merging program, set these flags for the C++ parts.
 CXXFLAGS  := -g -Wall -Wno-write-strings -O0 -include BaseServer/PlatformHeader.h
 CXXFLAGS  += -I/usr/include/libxml2/
+CXXFLAGS  += -DOS_VERSION=\"$(OS_VERSION)\"
 
 # The library and the link options ( C and C++ common).
 LDFLAGS   :=
@@ -82,8 +85,8 @@ DEPS    = $(patsubst %.o,%.d,$(OBJS))
 
 .PHONY : all objs clean cleanall rebuild 
 
-all : $(PROGRAM) 
-
+all : $(PROGRAM)
+	
 # Rules for creating the dependency files (.d).
 #---------------------------------------------------
 

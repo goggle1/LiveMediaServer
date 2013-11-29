@@ -17,6 +17,7 @@ class HTTPClientSession : public Task
 		HTTPClientSession(const StrPtrLen& inURL, CHANNEL_T* channelp, char* type);
 virtual	~HTTPClientSession();
 virtual     SInt64      Run();
+	int		Start();
 	Bool16	IsDownloaded(SEGMENT_T* segp);
 	void 	SetUrl(const StrPtrLen& inURL);
 	int		SetSources(DEQUE_NODE* source_list);
@@ -49,6 +50,8 @@ virtual     SInt64      Run();
         };
 
 	protected:
+		int		SwitchSource();
+		
 		//UInt32				fInAddr;
 		//UInt16				fInPort;
 		TCPClientSocket* 	fSocket;
@@ -56,6 +59,8 @@ virtual     SInt64      Run();
 		StrPtrLen   		fURL;
 		StrPtrLen			fM3U8Path;
 		CHANNEL_T*			fChannel;
+		DEQUE_NODE*			fSourceList;
+		DEQUE_NODE*			fSourceNow;
 		MEMORY_T*			fMemory;
 		char*				fType;
 		

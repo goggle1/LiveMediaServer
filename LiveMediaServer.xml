@@ -4,5 +4,5 @@
 <port>5050</port>
 <work_path>/home/html</work_path>
 <channels_file>/home/html/channels.xml</channels_file>
-<max_clip_num>40</max_clip_num>
+<max_clip_num>60</max_clip_num>
 </config>

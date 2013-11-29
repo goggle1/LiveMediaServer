@@ -110,6 +110,7 @@ int start_channel(CHANNEL_T* channelp)
 				return -1;
 			}
 			channelp->sessionp_ts = sessionp;
+			sessionp->Start();
 		}
 	}
 	if(channelp->codec_flv)
@@ -127,6 +128,7 @@ int start_channel(CHANNEL_T* channelp)
 				return -1;
 			}
 			channelp->sessionp_flv = sessionp;
+			sessionp->Start();
 		}
 	}
 	if(channelp->codec_mp4)
@@ -144,6 +146,7 @@ int start_channel(CHANNEL_T* channelp)
 				return -1;
 			}
 			channelp->sessionp_mp4 = sessionp;
+			sessionp->Start();
 		}
 	}	
 	
@@ -608,18 +611,9 @@ int ChannelList::DeleteChannel(char* liveid)
 	}
 
 	if(findp != NULL)
-	{
-		CHANNEL_T* channelp = (CHANNEL_T*)findp->datap;			
-		if(channelp != NULL)
-		{
-			if(channelp->source_list != NULL)
-			{
-				deque_release(channelp->source_list, source_release);
-				channelp->source_list = NULL;
-			}	
-			free(channelp);
-			channelp = NULL;
-		}
+	{			
+		channel_release(findp->datap);
+		findp->datap = NULL;
 		m_channel_list = deque_remove_node(m_channel_list, findp);
 		return 0;
 	}

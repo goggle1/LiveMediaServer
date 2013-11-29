@@ -12,7 +12,7 @@
 class HTTPClient
 {
 	public:
-		HTTPClient(TCPClientSocket* inSocket, CHANNEL_T* channelp);
+		HTTPClient(TCPClientSocket* inSocket/*, CHANNEL_T* channelp*/);
 		~HTTPClient();		
 		
 		OS_Error    SendGetM3U8(char* url);
@@ -29,15 +29,18 @@ class HTTPClient
 		UInt32      GetContentLength()      { return fContentLength; }
         char*       GetContentBody()        { return fRecvContentBuffer; }        
 
-        int			SetSources(DEQUE_NODE* source_list);
+        //int			SetSources(DEQUE_NODE* source_list);
+        int			SetSource(u_int32_t ip, u_int16_t port);
 
 		struct timeval		fBeginTime;
         struct timeval		fEndTime;
         
 	protected:
 		TCPClientSocket*	fSocket;	
-		CHANNEL_T*			fChannel;
-		DEQUE_NODE*			fSource;
+		//CHANNEL_T*			fChannel;
+		//DEQUE_NODE*			fSource;
+		u_int32_t			fSourceIp;
+		u_int16_t			fSourcePort;
 		
 		enum { kInitial, kRequestSending, kResponseReceiving, kHeaderReceived };
         UInt32      		fState;        

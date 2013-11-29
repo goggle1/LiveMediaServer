@@ -10,7 +10,7 @@
 
 #include "HTTPClient.h"
 
-HTTPClient::HTTPClient(TCPClientSocket* inSocket, CHANNEL_T* channelp)
+HTTPClient::HTTPClient(TCPClientSocket* inSocket/*, CHANNEL_T* channelp*/)
 : 	fSocket(inSocket),	
 	fState(kInitial),	
 	fRecvContentBuffer(NULL),
@@ -21,10 +21,10 @@ HTTPClient::HTTPClient(TCPClientSocket* inSocket, CHANNEL_T* channelp)
 	fPacketDataInHeaderBufferLen(0),
     fPacketDataInHeaderBuffer(NULL)
 {	
-	fChannel = channelp;
-	fSource = NULL;
+	//fChannel = channelp;
+	//fSource = NULL;
 	
-	SetSources(fChannel->source_list);
+	//SetSources(fChannel->source_list);
 
 	::memset(fSendBuffer, 0,kReqBufSize + 1);
     ::memset(fRecvHeaderBuffer, 0,kReqBufSize + 1);
@@ -35,28 +35,24 @@ HTTPClient::~HTTPClient()
 	delete [] fRecvContentBuffer;	
 }
 
-int HTTPClient::SetSources(DEQUE_NODE * source_list)
-{
-	if(fSource != NULL)
-	{
-		fSocket->Disconnect((TCPSocket*)fSocket->GetSocket());
-		fSocket->Close((TCPSocket*)fSocket->GetSocket());
-		deque_release(fSource, source_release);
-		fSource = NULL;
-	}
-	
-	fSource = source_list;
-	SOURCE_T* sourcep = (SOURCE_T*)fSource->datap;
-	fSocket->Set(sourcep->ip, sourcep->port);
+int HTTPClient::SetSource(u_int32_t ip, u_int16_t port)
+{	
+	// disconnect, if connected.
+	fSocket->Disconnect((TCPSocket*)fSocket->GetSocket());
+	fSocket->Close((TCPSocket*)fSocket->GetSocket());
+	fState = kInitial;
+						
+	fSourceIp = ip;
+	fSourcePort = port;
+	fSocket->Set(fSourceIp, fSourcePort);
 
-	UInt32  ip = fSocket->GetHostAddr();
-	UInt16  port = fSocket->GetHostPort();
 	UInt32	ip_net = htonl(ip);
 	struct in_addr in;
 	in.s_addr = ip_net;
 	char* 	ip_str = inet_ntoa(in);	
 	snprintf(fHost, MAX_HOST_LEN-1, "%s:%d", ip_str, port);
 	fHost[MAX_HOST_LEN-1] = '\0';
+	
 	fprintf(stdout, "%s: fHost=%s\n", __PRETTY_FUNCTION__, fHost);
 
 	return 0;
@@ -144,8 +140,9 @@ OS_Error HTTPClient::DoTransaction()
         		theErr = this->ReceiveResponse();  //note that this function can change the fState
 
         		//fprintf(stdout, "%s: ReceiveResponse fStatus=%"_U32BITARG_" len=%"_U32BITARG_" err = [%"_S32BITARG_"][%s]\n",
-        		//	__PRETTY_FUNCTION__, fStatus, fHeaderRecvLen, theErr, strerror(theErr));
-    
+        		//	__PRETTY_FUNCTION__, fStatus, fHeaderRecvLen, theErr, strerror(theErr));    			
+				gettimeofday(&fEndTime, NULL);
+				
         		if (theErr != OS_NoErr)
         		{       
         			if(theErr != EAGAIN)
@@ -153,11 +150,16 @@ OS_Error HTTPClient::DoTransaction()
         				fprintf(stderr, "%s: ReceiveResponse fStatus=%d, fContentLength=%d, fContentRecvLen=%d, err = [%"_S32BITARG_"][%s]\n", 
 							__PRETTY_FUNCTION__, fStatus, fContentLength, fContentRecvLen, theErr, strerror(theErr));
 					}
-        			// only 107 ? and other errno?
-        			if(theErr == 107)
+
+					#if 0
+					//#define ENOTCONN 107 /* Transport endpoint is not connected */
+        			// only 107 ? and other errno?        			
+        			if(theErr == ENOTCONN)
         			{
 	        			fSocket->Disconnect((TCPSocket*)fSocket->GetSocket());
 						fSocket->Close((TCPSocket*)fSocket->GetSocket());
+					
+						// switch to next source.
 						fSource = fSource->nextp;
 						SOURCE_T* sourcep = (SOURCE_T*)fSource->datap;
 						fSocket->Set(sourcep->ip, sourcep->port);
@@ -170,14 +172,14 @@ OS_Error HTTPClient::DoTransaction()
 						snprintf(fHost, MAX_HOST_LEN-1, "%s:%d", ip_str, port);
 						fHost[MAX_HOST_LEN-1] = '\0';
 						fprintf(stdout, "%s: fHost=%s\n", __PRETTY_FUNCTION__, fHost);
-	
+						
 						fState = kInitial;
 					}
+					#endif
             		return theErr;
             	}
 
 				//The response has been completely received and parsed.  If the response is 401 unauthorized, then redo the request with authorization
-				gettimeofday(&fEndTime, NULL);
 				fState = kInitial;
 				if (fStatus == 401)
 					break;

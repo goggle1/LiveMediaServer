@@ -61,9 +61,11 @@ HTTPClientSession::HTTPClientSession(const StrPtrLen& inURL, CHANNEL_T* channelp
 	fSocket = new TCPClientSocket(Socket::kNonBlockingSocketType);	
 	//fSocket->SetUrl(fInAddr, fInPort);
 	
-	fClient = new HTTPClient(fSocket, channelp);	
+	fClient = new HTTPClient(fSocket/*, channelp*/);	
 
 	fChannel= channelp;
+	SetSources(fChannel->source_list);
+	
 	fType	= strdup(type);
 	fMemory = (MEMORY_T*)malloc(sizeof(MEMORY_T));	
 	memset(fMemory, 0, sizeof(MEMORY_T));
@@ -83,12 +85,13 @@ HTTPClientSession::HTTPClientSession(const StrPtrLen& inURL, CHANNEL_T* channelp
 	}
 
 	fState = kSendingGetM3U8;
-	this->SetUrl(inURL);
-	this->Signal(Task::kStartEvent);
+	this->SetUrl(inURL);	
 
 	fDownloadIndex = 0;
 	fGetIndex	= 0;
 	memset(fDownloadSegments, 0, sizeof(fDownloadSegments));
+
+	//this->Signal(Task::kStartEvent);
 
 	fprintf(stdout, "%s\n", __PRETTY_FUNCTION__);
 }
@@ -143,6 +146,12 @@ HTTPClientSession::~HTTPClientSession()
 	fprintf(stdout, "%s\n", __PRETTY_FUNCTION__);
 }
 
+int HTTPClientSession::Start()
+{
+	this->Signal(Task::kStartEvent);
+	return 0;
+}
+
 void HTTPClientSession::SetUrl(const StrPtrLen& inURL)
 {
     delete [] fURL.Ptr;
@@ -183,9 +192,36 @@ void HTTPClientSession::SetUrl(const StrPtrLen& inURL)
 int HTTPClientSession::SetSources(DEQUE_NODE* source_list)
 {
 	int ret = 0;
-	ret = fClient->SetSources(source_list);
+
+	fprintf(stdout, "%s\n", __PRETTY_FUNCTION__);
+	
+	fState = kSendingGetM3U8;
+	
+	fSourceList = source_list;
+	fSourceNow = fSourceList;
+	SOURCE_T* sourcep = (SOURCE_T*)fSourceNow->datap;	
+	//ret = fClient->SetSources(source_list);
+	ret = fClient->SetSource(sourcep->ip, sourcep->port);
+	
 	return ret;
 }
+
+int HTTPClientSession::SwitchSource()
+{
+	int ret = 0;
+
+	fprintf(stdout, "%s\n", __PRETTY_FUNCTION__);
+
+	fState = kSendingGetM3U8;
+	
+	fSourceNow = fSourceNow->nextp;
+	SOURCE_T* sourcep = (SOURCE_T*)fSourceNow->datap;	
+	//ret = fClient->SetSources(source_list);
+	ret = fClient->SetSource(sourcep->ip, sourcep->port);
+	
+	return ret;
+}
+
 
 Bool16 HTTPClientSession::IsDownloaded(SEGMENT_T * segp)
 {
@@ -543,38 +579,36 @@ SInt64 HTTPClientSession::Run()
                     {
                     	fprintf(stdout, "%s: get %s return error: %d\n", 
                     		__PRETTY_FUNCTION__, fM3U8Parser.fSegments[fGetIndex].relative_url, get_status);
-                    	if (get_status == 404)
-	                    {
-	                        fGetIndex ++;
-	                        fGetTryCount = 0;
-	                        // if all the segments downloaded, get m3u8 again
-	                        if(fGetIndex >= fM3U8Parser.fSegmentsNum)
-			            	{
-			            		fState = kSendingGetM3U8;
-			            		//RewriteM3U8(&fM3U8Parser);
-								MemoM3U8(&fM3U8Parser, fM3U8BeginTime.tv_sec, fM3U8EndTime.tv_sec);
-			            		struct timeval now;
-			            		gettimeofday(&now, NULL);
-			            		time_t diff_time = timeval_diff(&now, &fM3U8BeginTime);      		
-			            		time_t break_time = MAX_SEMENT_TIME;			            		
-			            		if(diff_time>=MAX_SEMENT_TIME)
-			            		{
-			            			break_time = 1;
-			            		}
-			            		else
-			            		{
-			            			break_time = MAX_SEMENT_TIME - diff_time;
-			            		}
-			            		fprintf(stdout, "%s: diff_time=%ld, break_time=%ld\n", 
-			        				__PRETTY_FUNCTION__, diff_time, break_time);
-			            		return break_time;
-			            	}
-	                    }
-	                    
-						#if 0
+                    	//if (get_status == 404)
+	                    //{
+                        fGetIndex ++;
+                        fGetTryCount = 0;
+                        // if all the segments downloaded, get m3u8 again
+                        if(fGetIndex >= fM3U8Parser.fSegmentsNum)
+		            	{
+		            		fState = kSendingGetM3U8;
+		            		//RewriteM3U8(&fM3U8Parser);
+							MemoM3U8(&fM3U8Parser, fM3U8BeginTime.tv_sec, fM3U8EndTime.tv_sec);
+		            		struct timeval now;
+		            		gettimeofday(&now, NULL);
+		            		time_t diff_time = timeval_diff(&now, &fM3U8BeginTime);      		
+		            		time_t break_time = MAX_SEMENT_TIME;			            		
+		            		if(diff_time>=MAX_SEMENT_TIME)
+		            		{
+		            			break_time = 1;
+		            		}
+		            		else
+		            		{
+		            			break_time = MAX_SEMENT_TIME - diff_time;
+		            		}
+		            		fprintf(stdout, "%s: diff_time=%ld, break_time=%ld\n", 
+		        				__PRETTY_FUNCTION__, diff_time, break_time);
+		            		return break_time;
+		            	}
+	                    //}
+	                    						
                         theErr = ENOTCONN; // Exit the state machine
-                        break;
-                        #endif
+                        break;                        
                     }
                     else
                     {
@@ -655,7 +689,7 @@ SInt64 HTTPClientSession::Run()
         else
             fDeathReason = kConnectionFailed;
 
-		//this->Reconnect();
+		SwitchSource();
 		
         //fState = kDone;
         struct timeval now;
