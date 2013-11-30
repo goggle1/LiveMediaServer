@@ -15,9 +15,6 @@
 #include "config.h"
 #include "HTTPClientSession.h"
 
-// 10 seconds
-#define MAX_SEMENT_TIME	10000	
-
 time_t timeval_diff(struct timeval* t2, struct timeval* t1)
 {
 	time_t ret1 = 0;
@@ -89,10 +86,8 @@ HTTPClientSession::HTTPClientSession(const StrPtrLen& inURL, CHANNEL_T* channelp
 
 	fState = kSendingGetM3U8;
 	this->SetUrl(inURL);	
-
-	fDownloadIndex = 0;
+	
 	fGetIndex	= 0;
-	memset(fDownloadSegments, 0, sizeof(fDownloadSegments));
 
 	//this->Signal(Task::kStartEvent);
 
@@ -240,17 +235,42 @@ int HTTPClientSession::SetSource(SOURCE_T* sourcep)
 }
 
 Bool16 HTTPClientSession::IsDownloaded(SEGMENT_T * segp)
-{
-	int index = 0;
-	for(index=0; index<MAX_SEGMENT_NUM; index++)
+{	
+	CLIP_T* clipp = NULL;	
+	int index = fMemory->clip_index - 1;	
+	if(index<0)
 	{
-		if(strcmp(fDownloadSegments[index].url, segp->url) == 0)
+		index = g_config.max_clip_num - 1;
+	}
+		
+	int count = 0;
+	while(1)
+	{
+		count ++;
+		if(count > fMemory->clip_num)
 		{
-			return true;
+			break;
+		}
+		
+		CLIP_T* onep = &(fMemory->clips[index]);
+		if(strcmp(onep->relative_url, segp->relative_url) == 0)
+		{
+			clipp = onep;
+			break;
+		}
+		
+		index --;
+		if(index<0)
+		{
+			index = g_config.max_clip_num - 1;
 		}
 	}
+	if(clipp == NULL)
+	{
+		return false;
+	}
 
-	return false;
+	return true;
 }
 
 int HTTPClientSession::Log(char * url,char * datap, UInt32 len)
@@ -539,6 +559,11 @@ SInt64 HTTPClientSession::Run()
                     		fURL.Ptr, fClient->GetContentLength());
                     	//Log(fURL.Ptr, fClient->GetContentBody(), fClient->GetContentLength());
                         fM3U8Parser.Parse(fClient->GetContentBody(), fClient->GetContentLength());
+                        if(fM3U8Parser.IsOld())
+                        {
+                        	theErr = ENOTCONN; // Exit the state machine
+                        	break;
+                        }
                         //RewriteM3U8(&fM3U8Parser);
                         fState = kSendingGetSegment;
                     }
@@ -584,6 +609,13 @@ SInt64 HTTPClientSession::Run()
                 {   
                 	fSegmentBeginTime = fClient->fBeginTime;
                 	fSegmentEndTime = fClient->fEndTime;
+                	#if 0
+                	if(timeval_diff(&fSegmentEndTime, &fSegmentBeginTime) > MAX_SEMENT_TIME)
+                	{
+                		theErr = ENOTCONN; // Exit the state machine
+                        break;
+                	}
+                	#endif
                 	UInt32 get_status = fClient->GetStatus();
                 	if (get_status != 200)
                     {
@@ -616,13 +648,7 @@ SInt64 HTTPClientSession::Run()
 	                    	//Log(fM3U8Parser.fSegments[fGetIndex].relative_url, fClient->GetContentBody(), fClient->GetContentLength());
 	                    	MemoSegment(&(fM3U8Parser.fSegments[fGetIndex]), fClient->GetContentBody(), fClient->GetContentLength(), 
 	                    		fSegmentBeginTime.tv_sec, fSegmentEndTime.tv_sec);
-	                    	memcpy(&(fDownloadSegments[fDownloadIndex]), &(fM3U8Parser.fSegments[fGetIndex]), sizeof(SEGMENT_T));
-	                    	fDownloadIndex ++;
-	                    	if(fDownloadIndex >= MAX_SEGMENT_NUM)
-	                    	{
-	                    		fDownloadIndex = 0;
-	                    	}
-	                    	
+	                    		                    	
 	                    	fGetIndex ++;
 	                    	fGetTryCount = 0;
 	                        // if all the segments downloaded, get m3u8 again
@@ -644,12 +670,6 @@ SInt64 HTTPClientSession::Run()
 		            		{
 		            			MemoSegment(&(fM3U8Parser.fSegments[fGetIndex]), fClient->GetContentBody(), fClient->GetContentLength(), 
 	                    			fSegmentBeginTime.tv_sec, fSegmentEndTime.tv_sec);
-		                    	memcpy(&(fDownloadSegments[fDownloadIndex]), &(fM3U8Parser.fSegments[fGetIndex]), sizeof(SEGMENT_T));
-		                    	fDownloadIndex ++;
-		                    	if(fDownloadIndex >= MAX_SEGMENT_NUM)
-		                    	{
-		                    		fDownloadIndex = 0;
-		                    	}
 		                    	
 		                    	fGetIndex ++;
 		                    	fGetTryCount = 0;
@@ -694,7 +714,8 @@ SInt64 HTTPClientSession::Run()
 		SwitchSource();
         
         MemoM3U8(&fM3U8Parser, fM3U8BeginTime.tv_sec, fM3U8EndTime.tv_sec);
-		time_t break_time = CalcBreakTime();
+		//time_t break_time = CalcBreakTime();
+		time_t break_time = 1;
 		return break_time;
     }    
 	

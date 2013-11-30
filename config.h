@@ -14,6 +14,8 @@ typedef struct config_t
 	char		work_path[PATH_MAX];
 	char		channels_file[PATH_MAX];
 	int32_t		max_clip_num;
+	//bps
+	u_int64_t	download_limit;
 } CONFIG_T;
 
 extern CONFIG_T	g_config;

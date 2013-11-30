@@ -1,8 +1,9 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <config>
-<ip>0.0.0.0</ip>
-<port>5050</port>
-<work_path>/home/html</work_path>
-<channels_file>/home/html/channels.xml</channels_file>
-<max_clip_num>60</max_clip_num>
+	<ip>0.0.0.0</ip>
+	<port>5050</port>
+	<work_path>/home/html</work_path>
+	<channels_file>/home/html/channels.xml</channels_file>
+	<max_clip_num>60</max_clip_num>
+	<download_limit>-1bps</download_limit>
 </config>

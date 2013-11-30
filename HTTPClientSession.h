@@ -80,8 +80,6 @@ virtual     SInt64      Run();
 		struct timeval		fSegmentEndTime;
 		int					fGetIndex;
 		int					fGetTryCount;
-		SEGMENT_T			fDownloadSegments[MAX_SEGMENT_NUM];
-		int					fDownloadIndex;
 		
 };
 

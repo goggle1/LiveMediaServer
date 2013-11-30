@@ -7,6 +7,7 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#include <sys/time.h>
 
 #include "BaseServer/StringParser.h"
 
@@ -73,6 +74,7 @@
 #define CMD_DEL_CHANNEL  	"del_channel"
 #define CMD_UPDATE_CHANNEL 	"update_channel"
 #define CMD_CHANNEL_STATUS 	"channel_status"
+#define CMD_SESSION_STATUS 	"session_status"
 #define CMD_QUERY_VERSION 	"queryversion"
 
 #define URI_LIVESTREAM		"/livestream/"
@@ -81,6 +83,9 @@
 #define LIVE_MP4			"mp4"
 
 #define MAX_REASON_LEN		256
+#define MAX_TIME_LEN		64
+
+#define RATE_LIMIT_INTERVAL	1000
 
 int cmd_read_params(CMD_T* cmdp, DEQUE_NODE* param_list)
 {
@@ -471,7 +476,56 @@ char* content_type_by_suffix(char* suffix)
 	}
 }
 
-HTTPSession::HTTPSession():
+u_int64_t network_rate(u_int64_t bytes, struct timeval* begin_time, struct timeval* end_time)
+{
+	time_t  diff_time = end_time->tv_sec - begin_time->tv_sec;
+	diff_time = diff_time * 1000000;
+	diff_time += end_time->tv_usec;
+	diff_time -= begin_time->tv_usec;
+
+	u_int64_t rate = bytes*8*1000000/diff_time;	
+	return rate;
+}
+
+u_int64_t download_limit(struct timeval* begin_time, struct timeval* end_time, u_int64_t download_bytes, u_int64_t send_len)
+{
+	if(g_config.download_limit == (u_int64_t)-1)
+	{
+		return send_len;
+	}
+	
+	time_t  diff_time = end_time->tv_sec - begin_time->tv_sec;
+	diff_time = diff_time * 1000000;
+	diff_time += end_time->tv_usec;
+	diff_time -= begin_time->tv_usec;
+
+	u_int64_t actual_send_len = 0;
+	u_int64_t full_rate_bytes = g_config.download_limit * diff_time / 8 / 1000000;
+	if(full_rate_bytes <= download_bytes)
+	{
+		fprintf(stdout, "%s[%d]: download_limit=%ld, send_len=%ld, actual_send_len=%ld\n",
+			__PRETTY_FUNCTION__, __LINE__, g_config.download_limit, send_len, actual_send_len);
+		return actual_send_len;
+	}
+	
+	actual_send_len = full_rate_bytes  - download_bytes;	
+	if(send_len > actual_send_len)
+	{
+		fprintf(stdout, "%s[%d]: download_limit=%ld, send_len=%ld, actual_send_len=%ld\n",
+			__PRETTY_FUNCTION__, __LINE__, g_config.download_limit, send_len, actual_send_len);
+		return actual_send_len;
+	}
+
+	actual_send_len = send_len;
+	fprintf(stdout, "%s[%d]: download_limit=%ld, send_len=%ld, actual_send_len=%ld\n",
+			__PRETTY_FUNCTION__, __LINE__, g_config.download_limit, send_len, actual_send_len);
+			
+	return actual_send_len;	
+
+}
+
+
+HTTPSession::HTTPSession(SESSION_T* sessionp):
     fSocket(NULL, Socket::kNonBlockingSocketType),
     fStrReceived((char*)fRequestBuffer, 0),
     fStrRequest(fStrReceived),
@@ -487,6 +541,9 @@ HTTPSession::HTTPSession():
 	fDataPosition = 0;
     fStatusCode     = 0;
     this->SetThreadPicker(&Task::sBlockingTaskThreadPicker);
+    fSessionp = sessionp;
+    fSessionp->sessionp = this;
+    gettimeofday(&(fSessionp->begin_time), NULL);    
 }
 
 HTTPSession::~HTTPSession()
@@ -499,6 +556,10 @@ HTTPSession::~HTTPSession()
     fprintf(stdout, "%s[0x%016lX] remote_ip=0x%08X, port=%u \n", 
 		__PRETTY_FUNCTION__, (long)this,
 		fSocket.GetRemoteAddr(), fSocket.GetRemotePort());
+	fSessionp->remote_ip = fSocket.GetRemoteAddr();
+    fSessionp->remote_port = fSocket.GetRemotePort();
+	gettimeofday(&(fSessionp->end_time), NULL);
+	fSessionp->sessionp = NULL;
 }
 
 TCPSocket* HTTPSession::GetSocket() 
@@ -564,6 +625,12 @@ SInt64     HTTPSession::Run()
     	if(theErr == QTSS_NoErr)    	
     	{
     		willRequestEvent = willRequestEvent | EV_WR;
+    	}
+    	else if(theErr == QTSS_NoMoreData)    	
+    	{    		
+    		//willRequestEvent = willRequestEvent | EV_WR;
+    		this->SetSignal(Task::kWriteEvent);
+    		return RATE_LIMIT_INTERVAL;
     	}
     	// sendDone
     	else if(theErr == QTSS_ResponseDone)
@@ -700,6 +767,10 @@ QTSS_Error  HTTPSession::RecvData()
     //    __FILE__, __PRETTY_FUNCTION__, __LINE__, (long)this, read_len, start_pos);
 
     fStrReceived.Len += read_len;
+
+    fSessionp->remote_ip = fSocket.GetRemoteAddr();
+    fSessionp->remote_port = fSocket.GetRemotePort();
+    fSessionp->upload_bytes += read_len;
    
     bool check = IsFullRequest();
     if(check)
@@ -712,14 +783,20 @@ QTSS_Error  HTTPSession::RecvData()
 
 QTSS_Error HTTPSession::SendData()
 {  	
-    if(fStrRemained.Len <= 0)
-    {
-    	return QTSS_ResponseDone;
-    }
+	QTSS_Error ret = QTSS_NoErr;	
+
+    struct timeval now_time;
+	gettimeofday(&now_time, NULL);
+	u_int64_t should_send_len = download_limit(&fSessionp->begin_time, &now_time, fSessionp->download_bytes, fStrRemained.Len);
+	if(should_send_len < fStrRemained.Len)
+	{
+		ret = QTSS_NoMoreData;
+	}
     
     OS_Error theErr;
     UInt32 send_len = 0;
-    theErr = fSocket.Send(fStrRemained.Ptr, fStrRemained.Len, &send_len);
+    //theErr = fSocket.Send(fStrRemained.Ptr, fStrRemained.Len, &send_len);
+    theErr = fSocket.Send(fStrRemained.Ptr, should_send_len, &send_len);
     if(send_len > 0)
     {        
     	//fprintf(stdout, "%s %s[%d][0x%016lX] send %u, return %u\n", 
@@ -728,7 +805,14 @@ QTSS_Error HTTPSession::SendData()
         fStrRemained.Len -= send_len;
         ::memmove(fResponseBuffer, fStrRemained.Ptr, fStrRemained.Len);
         fStrRemained.Ptr = fResponseBuffer; 
-        return QTSS_NoErr;
+
+        fSessionp->download_bytes += send_len;
+
+        if(fStrRemained.Len <= 0)
+	    {
+	    	ret = QTSS_ResponseDone;
+	    }  	    
+        return ret;
     }
     else
     {
@@ -894,15 +978,19 @@ QTSS_Error HTTPSession::ResponseGet()
 	
 	if(strncmp(fRequest.fAbsoluteURI.Ptr, URI_CMD, strlen(URI_CMD)) == 0)
 	{
+		fSessionp->session_type = fSessionp->session_type | SESSION_CMD;
 		ret = ResponseCmd();
 		return ret;
 	}
 	else if(strncmp(fRequest.fAbsoluteURI.Ptr, URI_LIVESTREAM, strlen(URI_LIVESTREAM)) == 0)
 	{
+		fSessionp->session_type = fSessionp->session_type | SESSION_LIVE;
 		ret = ResponseLive();
 		return ret;
 	}
 
+	fSessionp->session_type = fSessionp->session_type | SESSION_FILE;
+	
 	char* request_file = absolute_uri;
 	if(strcmp(absolute_uri, "/") == 0)
 	{
@@ -1522,6 +1610,61 @@ QTSS_Error HTTPSession::ResponseCmdChannelStatus()
 	return ret;
 }
 
+QTSS_Error HTTPSession::ResponseCmdSessionStatus()
+{
+	QTSS_Error ret = QTSS_NoErr;
+	
+	char buffer[1024*4];
+	StringFormatter content(buffer, sizeof(buffer));
+	content.Put("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n");
+	content.Put("<sessions>\n");
+
+	struct timeval now_time;
+	gettimeofday(&now_time, NULL);
+
+	struct timeval* until_timep = NULL;	
+	int index = 0;
+	for(index=0; index<MAX_SESSION_NUM; index++)
+	{
+		SESSION_T* sessionp = &g_http_sessions[index];	
+		if(sessionp->sessionp ==  NULL && sessionp->begin_time.tv_sec == 0)
+		{
+			break;
+		}
+
+		if(sessionp->end_time.tv_sec == 0)
+		{
+			until_timep = &now_time;
+		}
+		else
+		{
+			until_timep = &sessionp->end_time;
+		}
+
+		u_int64_t upload_rate = network_rate(sessionp->upload_bytes, &sessionp->begin_time, until_timep);
+		u_int64_t download_rate = network_rate(sessionp->download_bytes, &sessionp->begin_time, until_timep);
+		
+		content.PutFmtStr("\t<session remote_ip=\"0x%08X\" remote_port=\"%d\" session_type=\"0x%08X\" "
+			"upload_bytes=\"%ld\" download_bytes=\"%ld\" "
+			"begin_time=\"%ld.%ld\" end_time=\"%ld.%ld\" "
+			"upload_rate=\"%ld bps\" download_rate=\"%ld bps\">\n", 
+			sessionp->remote_ip, sessionp->remote_port, sessionp->session_type,
+			sessionp->upload_bytes, sessionp->download_bytes,
+			sessionp->begin_time.tv_sec, sessionp->begin_time.tv_usec, 
+			sessionp->end_time.tv_sec,   sessionp->end_time.tv_usec,
+			upload_rate, download_rate);
+		
+
+		content.Put("\t</session>\n");
+	}
+	content.Put("</sessions>\n");
+
+	ResponseContent(content.GetBufPtr(), content.GetBytesWritten(), CONTENT_TYPE_APPLICATION_XML);
+
+	return ret;
+}
+
+
 
 QTSS_Error HTTPSession::ResponseCmdResult(char* cmd, char* return_val, char* result, char* reason)
 {
@@ -1671,6 +1814,10 @@ QTSS_Error HTTPSession::ResponseCmd()
 	else if(strcmp(fCmd.cmd, CMD_CHANNEL_STATUS) == 0)
 	{
 		ret = ResponseCmdChannelStatus();
+	}
+	else if(strcmp(fCmd.cmd, CMD_SESSION_STATUS) == 0)
+	{
+		ret = ResponseCmdSessionStatus();
 	}
 	else if(strcmp(fCmd.cmd, CMD_QUERY_VERSION) == 0)
 	{		

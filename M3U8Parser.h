@@ -15,8 +15,10 @@ typedef struct segment_t
 	u_int32_t 	inf;
 	//#EXT-X-BYTERANGE:1095852
 	u_int64_t	byte_range;
+	// 20131024_155801
+	time_t		begin_time;
 	// 565631
-	u_int64_t	sequence;
+	u_int64_t	sequence;	
 	// http://lm.funshion.com/livestream/3702892333/fd5f6b86b836e38c8eed27c9e66e3e6dcf0a69b2/ts/2013/10/25/20131017T174027_03_20131024_155801_565631.ts
 	// /livestream/3702892333/fd5f6b86b836e38c8eed27c9e66e3e6dcf0a69b2/ts/2013/10/25/20131017T174027_03_20131024_155801_565631.ts
 	char 	url[MAX_URL_LEN];	
@@ -33,6 +35,7 @@ class M3U8Parser
 		~M3U8Parser();
 		int		SetPath(StrPtrLen* pathp);
 		int    	Parse(char* datap, UInt32 len);
+		Bool16	IsOld();
 
 	public:
 		StrPtrLen   fData;

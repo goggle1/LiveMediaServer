@@ -19,10 +19,29 @@ typedef struct cmd_t
 	int		format;	// 0. plain, 1. html
 } CMD_T;
 
+#define 	MAX_SESSION_NUM	(1024*1024)
+#define SESSION_CMD		(0x01<<0)
+#define SESSION_LIVE	(0x01<<1)
+#define SESSION_FILE	(0x01<<2)
+//session statistics
+typedef struct session_t
+{	
+	void*			sessionp;
+	struct timeval	begin_time;	
+	struct timeval	end_time;
+	u_int64_t		upload_bytes;
+	u_int64_t		download_bytes;
+	u_int32_t		session_type;
+	u_int32_t		remote_ip;
+	u_int16_t		remote_port;
+} SESSION_T;
+
+extern SESSION_T 	g_http_sessions[MAX_SESSION_NUM];
+
 class HTTPSession : public Task
 {
 public:
-            HTTPSession();
+            HTTPSession(SESSION_T* statp);
 virtual    ~HTTPSession();
             TCPSocket*  GetSocket();
             //inherited from Task
@@ -43,6 +62,7 @@ protected:
         	QTSS_Error 		ResponseCmdDelChannel(); 
         	QTSS_Error 		ResponseCmdUpdateChannel(CHANNEL_T* findp, CHANNEL_T* channelp);
         	QTSS_Error 		ResponseCmdChannelStatus();
+        	QTSS_Error 		ResponseCmdSessionStatus();
         	Bool16 			ResponseContent(char* content, int len, char* type);
         	QTSS_Error		ResponseFile(char* absolute_path);
         	QTSS_Error		ResponseError(HTTPStatusCode StatusCode);
@@ -106,9 +126,10 @@ protected:
 			// cmd for macross
 			CMD_T		fCmd;
 			
-	        HTTPStatusCode fStatusCode;  	        
+	        HTTPStatusCode fStatusCode; 
 
-
+	        //session statistics
+			SESSION_T*	fSessionp;
 };
 
 #endif

@@ -52,6 +52,12 @@ int parse_config(CONFIG_T* configp, xmlDocPtr doc, xmlNodePtr cur)
 			configp->max_clip_num = max_clip_num + 1;
 			xmlFree(szValue);
 		}
+		else if((!xmlStrcmp(child->name, (const xmlChar*)"download_limit")))
+		{
+			xmlChar* szValue = xmlNodeGetContent(child);
+			configp->download_limit = atol((const char*)szValue);
+			xmlFree(szValue);
+		}
 		
 		child = child->next;
 	}

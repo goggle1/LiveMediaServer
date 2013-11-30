@@ -10,7 +10,9 @@
 #define MAX_CLIP_NUM			60
 //#define MAX_CLIP_NUM			61
 
-#define MAX_TIME_LEN		64
+// 10 seconds
+#define MAX_SEMENT_TIME	10000
+
 
 #endif
 

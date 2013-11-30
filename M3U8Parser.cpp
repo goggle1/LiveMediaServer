@@ -3,6 +3,7 @@
 
 #include "BaseServer/StringParser.h"
 
+#include "public.h"
 #include "M3U8Parser.h"
 
 M3U8Parser::M3U8Parser()
@@ -173,15 +174,63 @@ int M3U8Parser::Parse(char * datap, UInt32 len)
 				lineParser.Expect('_');
 				lineParser.ConsumeUntil(NULL, '_');
 				lineParser.Expect('_');
-				lineParser.ConsumeUntil(NULL, '_');
+				StrPtrLen seg_date;
+				lineParser.ConsumeUntil(&seg_date, '_');
 				lineParser.Expect('_');
-				lineParser.ConsumeUntil(NULL, '_');
-				lineParser.Expect('_');
+				StrPtrLen seg_time;
+				lineParser.ConsumeUntil(&seg_time, '_');				
+				lineParser.Expect('_');				
 				fSegments[fSegmentsNum-1].sequence = atol(lineParser.GetCurrentPosition());
+
+				char temp[8];
+				strncpy(temp, seg_date.Ptr, 4);
+				temp[4] = '\0';
+				int iyear = atoi(temp);
+				strncpy(temp, seg_date.Ptr+4, 2);
+				temp[2] = '\0';
+				int imonth = atoi(temp);
+				strncpy(temp, seg_date.Ptr+6, 2);
+				temp[2] = '\0';
+				int iday = atoi(temp);
+				
+				strncpy(temp, seg_time.Ptr, 2);
+				temp[2] = '\0';
+				int ihour = atoi(temp);
+				strncpy(temp, seg_time.Ptr+2, 2);
+				temp[2] = '\0';
+				int iminute = atoi(temp);
+				strncpy(temp, seg_time.Ptr+4, 2);
+				temp[2] = '\0';
+				int isecond = atoi(temp);
+				
+				struct tm seg_now;
+				seg_now.tm_year = iyear - 1900;
+				seg_now.tm_mon = imonth - 1;
+				seg_now.tm_mday = iday;
+				seg_now.tm_hour = ihour;
+				seg_now.tm_min = iminute;
+				seg_now.tm_sec = isecond;				
+				fSegments[fSegmentsNum-1].begin_time = mktime(&seg_now); 
 			}
 		}		
     }
     
 	return 0;
 }
+
+Bool16 M3U8Parser::IsOld()
+{
+	if(fSegmentsNum == 0)
+	{
+		return true;
+	}
+
+	time_t now = time(NULL);
+	if(fSegments[fSegmentsNum - 1].begin_time + 2*MAX_SEGMENT_NUM * MAX_SEMENT_TIME < now)
+	{
+		return true;
+	}
+	return false;
+}
+
 
