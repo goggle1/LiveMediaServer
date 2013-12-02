@@ -150,6 +150,9 @@ int start_server()
 
 int start_clients()
 {
+	// find the source randomly
+	srand(time(NULL));
+	
 	DEQUE_NODE* channel_list = g_channels.GetChannels();
 	DEQUE_NODE*	nodep = channel_list;
 	while(nodep)

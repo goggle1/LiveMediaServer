@@ -226,7 +226,7 @@ Bool16 M3U8Parser::IsOld()
 	}
 
 	time_t now = time(NULL);
-	if(fSegments[fSegmentsNum - 1].begin_time + 2*MAX_SEGMENT_NUM * MAX_SEMENT_TIME < now)
+	if(fSegments[fSegmentsNum - 1].begin_time + MAX_SEGMENT_NUM * MAX_SEMENT_TIME < now)
 	{
 		return true;
 	}

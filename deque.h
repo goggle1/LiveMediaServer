@@ -10,6 +10,58 @@ typedef struct deque_node
     void* datap;
 } DEQUE_NODE;
 
+inline int deque_num(DEQUE_NODE* headp)
+{
+	int num = 0;
+	if(headp == NULL)
+	{
+		return 0;
+	}
+
+	DEQUE_NODE* nodep = headp;
+	while(nodep)
+	{
+		num ++;
+		
+		if(nodep->nextp == headp)
+		{
+			break;
+		}
+		nodep = nodep->nextp;
+	}
+
+	return num;		
+}
+
+inline DEQUE_NODE* deque_index(DEQUE_NODE* headp, int node_index)
+{
+	int index = 0;
+	
+	if(headp == NULL)
+	{
+		return NULL;
+	}
+	
+	DEQUE_NODE* nodep = headp;
+	while(nodep)
+	{
+		if(index == node_index)
+		{
+			return nodep;
+		}
+
+		if(nodep->nextp == headp)
+		{
+			break;
+		}
+		nodep = nodep->nextp;
+		index ++;
+	}
+
+	return NULL;
+	
+}
+
 inline DEQUE_NODE* deque_remove_head(DEQUE_NODE* headp)
 {
     if(headp == NULL)

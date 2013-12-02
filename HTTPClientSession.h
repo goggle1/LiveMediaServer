@@ -7,6 +7,7 @@
 #include "BaseServer/ClientSocket.h"
 #include "BaseServer/TimeoutTask.h"
 
+#include "deque.h"
 #include "HTTPClient.h"
 #include "M3U8Parser.h"
 #include "channel.h"
@@ -63,6 +64,7 @@ virtual     SInt64      Run();
 		StrPtrLen   		fURL;
 		StrPtrLen			fM3U8Path;
 		CHANNEL_T*			fChannel;
+		int					fSourceNum;
 		DEQUE_NODE*			fSourceList;
 		DEQUE_NODE*			fSourceNow;
 		MEMORY_T*			fMemory;

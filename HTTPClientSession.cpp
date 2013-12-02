@@ -193,10 +193,16 @@ int HTTPClientSession::SetSources(DEQUE_NODE* source_list)
 
 	fprintf(stdout, "%s\n", __PRETTY_FUNCTION__);
 	
-	fState = kSendingGetM3U8;
-	
+	fState = kSendingGetM3U8;	
 	fSourceList = source_list;
-	fSourceNow = fSourceList;
+	fSourceNum = deque_num(fSourceList);
+	if(fSourceNum == 0)
+	{
+		return -1;
+	}
+	
+	int SourceIndex = rand() % fSourceNum;
+	fSourceNow = deque_index(fSourceList, SourceIndex);
 	SOURCE_T* sourcep = (SOURCE_T*)fSourceNow->datap;	
 	ret = SetSource(sourcep);
 	
@@ -207,10 +213,13 @@ int HTTPClientSession::SwitchSource()
 {
 	int ret = 0;
 
-	fprintf(stdout, "%s\n", __PRETTY_FUNCTION__);
+	fprintf(stdout, "%s\n", __PRETTY_FUNCTION__);	
+	if(fSourceNum <= 1)
+	{
+		return -1;
+	}
 
 	fState = kSendingGetM3U8;
-	
 	fSourceNow = fSourceNow->nextp;
 	SOURCE_T* sourcep = (SOURCE_T*)fSourceNow->datap;		
 	ret = SetSource(sourcep);
@@ -559,11 +568,13 @@ SInt64 HTTPClientSession::Run()
                     		fURL.Ptr, fClient->GetContentLength());
                     	//Log(fURL.Ptr, fClient->GetContentBody(), fClient->GetContentLength());
                         fM3U8Parser.Parse(fClient->GetContentBody(), fClient->GetContentLength());
+                        #if 0
                         if(fM3U8Parser.IsOld())
                         {
                         	theErr = ENOTCONN; // Exit the state machine
                         	break;
                         }
+                        #endif
                         //RewriteM3U8(&fM3U8Parser);
                         fState = kSendingGetSegment;
                     }
@@ -636,8 +647,8 @@ SInt64 HTTPClientSession::Run()
 		            	}
 	                    //}
 	                    						
-                        theErr = ENOTCONN; // Exit the state machine
-                        break;                        
+                        //theErr = ENOTCONN; // Exit the state machine
+                        //break;                        
                     }
                     else
                     {
@@ -709,14 +720,22 @@ SInt64 HTTPClientSession::Run()
             fDeathReason = kRequestFailed;
         else
             fDeathReason = kConnectionFailed;
-
+		
 		//fState = kDone;
-		SwitchSource();
-        
-        MemoM3U8(&fM3U8Parser, fM3U8BeginTime.tv_sec, fM3U8EndTime.tv_sec);
-		//time_t break_time = CalcBreakTime();
+
 		time_t break_time = 1;
-		return break_time;
+		int switch_ret = SwitchSource();
+        if(switch_ret == 0)
+        {        	
+			break_time = 1;
+        }
+        else 
+        {
+        	break_time = CalcBreakTime();			
+        }
+
+       	return break_time;
+
     }    
 	
 	return 0;

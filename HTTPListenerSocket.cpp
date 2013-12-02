@@ -9,7 +9,7 @@ Task*   HTTPListenerSocket::GetSessionTask(TCPSocket** outSocket)
 { 
 	SESSION_T* sessionp = NULL;
 	int index = 0;
-	for(index=0; index<MAX_SEGMENT_NUM; index++)
+	for(index=0; index<MAX_SESSION_NUM; index++)
 	{
 		if(g_http_sessions[index].sessionp == NULL)
 		{
