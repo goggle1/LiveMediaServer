@@ -37,6 +37,7 @@ typedef struct session_t
 } SESSION_T;
 
 extern SESSION_T 	g_http_sessions[MAX_SESSION_NUM];
+extern int	g_http_session_num;
 
 class HTTPSession : public Task
 {

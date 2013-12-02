@@ -82,6 +82,9 @@ virtual     SInt64      Run();
 		struct timeval		fSegmentEndTime;
 		int					fGetIndex;
 		int					fGetTryCount;
+
+		char				fLogFile[PATH_MAX];
+		FILE*				fLogFilep;
 		
 };
 

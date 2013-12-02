@@ -1404,8 +1404,13 @@ QTSS_Error HTTPSession::ResponseCmdDelChannel()
 QTSS_Error HTTPSession::ResponseCmdListChannel()
 {
 	QTSS_Error ret = QTSS_NoErr;
-	
-	char buffer[1024*4];
+
+	int channel_num = g_channels.GetNum();
+	if(channel_num <= 0)
+	{
+		channel_num = 1;
+	}
+	char buffer[channel_num*2*1024];
 	StringFormatter content(buffer, sizeof(buffer));
 	content.Put("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n");
 	content.Put("<channels>\n");
@@ -1454,7 +1459,7 @@ QTSS_Error HTTPSession::ResponseCmdListChannel()
 	}
 	content.Put("</channels>\n");
 
-	ResponseContent(content.GetBufPtr(), content.GetBytesWritten(), CONTENT_TYPE_APPLICATION_XML);
+	ret = ResponseContent(content.GetBufPtr(), content.GetBytesWritten(), CONTENT_TYPE_APPLICATION_XML);
 
 	return ret;
 }
@@ -1463,7 +1468,12 @@ QTSS_Error HTTPSession::ResponseCmdChannelStatus()
 {
 	QTSS_Error ret = QTSS_NoErr;
 	
-	char buffer[1024*4];
+	int channel_num = g_channels.GetNum();
+	if(channel_num <= 0)
+	{
+		channel_num = 1;
+	}
+	char buffer[channel_num*4*1024];
 	StringFormatter content(buffer, sizeof(buffer));
 	content.Put("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n");
 	content.Put("<channels>\n");
@@ -1620,8 +1630,13 @@ QTSS_Error HTTPSession::ResponseCmdChannelStatus()
 QTSS_Error HTTPSession::ResponseCmdSessionStatus()
 {
 	QTSS_Error ret = QTSS_NoErr;
-	
-	char buffer[1024*4];
+
+	int session_num = g_http_session_num;
+	if(session_num <= 0)
+	{
+		session_num = 1;
+	}
+	char buffer[session_num*1*1024];
 	StringFormatter content(buffer, sizeof(buffer));
 	content.Put("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n");
 	content.Put("<sessions>\n");

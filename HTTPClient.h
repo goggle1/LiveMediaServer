@@ -7,8 +7,6 @@
 #include "public.h"
 #include "channel.h"
 
-#define MAX_HOST_LEN	64
-
 class HTTPClient
 {
 	public:

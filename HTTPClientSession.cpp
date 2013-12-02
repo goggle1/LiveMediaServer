@@ -89,6 +89,9 @@ HTTPClientSession::HTTPClientSession(const StrPtrLen& inURL, CHANNEL_T* channelp
 	
 	fGetIndex	= 0;
 
+	snprintf(fLogFile, PATH_MAX-1, "%s/%s_%s.log", ROOT_PATH, fType, fChannel->liveid);
+	fLogFile[PATH_MAX-1] = '\0';
+	fLogFilep = fopen(fLogFile, "a");
 	//this->Signal(Task::kStartEvent);
 
 	fprintf(stdout, "%s\n", __PRETTY_FUNCTION__);
@@ -96,6 +99,12 @@ HTTPClientSession::HTTPClientSession(const StrPtrLen& inURL, CHANNEL_T* channelp
 
 HTTPClientSession::~HTTPClientSession()
 {	
+	if(fLogFilep != NULL)
+	{
+		fclose(fLogFilep);
+		fLogFilep = NULL;
+	}
+	
 	delete [] fM3U8Path.Ptr;
 	delete [] fURL.Ptr;
 
@@ -632,6 +641,10 @@ SInt64 HTTPClientSession::Run()
                     {
                     	fprintf(stdout, "%s: get %s return error: %d\n", 
                     		__PRETTY_FUNCTION__, fM3U8Parser.fSegments[fGetIndex].relative_url, get_status);
+                   		fprintf(fLogFilep, "%s, error: %d, begin_time: %ld.%ld, end_time: %ld.%ld\n", 
+                    		fM3U8Parser.fSegments[fGetIndex].relative_url, get_status, 
+                    		fSegmentBeginTime.tv_sec, fSegmentBeginTime.tv_usec,
+                    		fSegmentEndTime.tv_sec,   fSegmentEndTime.tv_usec);
                     	//if (get_status == 404)
 	                    //{
                         fGetIndex ++;
@@ -654,6 +667,10 @@ SInt64 HTTPClientSession::Run()
                     {
                     	fprintf(stdout, "%s: get %s done, len=%d\n", 
                     		__PRETTY_FUNCTION__, fM3U8Parser.fSegments[fGetIndex].relative_url, fClient->GetContentLength());
+                    	fprintf(fLogFilep, "%s, len: %u, begin_time: %ld.%ld, end_time: %ld.%ld\n", 
+                    		fM3U8Parser.fSegments[fGetIndex].relative_url, fClient->GetContentLength(), 
+                    		fSegmentBeginTime.tv_sec, fSegmentBeginTime.tv_usec,
+                    		fSegmentEndTime.tv_sec,   fSegmentEndTime.tv_usec);
                     	if(fClient->GetContentLength() > 0)
                     	{
 	                    	//Log(fM3U8Parser.fSegments[fGetIndex].relative_url, fClient->GetContentBody(), fClient->GetContentLength());

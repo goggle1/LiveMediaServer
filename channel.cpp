@@ -181,6 +181,7 @@ int stop_channel(CHANNEL_T* channelp)
 ChannelList::ChannelList()
 {
 	m_channel_list = NULL;
+	m_channel_num = 0;
 }
 
 ChannelList::~ChannelList()
@@ -423,6 +424,7 @@ int ChannelList::ReadConfig(char* config_file)
     if(channel_list)
     {
 	    m_channel_list = deque_link(m_channel_list, channel_list);
+	    m_channel_num = deque_num(m_channel_list);
 	    return 0;
     }
 
