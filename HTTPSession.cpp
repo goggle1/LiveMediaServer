@@ -534,6 +534,10 @@ HTTPSession::HTTPSession(SESSION_T* sessionp):
 	fFd	= -1;
 	fData = NULL;
 	fDataPosition = 0;
+	fCmdBuffer = NULL;
+	fCmdBufferSize = 0;
+	fCmdContentLength = 0;
+	fCmdContentPosition = 0;
     fStatusCode     = 0;
     this->SetThreadPicker(&Task::sBlockingTaskThreadPicker);
     fSessionp = sessionp;
@@ -547,6 +551,11 @@ HTTPSession::~HTTPSession()
 	{
 		close(fFd);
 		fFd = -1;
+	}
+	if(fCmdBuffer != NULL)
+	{
+		free(fCmdBuffer);
+		fCmdBuffer = NULL;
 	}
     fprintf(stdout, "%s[0x%016lX] remote_ip=0x%08X, port=%u \n", 
 		__PRETTY_FUNCTION__, (long)this,
@@ -641,6 +650,14 @@ SInt64     HTTPSession::Run()
 	    	else if(fData != NULL)
 	    	{
 	    		Bool16 haveContent = ReadSegmentContent();
+	    		if(haveContent)
+	    		{
+	    			willRequestEvent = willRequestEvent | EV_WR;
+	    		}
+	    	}
+	    	else if(fCmdBuffer != NULL)
+	    	{
+	    		Bool16 haveContent = ReadCmdContent();
 	    		if(haveContent)
 	    		{
 	    			willRequestEvent = willRequestEvent | EV_WR;
@@ -1019,6 +1036,42 @@ QTSS_Error HTTPSession::ResponseGet()
 
 	return ret;
 
+}
+
+Bool16 HTTPSession::ReadCmdContent()
+{
+	int remain_len = fCmdContentLength - fCmdContentPosition;
+	int count = kReadBufferSize;
+	if(count >= remain_len)
+	{		
+		count = remain_len;
+	}
+
+	memcpy(fBuffer, (char*)fCmdBuffer+fCmdContentPosition, count);
+	fCmdContentPosition = fCmdContentPosition + count;
+	if(fCmdContentPosition >= fCmdContentLength)
+	{
+		free(fCmdBuffer);
+		fCmdBuffer = NULL;
+		fCmdBufferSize = 0;
+		fCmdContentLength = 0;
+		fCmdContentPosition = 0;
+	}
+	
+	//fprintf(stdout, "%s %s[%d][0x%016lX] read %u, return %u\n", 
+    //    __FILE__, __PRETTY_FUNCTION__, __LINE__, (long)this, kReadBufferSize, count);
+
+	fResponse.Set(fStrRemained.Ptr+fStrRemained.Len, kResponseBufferSizeInBytes-fStrRemained.Len);
+    fResponse.Put(fBuffer, count);
+
+    fStrResponse.Set(fResponse.GetBufPtr(), fResponse.GetBytesWritten());
+    //append to fStrRemained
+    fStrRemained.Len += fStrResponse.Len;  
+    //clear previous response.
+    fStrResponse.Set(fResponseBuffer, 0);
+	
+	
+	return true;     
 }
 
 Bool16 HTTPSession::ReadSegmentContent()
@@ -1410,8 +1463,18 @@ QTSS_Error HTTPSession::ResponseCmdListChannel()
 	{
 		channel_num = 1;
 	}
-	char buffer[channel_num*2*1024];
-	StringFormatter content(buffer, sizeof(buffer));
+	
+	//char buffer[channel_num*2*1024];
+	fCmdBufferSize = channel_num*2*1024;
+	fCmdBuffer = (char*)malloc(fCmdBufferSize);
+	if(fCmdBuffer == NULL)
+	{
+		fCmdBufferSize = 0;	
+		ret = ResponseError(httpInternalServerError);
+		return ret;
+	}
+	memset(fCmdBuffer, 0, fCmdBufferSize);
+	StringFormatter content(fCmdBuffer, fCmdBufferSize);
 	content.Put("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n");
 	content.Put("<channels>\n");
 
@@ -1459,7 +1522,22 @@ QTSS_Error HTTPSession::ResponseCmdListChannel()
 	}
 	content.Put("</channels>\n");
 
-	ret = ResponseContent(content.GetBufPtr(), content.GetBytesWritten(), CONTENT_TYPE_APPLICATION_XML);
+	//ret = ResponseContent(content.GetBufPtr(), content.GetBytesWritten(), CONTENT_TYPE_APPLICATION_XML);
+	ret = ResponseHeader(content.GetBufPtr(), content.GetBytesWritten(), CONTENT_TYPE_APPLICATION_XML);
+
+	fCmdContentLength = content.GetBytesWritten();	
+	if(fRequest.fMethod == httpGetMethod)
+	{
+		fCmdContentPosition = 0;
+	}
+	else if(fRequest.fMethod == httpHeadMethod)
+	{
+		free(fCmdBuffer);
+		fCmdBuffer = NULL;
+		fCmdBufferSize = 0;
+		fCmdContentLength = 0;
+		fCmdContentPosition = 0;
+	}
 
 	return ret;
 }
@@ -1473,8 +1551,16 @@ QTSS_Error HTTPSession::ResponseCmdChannelStatus()
 	{
 		channel_num = 1;
 	}
-	char buffer[channel_num*4*1024];
-	StringFormatter content(buffer, sizeof(buffer));
+	fCmdBufferSize = channel_num*4*1024;
+	fCmdBuffer = (char*)malloc(fCmdBufferSize);
+	if(fCmdBuffer == NULL)
+	{
+		fCmdBufferSize = 0;	
+		ret = ResponseError(httpInternalServerError);
+		return ret;
+	}
+	memset(fCmdBuffer, 0, fCmdBufferSize);
+	StringFormatter content(fCmdBuffer, fCmdBufferSize);
 	content.Put("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n");
 	content.Put("<channels>\n");
 
@@ -1622,7 +1708,22 @@ QTSS_Error HTTPSession::ResponseCmdChannelStatus()
 	}
 	content.Put("</channels>\n");
 
-	ResponseContent(content.GetBufPtr(), content.GetBytesWritten(), CONTENT_TYPE_APPLICATION_XML);
+	//ret = ResponseContent(content.GetBufPtr(), content.GetBytesWritten(), CONTENT_TYPE_APPLICATION_XML);
+	ret = ResponseHeader(content.GetBufPtr(), content.GetBytesWritten(), CONTENT_TYPE_APPLICATION_XML);
+
+	fCmdContentLength = content.GetBytesWritten();	
+	if(fRequest.fMethod == httpGetMethod)
+	{
+		fCmdContentPosition = 0;
+	}
+	else if(fRequest.fMethod == httpHeadMethod)
+	{
+		free(fCmdBuffer);
+		fCmdBuffer = NULL;
+		fCmdBufferSize = 0;
+		fCmdContentLength = 0;
+		fCmdContentPosition = 0;
+	}
 
 	return ret;
 }
@@ -1636,8 +1737,16 @@ QTSS_Error HTTPSession::ResponseCmdSessionStatus()
 	{
 		session_num = 1;
 	}
-	char buffer[session_num*1*1024];
-	StringFormatter content(buffer, sizeof(buffer));
+	fCmdBufferSize = session_num*1*1024;
+	fCmdBuffer = (char*)malloc(fCmdBufferSize);
+	if(fCmdBuffer == NULL)
+	{
+		fCmdBufferSize = 0;	
+		ret = ResponseError(httpInternalServerError);
+		return ret;
+	}
+	memset(fCmdBuffer, 0, fCmdBufferSize);
+	StringFormatter content(fCmdBuffer, fCmdBufferSize);
 	content.Put("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n");
 	content.Put("<sessions>\n");
 
@@ -1681,7 +1790,24 @@ QTSS_Error HTTPSession::ResponseCmdSessionStatus()
 	}
 	content.Put("</sessions>\n");
 
-	ResponseContent(content.GetBufPtr(), content.GetBytesWritten(), CONTENT_TYPE_APPLICATION_XML);
+	
+	//ret = ResponseContent(content.GetBufPtr(), content.GetBytesWritten(), CONTENT_TYPE_APPLICATION_XML);
+	ret = ResponseHeader(content.GetBufPtr(), content.GetBytesWritten(), CONTENT_TYPE_APPLICATION_XML);
+
+	fCmdContentLength = content.GetBytesWritten();	
+	if(fRequest.fMethod == httpGetMethod)
+	{
+		fCmdContentPosition = 0;
+	}
+	else if(fRequest.fMethod == httpHeadMethod)
+	{
+		free(fCmdBuffer);
+		fCmdBuffer = NULL;
+		fCmdBufferSize = 0;
+		fCmdContentLength = 0;
+		fCmdContentPosition = 0;
+	}
+	
 
 	return ret;
 }
@@ -1690,7 +1816,7 @@ QTSS_Error HTTPSession::ResponseCmdSessionStatus()
 
 QTSS_Error HTTPSession::ResponseCmdResult(char* cmd, char* return_val, char* result, char* reason)
 {
-	char	buffer[1024];
+	char	buffer[4*1024];
 	StringFormatter content(buffer, sizeof(buffer));
 
 	if(fCmd.format == 0)
@@ -1802,6 +1928,38 @@ Bool16 HTTPSession::ResponseContent(char* content, int len, char* type)
 	{
 		// do nothing.
 	}
+	
+	fStrResponse.Set(fResponse.GetBufPtr(), fResponse.GetBytesWritten());
+	//append to fStrRemained
+	fStrRemained.Len += fStrResponse.Len;  
+	//clear previous response.
+	fStrResponse.Set(fResponseBuffer, 0);
+	
+	//SendData();
+	
+	return true;
+}
+
+Bool16 HTTPSession::ResponseHeader(char* content, int len, char* type)
+{			
+	fResponse.Set(fStrRemained.Ptr+fStrRemained.Len, kResponseBufferSizeInBytes-fStrRemained.Len);
+	fResponse.PutFmtStr("%s %s %s\r\n", 
+    	HTTPProtocol::GetVersionString(http11Version)->Ptr,
+    	HTTPProtocol::GetStatusCodeAsString(httpOK)->Ptr,
+    	HTTPProtocol::GetStatusCodeString(httpOK)->Ptr);
+	fResponse.PutFmtStr("Server: %s/%s\r\n", BASE_SERVER_NAME, BASE_SERVER_VERSION);
+	fResponse.PutFmtStr("Content-Length: %d\r\n", len);
+	//fResponse.PutFmtStr("Content-Type: %s; charset=utf-8\r\n", content_type);
+    fResponse.PutFmtStr("Content-Type: %s", type);
+    if(strcmp(type, CONTENT_TYPE_TEXT_HTML) == 0)
+    {
+    	fResponse.PutFmtStr(";charset=%s\r\n", CHARSET_UTF8);
+    }
+    else
+    {
+    	fResponse.Put("\r\n");
+    }
+	fResponse.Put("\r\n"); 
 	
 	fStrResponse.Set(fResponse.GetBufPtr(), fResponse.GetBytesWritten());
 	//append to fStrRemained

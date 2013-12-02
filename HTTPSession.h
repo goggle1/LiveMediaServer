@@ -53,9 +53,11 @@ protected:
         	QTSS_Error      SendData();
        	 	bool            IsFullRequest();
         	Bool16          Disconnect();
-        	QTSS_Error      ProcessRequest();
+        	QTSS_Error      ProcessRequest();        	
         	QTSS_Error      ResponseGet();
         	Bool16 			ReadFileContent();
+        	Bool16 			ReadSegmentContent();
+        	Bool16 			ReadCmdContent();
         	QTSS_Error		ResponseCmd();
         	QTSS_Error		ResponseCmdResult(char* cmd, char* return_val, char* result, char* reason);
         	QTSS_Error 		ResponseCmdListChannel();
@@ -65,13 +67,13 @@ protected:
         	QTSS_Error 		ResponseCmdChannelStatus();
         	QTSS_Error 		ResponseCmdSessionStatus();
         	Bool16 			ResponseContent(char* content, int len, char* type);
+        	Bool16 			ResponseHeader(char* content, int len, char* type);
         	QTSS_Error		ResponseFile(char* absolute_path);
         	QTSS_Error		ResponseError(HTTPStatusCode StatusCode);
 	        void            MoveOnRequest();
 	        QTSS_Error		ResponseLive();
 	        QTSS_Error		ResponseLiveM3U8();
-	        QTSS_Error		ResponseLiveSegment();
-	        Bool16 			ReadSegmentContent();
+	        QTSS_Error		ResponseLiveSegment();	        
 	        QTSS_Error		ContinueLive();
 	        QTSS_Error		ContinueLiveM3U8();
 	        QTSS_Error		ContinueLiveSegment();
@@ -126,6 +128,10 @@ protected:
 			int64_t		fDataPosition;
 			// cmd for macross
 			CMD_T		fCmd;
+			char*		fCmdBuffer;
+			int64_t		fCmdBufferSize;
+			int64_t		fCmdContentLength;
+			int64_t		fCmdContentPosition;
 			
 	        HTTPStatusCode fStatusCode; 
 
