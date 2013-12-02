@@ -6,6 +6,11 @@
 #define MY_VERSION			PROGRAM_VERSION"@"OS_VERSION
 #define CMD_VERSION			"2.1"
 
+#define BASE_SERVER_NAME 	"TeslaStreamingServer"
+#define BASE_SERVER_VERSION MY_VERSION
+
+#define USER_AGENT			"LiveMediaServer"
+
 #define ROOT_PATH			"/home/html"
 #define MAX_CLIP_NUM			60
 //#define MAX_CLIP_NUM			61

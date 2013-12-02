@@ -16,11 +16,6 @@
 #include "channel.h"
 #include "HTTPSession.h"
 
-#define BASE_SERVER_NAME 	"TeslaStreamingServer"
-//#define BASE_SERVER_VERSION "1.0"
-#define BASE_SERVER_VERSION MY_VERSION
-
-
 #define CONTENT_TYPE_TEXT_PLAIN					"text/plain"
 #define CONTENT_TYPE_TEXT_HTML					"text/html"
 #define CONTENT_TYPE_TEXT_CSS					"text/CSS"
@@ -785,12 +780,24 @@ QTSS_Error HTTPSession::SendData()
 {  	
 	QTSS_Error ret = QTSS_NoErr;	
 
-    struct timeval now_time;
-	gettimeofday(&now_time, NULL);
-	u_int64_t should_send_len = download_limit(&fSessionp->begin_time, &now_time, fSessionp->download_bytes, fStrRemained.Len);
-	if(should_send_len < fStrRemained.Len)
+	u_int64_t should_send_len = fStrRemained.Len;
+		
+	StrPtrLen user_agent = fRequest.fFieldValues[httpUserAgentHeader];
+	if(user_agent.Len > 0 && strncmp(user_agent.Ptr, USER_AGENT, strlen(USER_AGENT))==0)
 	{
-		ret = QTSS_NoMoreData;
+		// download limit, no
+		should_send_len = fStrRemained.Len;
+	}
+	else
+	{
+		// download limit, yes
+	    struct timeval now_time;
+		gettimeofday(&now_time, NULL);
+		should_send_len = download_limit(&fSessionp->begin_time, &now_time, fSessionp->download_bytes, fStrRemained.Len);
+		if(should_send_len < fStrRemained.Len)
+		{
+			ret = QTSS_NoMoreData;
+		}
 	}
     
     OS_Error theErr;
@@ -936,8 +943,8 @@ QTSS_Error HTTPSession::ResponseGet()
 	//fprintf(stdout, "%s[%d][0x%016lX][%ld] remote_ip=0x%08X, port=%u absolute_uri=%s\n", 
 	//		__PRETTY_FUNCTION__, __LINE__, (long)this, pthread_self(),
 	//		fSocket.GetRemoteAddr(), fSocket.GetRemotePort(), absolute_uri);	
-	
-	// parser range if any.
+
+	// parse range if any.
 	fHaveRange = false;
 	fRangeStart = 0;
 	fRangeStop = -1;

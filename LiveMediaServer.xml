@@ -5,5 +5,5 @@
 	<work_path>/home/html</work_path>
 	<channels_file>/home/html/channels.xml</channels_file>
 	<max_clip_num>60</max_clip_num>
-	<download_limit>-1bps</download_limit>
+	<download_limit>800000bps</download_limit>
 </config>

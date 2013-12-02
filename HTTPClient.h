@@ -4,9 +4,9 @@
 
 #include "BaseServer/ClientSocket.h"
 
+#include "public.h"
 #include "channel.h"
 
-#define USER_AGENT	"LiveMediaServer"
 #define MAX_HOST_LEN	64
 
 class HTTPClient
