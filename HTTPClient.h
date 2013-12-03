@@ -28,6 +28,7 @@ class HTTPClient
         char*       GetContentBody()        { return fRecvContentBuffer; }        
 
         //int			SetSources(DEQUE_NODE* source_list);
+        int			Disconnect();
         int			SetSource(u_int32_t ip, u_int16_t port);
 
 		struct timeval		fBeginTime;

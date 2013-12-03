@@ -35,12 +35,17 @@ HTTPClient::~HTTPClient()
 	delete [] fRecvContentBuffer;	
 }
 
-int HTTPClient::SetSource(u_int32_t ip, u_int16_t port)
-{	
+int HTTPClient::Disconnect()
+{
 	// disconnect, if connected.
 	fSocket->Disconnect((TCPSocket*)fSocket->GetSocket());
 	fSocket->Close((TCPSocket*)fSocket->GetSocket());
-	
+
+	return 0;
+}
+
+int HTTPClient::SetSource(u_int32_t ip, u_int16_t port)
+{	
 	fState = kInitial;
 						
 	fSourceIp = ip;

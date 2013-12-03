@@ -35,6 +35,7 @@ class M3U8Parser
 		~M3U8Parser();
 		int		SetPath(StrPtrLen* pathp);
 		int    	Parse(char* datap, UInt32 len);
+		time_t	GetNewestTime();
 		Bool16	IsOld();
 
 	public:

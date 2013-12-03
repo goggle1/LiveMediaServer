@@ -2193,8 +2193,12 @@ QTSS_Error HTTPSession::ContinueLiveM3U8()
 		{
 			CLIP_T* onep = &(memoryp->clips[index]);
 			content.PutFmtStr("#EXTINF:%u,\n", onep->inf);
-			content.PutFmtStr("#EXT-X-BYTERANGE:%lu,\n", onep->byte_range);
+			content.PutFmtStr("#EXT-X-BYTERANGE:%lu\n", onep->byte_range);
+			#if 0
 			content.PutFmtStr("%s\n", onep->m3u8_relative_url);
+			#else
+			content.PutFmtStr("http://%s:%u/%s/%s\n", g_config.service_ip, g_config.port, fHttpClientSession->GetM3U8Path(), onep->m3u8_relative_url);
+			#endif
 
 			count2 ++;
 			index ++;

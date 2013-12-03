@@ -12,6 +12,8 @@
 #include "M3U8Parser.h"
 #include "channel.h"
 
+#define MAX_TRY_COUNT	3
+
 class HTTPClientSession : public Task
 {
 	public:
@@ -20,6 +22,7 @@ virtual	~HTTPClientSession();
 virtual     SInt64      Run();
 	int		Start();
 	Bool16	IsDownloaded(SEGMENT_T* segp);
+	Bool16	DownloadTimeout();
 	void 	SetUrl(const StrPtrLen& inURL);
 	int		SetSources(DEQUE_NODE* source_list);
 	int 	Log(char* url, char* datap, UInt32 len);	
@@ -30,6 +33,7 @@ virtual     SInt64      Run();
 	MEMORY_T*	GetMemory() { return fMemory; }
 	char*	GetSourceHost() { return fHost; }
 	time_t	CalcBreakTime();
+	char*	GetM3U8Path() { return fM3U8Path.Ptr; };
 
 		//
         // States. Find out what the object is currently doing
@@ -53,9 +57,11 @@ virtual     SInt64      Run();
         };
 
 	protected:
-		int		SwitchSource();
+		int		SwitchSource(OS_Error theErr);
 		int		SetSource(SOURCE_T* sourcep);
-
+		int		MemoSourceM3U8(time_t newest_time, u_int64_t download_byte, struct timeval download_begin_time, struct timeval download_end_time);
+		int		MemoSourceSegment(u_int64_t download_byte, struct timeval download_begin_time, struct timeval download_end_time);
+		
 		char				fHost[MAX_HOST_LEN];		
 		//UInt32				fInAddr;
 		//UInt16				fInPort;

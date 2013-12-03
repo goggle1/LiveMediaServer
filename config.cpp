@@ -27,6 +27,13 @@ int parse_config(CONFIG_T* configp, xmlDocPtr doc, xmlNodePtr cur)
 			configp->port = atoi((const char*)szValue);
 			xmlFree(szValue);
 		}
+		else if((!xmlStrcmp(child->name, (const xmlChar*)"service_ip")))
+		{
+			xmlChar* szValue = xmlNodeGetContent(child);
+			snprintf(configp->service_ip, MAX_IP_LEN-1, "%s", (const char*)szValue);
+			configp->service_ip[MAX_IP_LEN-1] = '\0';
+			xmlFree(szValue);
+		}
 		else if((!xmlStrcmp(child->name, (const xmlChar*)"work_path")))
 		{
 			xmlChar* szValue = xmlNodeGetContent(child);

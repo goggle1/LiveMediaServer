@@ -218,6 +218,18 @@ int M3U8Parser::Parse(char * datap, UInt32 len)
 	return 0;
 }
 
+time_t	M3U8Parser::GetNewestTime()
+{
+	time_t ret = 0;
+	if(fSegmentsNum == 0)
+	{
+		return 0;
+	}
+
+	ret = fSegments[fSegmentsNum - 1].begin_time;
+	return ret;
+}
+
 Bool16 M3U8Parser::IsOld()
 {
 	if(fSegmentsNum == 0)

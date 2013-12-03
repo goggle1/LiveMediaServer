@@ -11,6 +11,7 @@ typedef struct config_t
 {
 	char 		ip[MAX_IP_LEN];	
 	u_int16_t	port;
+	char 		service_ip[MAX_IP_LEN];
 	char		work_path[PATH_MAX];
 	char		channels_file[PATH_MAX];
 	int32_t		max_clip_num;

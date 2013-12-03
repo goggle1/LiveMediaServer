@@ -59,10 +59,22 @@ typedef struct memory_t
 	CLIP_T*		clips;
 } MEMORY_T;
 
+typedef struct download_rate_t
+{
+	time_t			m3u8_newest_time;
+	struct timeval 	m3u8_begin_time;
+	struct timeval 	m3u8_end_time;
+	u_int16_t		m3u8_bytes;
+	struct timeval 	segment_begin_time;
+	struct timeval 	segment_end_time;
+	u_int16_t		segment_bytes;
+} DOWNLOAD_RATE_T;
+
 typedef struct source_t
 {
 	u_int32_t	ip;
 	u_int16_t	port;
+	DOWNLOAD_RATE_T download_rate;
 } SOURCE_T;
 
 class HTTPClientSession;
