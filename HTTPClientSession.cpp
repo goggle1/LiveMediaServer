@@ -68,6 +68,9 @@ HTTPClientSession::HTTPClientSession(const StrPtrLen& inURL, CHANNEL_T* channelp
 	fClient = new HTTPClient(fSocket/*, channelp*/);	
 
 	fChannel= channelp;
+	fSourceNum = 0;
+	fSourceList	= NULL;
+	fSourceNow = NULL;
 	SetSources(fChannel->source_list);
 	
 	fType	= strdup(type);
@@ -205,6 +208,13 @@ int HTTPClientSession::SetSources(DEQUE_NODE* source_list)
 	int ret = 0;
 
 	fprintf(stdout, "%s\n", __PRETTY_FUNCTION__);
+	if(fSourceNow != NULL)
+	{
+		fSourceNum = 0;
+		fSourceList	= NULL;
+		fSourceNow = NULL;
+		fClient->Disconnect();
+	}
 	
 	fState = kSendingGetM3U8;	
 	fSourceList = source_list;
@@ -459,7 +469,14 @@ int HTTPClientSession::MemoM3U8(M3U8Parser* parserp, time_t begin_time, time_t e
 		{
 			SEGMENT_T* segp = &(parserp->fSegments[index]);
 			content.PutFmtStr("#EXTINF:%u,\n", segp->inf);
-			content.PutFmtStr("#EXT-X-BYTERANGE:%lu\n", segp->byte_range);
+			if(strcasecmp(fType, "ts") == 0)
+			{
+				// do nothing.
+			}
+			else
+			{
+				content.PutFmtStr("#EXT-X-BYTERANGE:%lu\n", segp->byte_range);
+			}
 			#if 0
 			content.PutFmtStr("%s\n", segp->m3u8_relative_url);
 			#else
@@ -512,7 +529,14 @@ int HTTPClientSession::RewriteM3U8(M3U8Parser* parserp)
 	{
 		SEGMENT_T* segp = &(parserp->fSegments[index]);
 		ret = dprintf(fd, "#EXTINF:%u,\n", segp->inf);
-		ret = dprintf(fd, "#EXT-X-BYTERANGE:%lu,\n", segp->byte_range);
+		if(strcasecmp(fType, "ts") == 0)
+		{
+			// do nothing.
+		}
+		else
+		{
+			ret = dprintf(fd, "#EXT-X-BYTERANGE:%lu\n", segp->byte_range);
+		}		
 		ret = dprintf(fd, "%s\n", segp->relative_url);
 	}
 
@@ -559,7 +583,7 @@ time_t HTTPClientSession::CalcBreakTime()
 {
 	struct timeval now;
 	gettimeofday(&now, NULL);
-	time_t diff_time = timeval_diff(&now, &fM3U8BeginTime);      		
+	time_t diff_time = timeval_diff(&now, &fM3U8BeginTime);
 	time_t break_time = MAX_SEMENT_TIME;			            		
 	if(diff_time>=MAX_SEMENT_TIME)
 	{
@@ -618,11 +642,11 @@ SInt64 HTTPClientSession::Run()
             	fGetIndex = 0;
             	fGetTryCount = 0;
             	//fprintf(stdout, "%s[0x%016lX][0x%016lX][%ld]: get %s\n", __PRETTY_FUNCTION__, this->fDefaultThread, this->fUseThisThread, pthread_self(), fURL.Ptr);            	
-            	theErr = fClient->SendGetM3U8(fURL.Ptr);            	
+            	theErr = fClient->SendGetM3U8(fURL.Ptr); 
+            	fM3U8BeginTime = fClient->fBeginTime;
+               	fM3U8EndTime = fClient->fEndTime;
             	if (theErr == OS_NoErr)
-                {   
-                	fM3U8BeginTime = fClient->fBeginTime;
-                	fM3U8EndTime = fClient->fEndTime;
+                {                   	
                 	UInt32 get_status = fClient->GetStatus();
                     if (get_status != 200)
                     {
@@ -688,10 +712,10 @@ SInt64 HTTPClientSession::Run()
 
             	//fprintf(stdout, "%s: get %s\n", __PRETTY_FUNCTION__, fM3U8Parser.fSegments[fGetIndex].relative_url);
             	theErr = fClient->SendGetSegment(fM3U8Parser.fSegments[fGetIndex].relative_url);
+            	fSegmentBeginTime = fClient->fBeginTime;
+                fSegmentEndTime = fClient->fEndTime;  
             	if (theErr == OS_NoErr)
-                {   
-                	fSegmentBeginTime = fClient->fBeginTime;
-                	fSegmentEndTime = fClient->fEndTime;                	
+                {                   	              	
                 	UInt32 get_status = fClient->GetStatus();
                 	if (get_status != 200)
                     {
@@ -805,6 +829,7 @@ SInt64 HTTPClientSession::Run()
 
 		time_t break_time = 1;
 		int switch_ret = SwitchSource(theErr);
+		#if 0
         if(switch_ret == 0)
         {    
         	if(theErr == ENOT200)
@@ -817,14 +842,17 @@ SInt64 HTTPClientSession::Run()
 			}
 			else
 			{
-				break_time = 1;
+				//break_time = 1;
+				break_time = CalcBreakTime();
 			}
         }
         else 
         {
         	break_time = CalcBreakTime();			
         }
+        #endif
 
+		break_time = CalcBreakTime();
        	return break_time;
 
     }    

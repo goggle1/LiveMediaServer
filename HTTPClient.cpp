@@ -40,6 +40,8 @@ int HTTPClient::Disconnect()
 	// disconnect, if connected.
 	fSocket->Disconnect((TCPSocket*)fSocket->GetSocket());
 	fSocket->Close((TCPSocket*)fSocket->GetSocket());
+	
+	fState = kInitial;
 
 	return 0;
 }

@@ -2162,14 +2162,14 @@ QTSS_Error HTTPSession::ContinueLiveM3U8()
 			{	
 				break;
 			}
-			
-			count ++;			
+									
 			index --;
 			if(index<0)
 			{
 				index = g_config.max_clip_num - 1;
 			}
 
+			count ++;
 			if(count >= memoryp->clip_num || (fLiveLen !=-1 && count >= fLiveLen) )
 			{
 				break;
@@ -2199,7 +2199,14 @@ QTSS_Error HTTPSession::ContinueLiveM3U8()
 			
 			CLIP_T* onep = &(memoryp->clips[index]);
 			content.PutFmtStr("#EXTINF:%u,\n", onep->inf);
-			content.PutFmtStr("#EXT-X-BYTERANGE:%lu\n", onep->byte_range);
+			if(strcasecmp(fLiveType, LIVE_TS) == 0)
+			{
+				// do nothing.
+			}
+			else
+			{
+				content.PutFmtStr("#EXT-X-BYTERANGE:%lu\n", onep->byte_range);
+			}
 			#if 0
 			content.PutFmtStr("%s\n", onep->m3u8_relative_url);
 			#else
