@@ -15,7 +15,7 @@
 #define MAX_M3U8_NUM		2
 #define MAX_URL_LEN			256
 
-#define MAX_M3U8_CONTENT_LEN (1024*4)
+#define MAX_M3U8_CONTENT_LEN (1024*16)
 
 typedef struct data_t
 {
@@ -34,6 +34,7 @@ typedef struct clip_t
 	u_int64_t	sequence;
 	char 		relative_url[MAX_URL_LEN];	
 	char 		m3u8_relative_url[MAX_URL_LEN];
+	char 		file_name[MAX_URL_LEN];
 	DATA_T		data;
 	time_t		begin_time;
 	time_t		end_time;

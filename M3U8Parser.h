@@ -26,6 +26,8 @@ typedef struct segment_t
 	char	relative_url[MAX_URL_LEN];
 	// 3702892333/fd5f6b86b836e38c8eed27c9e66e3e6dcf0a69b2/ts/2013/10/25/20131017T174027_03_20131024_155801_565631.ts
 	char	m3u8_relative_url[MAX_URL_LEN];
+	// 20131017T174027_03_20131024_155801_565631.ts
+	char 	file_name[MAX_URL_LEN];
 } SEGMENT_T;
 
 class M3U8Parser

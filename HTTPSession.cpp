@@ -1022,7 +1022,7 @@ QTSS_Error HTTPSession::ResponseGet()
 	}
 
 	char abs_path[PATH_MAX];
-	snprintf(abs_path, PATH_MAX-1, "%s%s", g_config.work_path, request_file);
+	snprintf(abs_path, PATH_MAX, "%s%s", g_config.work_path, request_file);
 	abs_path[PATH_MAX-1] = '\0';		
 	if(file_exist(abs_path))
 	{
@@ -1175,7 +1175,7 @@ QTSS_Error HTTPSession::ResponseCmdAddChannel()
 	{
 		char* request_file = "/add_channel.html";
 		char abs_path[PATH_MAX];
-		snprintf(abs_path, PATH_MAX-1, "%s%s", g_config.work_path, request_file);
+		snprintf(abs_path, PATH_MAX, "%s%s", g_config.work_path, request_file);
 		abs_path[PATH_MAX-1] = '\0';	
 		
 		ret = ResponseFile(abs_path);
@@ -1192,7 +1192,7 @@ QTSS_Error HTTPSession::ResponseCmdAddChannel()
 	{
 	#if 0
 		char reason[MAX_REASON_LEN] = "";
-		snprintf(reason, MAX_REASON_LEN-1, "liveid [%s] exist", channelp->liveid);
+		snprintf(reason, MAX_REASON_LEN, "liveid [%s] exist", channelp->liveid);
 		reason[MAX_REASON_LEN-1] = '\0';
 		ret = ResponseCmdResult("add_channel", "failure", reason);
 		channel_release(channelp);
@@ -1261,7 +1261,7 @@ QTSS_Error HTTPSession::ResponseCmdUpdateChannel(CHANNEL_T* findp, CHANNEL_T* ch
 				// start it
 				char* type = "ts";
 				char url[MAX_URL_LEN];
-				snprintf(url, MAX_URL_LEN-1, "/livestream/%s.m3u8?codec=%s", channelp->liveid, type);
+				snprintf(url, MAX_URL_LEN, "/livestream/%s.m3u8?codec=%s", channelp->liveid, type);
 				url[MAX_URL_LEN-1] = '\0';
 				StrPtrLen inURL(url);
 				HTTPClientSession* sessionp = new HTTPClientSession(inURL, findp, type);	
@@ -1299,7 +1299,7 @@ QTSS_Error HTTPSession::ResponseCmdUpdateChannel(CHANNEL_T* findp, CHANNEL_T* ch
 				// start it
 				char* type = "flv";
 				char url[MAX_URL_LEN];
-				snprintf(url, MAX_URL_LEN-1, "/livestream/%s.m3u8?codec=%s", channelp->liveid, type);
+				snprintf(url, MAX_URL_LEN, "/livestream/%s.m3u8?codec=%s", channelp->liveid, type);
 				url[MAX_URL_LEN-1] = '\0';
 				StrPtrLen inURL(url);
 				HTTPClientSession* sessionp = new HTTPClientSession(inURL, findp, type);	
@@ -1337,7 +1337,7 @@ QTSS_Error HTTPSession::ResponseCmdUpdateChannel(CHANNEL_T* findp, CHANNEL_T* ch
 				// start it
 				char* type = "mp4";
 				char url[MAX_URL_LEN];
-				snprintf(url, MAX_URL_LEN-1, "/livestream/%s.m3u8?codec=%s", channelp->liveid, type);
+				snprintf(url, MAX_URL_LEN, "/livestream/%s.m3u8?codec=%s", channelp->liveid, type);
 				url[MAX_URL_LEN-1] = '\0';
 				StrPtrLen inURL(url);
 				HTTPClientSession* sessionp = new HTTPClientSession(inURL, findp, type);	
@@ -1394,7 +1394,7 @@ QTSS_Error HTTPSession::ResponseCmdDelChannel()
 	{
 		char* request_file = "/del_channel.html";
 		char abs_path[PATH_MAX];
-		snprintf(abs_path, PATH_MAX-1, "%s%s", g_config.work_path, request_file);
+		snprintf(abs_path, PATH_MAX, "%s%s", g_config.work_path, request_file);
 		abs_path[PATH_MAX-1] = '\0';	
 		
 		ret = ResponseFile(abs_path);
@@ -1409,7 +1409,7 @@ QTSS_Error HTTPSession::ResponseCmdDelChannel()
 	if(findp == NULL)
 	{
 		char reason[MAX_REASON_LEN] = "";
-		snprintf(reason, MAX_REASON_LEN-1, "can not find liveid[%s]", channelp->liveid);
+		snprintf(reason, MAX_REASON_LEN, "can not find liveid[%s]", channelp->liveid);
 		reason[MAX_REASON_LEN-1] = '\0';
 		ret = ResponseCmdResult(CMD_DEL_CHANNEL, "error", "failure", reason);
 
@@ -2191,6 +2191,12 @@ QTSS_Error HTTPSession::ContinueLiveM3U8()
 		int count2 = 0;
 		while(1)
 		{
+			count2 ++;
+			if(count2>count)
+			{
+				break;
+			}
+			
 			CLIP_T* onep = &(memoryp->clips[index]);
 			content.PutFmtStr("#EXTINF:%u,\n", onep->inf);
 			content.PutFmtStr("#EXT-X-BYTERANGE:%lu\n", onep->byte_range);
@@ -2199,18 +2205,14 @@ QTSS_Error HTTPSession::ContinueLiveM3U8()
 			#else
 			content.PutFmtStr("http://%s:%u/%s/%s\n", g_config.service_ip, g_config.port, fHttpClientSession->GetM3U8Path(), onep->m3u8_relative_url);
 			#endif
-
-			count2 ++;
+			
 			index ++;
 			if(index>=g_config.max_clip_num)
 			{
 				index = 0;
 			}
 			
-			if(count2>=count)
-			{
-				break;
-			}
+			
 		}
 		//content.PutTerminator();
 
@@ -2226,60 +2228,106 @@ QTSS_Error HTTPSession::ResponseLiveSegment()
 	QTSS_Error ret = QTSS_NoErr;
 
 	fLiveRequest = kLiveSegment;
+
 	
-	// /livestream/3702892333/78267cf4a7864a887540cf4af3c432dca3d52050/ts/2013/10/31/20131017T171949_03_20131031_140823_3059413.ts
-	//char liveid[MAX_LIVE_ID];
-	StringParser parser(&(fRequest.fRelativeURI));
-	parser.ConsumeLength(NULL, strlen(URI_LIVESTREAM));
-	StrPtrLen seg1;
-	parser.ConsumeUntil(&seg1, '/');
-	parser.Expect('/');
-	StrPtrLen seg2;
-	parser.ConsumeUntil(&seg2, '/');
-	parser.Expect('/');	
-	int len = seg2.Len;
-	if(len >= MAX_LIVE_ID-1)
+	char* param_type = LIVE_FLV;
+	int   param_seq = -1;
+	DEQUE_NODE* nodep = fRequest.fParamPairs;
+	while(nodep)
 	{
-		len = MAX_LIVE_ID-1;
+		UriParam* paramp = (UriParam*)nodep->datap;
+		if(strcasecmp(paramp->key, "codec") == 0)
+		{
+			param_type = paramp->value;
+		}
+		else if(strcasecmp(paramp->key, "seq") == 0)
+		{
+			param_seq = atoi(paramp->value);
+		}
+		
+		if(nodep->nextp == fRequest.fParamPairs)
+		{
+			break;	
+		}
+		nodep = nodep->nextp;
 	}
-	memcpy(fLiveId, seg2.Ptr, len);
-	fLiveId[len] = '\0';
+	
+	fLiveSeq = param_seq;
+	if(fLiveSeq != -1)
+	{
+		// /livestream/78267cf4a7864a887540cf4af3c432dca3d52050?seq=3059413
+		StringParser parser(&(fRequest.fRelativeURI));
+		parser.ConsumeLength(NULL, strlen(URI_LIVESTREAM));
+		StrPtrLen seg1;
+		parser.ConsumeUntil(&seg1, '?');
+		parser.Expect('?');		
+		int len = seg1.Len;
+		if(len >= MAX_LIVE_ID-1)
+		{
+			len = MAX_LIVE_ID-1;
+		}
+		memcpy(fLiveId, seg1.Ptr, len);
+		fLiveId[len] = '\0';
+		
+		strncpy(fLiveType, param_type, MAX_LIVE_TYPE-1);
+		fLiveType[MAX_LIVE_TYPE-1] = '\0';		
+	}
+	else
+	{	
+		// /livestream/3702892333/78267cf4a7864a887540cf4af3c432dca3d52050/ts/2013/10/31/20131017T171949_03_20131031_140823_3059413.ts
+		//char liveid[MAX_LIVE_ID];
+		StringParser parser(&(fRequest.fRelativeURI));
+		parser.ConsumeLength(NULL, strlen(URI_LIVESTREAM));
+		StrPtrLen seg1;
+		parser.ConsumeUntil(&seg1, '/');
+		parser.Expect('/');
+		StrPtrLen seg2;
+		parser.ConsumeUntil(&seg2, '/');
+		parser.Expect('/');	
+		int len = seg2.Len;
+		if(len >= MAX_LIVE_ID-1)
+		{
+			len = MAX_LIVE_ID-1;
+		}
+		memcpy(fLiveId, seg2.Ptr, len);
+		fLiveId[len] = '\0';
+
+		parser.ConsumeUntil(NULL, '.');
+		parser.Expect('.');
+		StrPtrLen seg3;
+		parser.ConsumeUntil(&seg3, '?');
+		int type_len = seg3.Len;
+		if(type_len >= MAX_LIVE_TYPE-1)
+		{
+			type_len = MAX_LIVE_TYPE-1;
+		}
+		memcpy(fLiveType, seg3.Ptr, type_len);
+		fLiveType[type_len] = '\0';
+	}
 	
 	CHANNEL_T* channelp = g_channels.FindChannelByHash(fLiveId);
 	if(channelp == NULL)
 	{
 		ret = ResponseError(httpNotFound);
 		return ret;
-	}	
-	parser.ConsumeUntil(NULL, '.');
-	parser.Expect('.');
-	StrPtrLen seg3;
-	parser.ConsumeUntil(&seg3, '?');
-	int type_len = seg3.Len;
-	if(type_len >= MAX_LIVE_TYPE-1)
-	{
-		type_len = MAX_LIVE_TYPE-1;
 	}
-	memcpy(fLiveType, seg3.Ptr, type_len);
-	fLiveType[type_len] = '\0';
 
 	fHttpClientSession = NULL;
 	MEMORY_T* memoryp = NULL;
-	char* type = seg3.Ptr;
 	char* mime_type = CONTENT_TYPE_APPLICATION_OCTET_STREAM;
-	if(strncasecmp(type, LIVE_TS, strlen(LIVE_TS)) == 0)
+	if(strcasecmp(fLiveType, LIVE_TS) == 0)
 	{
 		fHttpClientSession = channelp->sessionp_ts;
 		memoryp = channelp->memoryp_ts;
 		mime_type = CONTENT_TYPE_VIDEO_MP2T;
 	}
-	else if(strncasecmp(type, LIVE_FLV, strlen(LIVE_FLV)) == 0)
+	else if(strcasecmp(fLiveType, LIVE_FLV) == 0)
 	{
 		fHttpClientSession = channelp->sessionp_flv;
 		memoryp = channelp->memoryp_flv;
 		mime_type = CONTENT_TYPE_VIDEO_FLV;
 	}
-	else if(strncasecmp(type, LIVE_MP4, strlen(LIVE_MP4)) == 0)
+	else if(strcasecmp(fLiveType, LIVE_MP4) == 0)
 	{
 		fHttpClientSession = channelp->sessionp_mp4;
 		memoryp = channelp->memoryp_mp4;
@@ -2346,7 +2394,8 @@ QTSS_Error HTTPSession::ContinueLiveSegment()
 		}
 		
 		CLIP_T* onep = &(memoryp->clips[index]);
-		if(strncmp(onep->relative_url, fRequest.fRelativeURI.Ptr, strlen(onep->relative_url)) == 0)
+		if((fLiveSeq!= -1 && (int64_t)onep->sequence == fLiveSeq) || 
+			(strncmp(onep->relative_url, fRequest.fRelativeURI.Ptr, strlen(onep->relative_url)) == 0) )
 		{
 			clipp = onep;
 			break;
@@ -2398,7 +2447,10 @@ QTSS_Error HTTPSession::ContinueLiveSegment()
 			HTTPProtocol::GetStatusCodeString(status_code)->Ptr);
     fResponse.PutFmtStr("Server: %s/%s\r\n", BASE_SERVER_NAME, BASE_SERVER_VERSION);
     fResponse.PutFmtStr("Accept-Ranges: bytes\r\n");	
-    fResponse.PutFmtStr("Content-Length: %ld\r\n", fRangeStop+1-fRangeStart);    
+    fResponse.PutFmtStr("Content-Length: %ld\r\n", fRangeStop+1-fRangeStart); 
+    fResponse.PutFmtStr("Connection: keep-alive\r\n");
+    fResponse.PutFmtStr("Proxy-Connection: Keep-Alive\r\n");
+    fResponse.PutFmtStr("Content-Disposition: attachment;filename=\"%s\"\r\n", clipp->file_name); 
     if(fHaveRange)
     {
     	//Content-Range: 1000-3000/5000

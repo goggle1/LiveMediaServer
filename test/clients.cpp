@@ -51,7 +51,7 @@ CONFIG_T g_config =
 int do_http_request(int client_fd, THREAD_STAT_T* statp)
 {
 	char send_buffer[MAX_BUF_LEN];
-	snprintf(send_buffer, MAX_BUF_LEN-1, 
+	snprintf(send_buffer, MAX_BUF_LEN, 
 		"GET /livestream/%s.m3u8?codec=%s HTTP/1.1\r\n"
 		"User-Agent: %s\r\n"
 		"HOST: %s:%u\r\n"

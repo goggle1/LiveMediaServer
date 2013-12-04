@@ -55,7 +55,7 @@ int HTTPClient::SetSource(u_int32_t ip, u_int16_t port)
 	struct in_addr in;
 	in.s_addr = ip_net;
 	char* 	ip_str = inet_ntoa(in);	
-	snprintf(fHost, MAX_HOST_LEN-1, "%s:%d", ip_str, port);
+	snprintf(fHost, MAX_HOST_LEN, "%s:%d", ip_str, port);
 	fHost[MAX_HOST_LEN-1] = '\0';
 
 	fSocket->Set(fSourceIp, fSourcePort);
@@ -176,7 +176,7 @@ OS_Error HTTPClient::DoTransaction()
 						struct in_addr in;
 						in.s_addr = ip_net;
 						char* 	ip_str = inet_ntoa(in);	
-						snprintf(fHost, MAX_HOST_LEN-1, "%s:%d", ip_str, port);
+						snprintf(fHost, MAX_HOST_LEN, "%s:%d", ip_str, port);
 						fHost[MAX_HOST_LEN-1] = '\0';
 						fprintf(stdout, "%s: fHost=%s\n", __PRETTY_FUNCTION__, fHost);
 						

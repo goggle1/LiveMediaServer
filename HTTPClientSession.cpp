@@ -93,7 +93,7 @@ HTTPClientSession::HTTPClientSession(const StrPtrLen& inURL, CHANNEL_T* channelp
 	
 	fGetIndex	= 0;
 
-	snprintf(fLogFile, PATH_MAX-1, "%s/%s_%s.log", g_config.work_path, fType, fChannel->liveid);
+	snprintf(fLogFile, PATH_MAX, "%s/%s_%s.log", g_config.work_path, fType, fChannel->liveid);
 	fLogFile[PATH_MAX-1] = '\0';
 	fLogFilep = fopen(fLogFile, "a");
 	//this->Signal(Task::kStartEvent);
@@ -260,7 +260,7 @@ int HTTPClientSession::SetSource(SOURCE_T* sourcep)
 	struct in_addr in;
 	in.s_addr = ip_net;
 	char* 	ip_str = inet_ntoa(in);	
-	snprintf(fHost, MAX_HOST_LEN-1, "%s:%d", ip_str, sourcep->port);
+	snprintf(fHost, MAX_HOST_LEN, "%s:%d", ip_str, sourcep->port);
 	fHost[MAX_HOST_LEN-1] = '\0';
 	 
 	ret = fClient->SetSource(sourcep->ip, sourcep->port);
@@ -393,6 +393,9 @@ int HTTPClientSession::MemoSegment(SEGMENT_T* onep, char * datap, UInt32 len, ti
 
 	strncpy(clipp->m3u8_relative_url, onep->m3u8_relative_url, MAX_URL_LEN-1);
 	clipp->m3u8_relative_url[MAX_URL_LEN-1] = '\0';
+
+	strncpy(clipp->file_name, onep->file_name, MAX_URL_LEN-1);
+	clipp->file_name[MAX_URL_LEN-1] = '\0';
 
 	if(clipp->data.datap != NULL)
 	{

@@ -17,7 +17,7 @@ int parse_config(CONFIG_T* configp, xmlDocPtr doc, xmlNodePtr cur)
 		if((!xmlStrcmp(child->name, (const xmlChar*)"ip")))
 		{
 			xmlChar* szValue = xmlNodeGetContent(child);
-			snprintf(configp->ip, MAX_IP_LEN-1, "%s", (const char*)szValue);
+			snprintf(configp->ip, MAX_IP_LEN, "%s", (const char*)szValue);
 			configp->ip[MAX_IP_LEN-1] = '\0';
 			xmlFree(szValue);
 		}
@@ -30,21 +30,21 @@ int parse_config(CONFIG_T* configp, xmlDocPtr doc, xmlNodePtr cur)
 		else if((!xmlStrcmp(child->name, (const xmlChar*)"service_ip")))
 		{
 			xmlChar* szValue = xmlNodeGetContent(child);
-			snprintf(configp->service_ip, MAX_IP_LEN-1, "%s", (const char*)szValue);
+			snprintf(configp->service_ip, MAX_IP_LEN, "%s", (const char*)szValue);
 			configp->service_ip[MAX_IP_LEN-1] = '\0';
 			xmlFree(szValue);
 		}
 		else if((!xmlStrcmp(child->name, (const xmlChar*)"work_path")))
 		{
 			xmlChar* szValue = xmlNodeGetContent(child);
-			snprintf(configp->work_path, PATH_MAX-1, "%s", (const char*)szValue);
+			snprintf(configp->work_path, PATH_MAX, "%s", (const char*)szValue);
 			configp->work_path[PATH_MAX-1] = '\0';
 			xmlFree(szValue);
 		}
 		else if((!xmlStrcmp(child->name, (const xmlChar*)"channels_file")))
 		{
 			xmlChar* szValue = xmlNodeGetContent(child);
-			snprintf(configp->channels_file, PATH_MAX-1, "%s", (const char*)szValue);
+			snprintf(configp->channels_file, PATH_MAX, "%s", (const char*)szValue);
 			configp->channels_file[PATH_MAX-1] = '\0';
 			xmlFree(szValue);
 		}

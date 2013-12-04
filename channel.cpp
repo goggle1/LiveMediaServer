@@ -101,7 +101,7 @@ int start_channel(CHANNEL_T* channelp)
 			//StrPtrLen 	inURL("http://lv.funshion.com/livestream/fd5f6b86b836e38c8eed27c9e66e3e6dcf0a69b2.m3u8?codec=ts");
 			char* type = "ts";
 			char url[MAX_URL_LEN];
-			snprintf(url, MAX_URL_LEN-1, "/livestream/%s.m3u8?codec=%s", channelp->liveid, type);
+			snprintf(url, MAX_URL_LEN, "/livestream/%s.m3u8?codec=%s", channelp->liveid, type);
 			url[MAX_URL_LEN-1] = '\0';
 			StrPtrLen inURL(url);
 			HTTPClientSession* sessionp = new HTTPClientSession(inURL, channelp, type);	
@@ -119,7 +119,7 @@ int start_channel(CHANNEL_T* channelp)
 		{
 			char* type = "flv";
 			char url[MAX_URL_LEN];
-			snprintf(url, MAX_URL_LEN-1, "/livestream/%s.m3u8?codec=%s", channelp->liveid, type);
+			snprintf(url, MAX_URL_LEN, "/livestream/%s.m3u8?codec=%s", channelp->liveid, type);
 			url[MAX_URL_LEN-1] = '\0';
 			StrPtrLen inURL(url);
 			HTTPClientSession* sessionp = new HTTPClientSession(inURL, channelp, type);	
@@ -137,7 +137,7 @@ int start_channel(CHANNEL_T* channelp)
 		{
 			char* type = "mp4";
 			char url[MAX_URL_LEN];
-			snprintf(url, MAX_URL_LEN-1, "/livestream/%s.m3u8?codec=%s", channelp->liveid, type);
+			snprintf(url, MAX_URL_LEN, "/livestream/%s.m3u8?codec=%s", channelp->liveid, type);
 			url[MAX_URL_LEN-1] = '\0';
 			StrPtrLen inURL(url);
 			HTTPClientSession* sessionp = new HTTPClientSession(inURL, channelp, type);	

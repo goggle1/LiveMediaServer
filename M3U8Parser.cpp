@@ -164,10 +164,32 @@ int M3U8Parser::Parse(char * datap, UInt32 len)
 
 				if(strlen(fSegments[fSegmentsNum-1].relative_url) == 0)
 				{
-					snprintf(fSegments[fSegmentsNum-1].relative_url, MAX_URL_LEN-1, "/%s/%s", 
+					snprintf(fSegments[fSegmentsNum-1].relative_url, MAX_URL_LEN, "/%s/%s", 
 						fM3U8Path.Ptr, fSegments[fSegmentsNum-1].m3u8_relative_url);
 					fSegments[fSegmentsNum-1].relative_url[MAX_URL_LEN-1] = '\0';
 				}
+				
+				// 3702892333/f55620cec48a8319e6e164540e05fa7920e68294/flv/2013/12/04/20131017T171949_03_20131204_124548_1540237.flv
+				lineParser.ConsumeUntil(NULL, '/');
+				lineParser.Expect('/');
+				lineParser.ConsumeUntil(NULL, '/');
+				lineParser.Expect('/');
+				lineParser.ConsumeUntil(NULL, '/');
+				lineParser.Expect('/');
+				lineParser.ConsumeUntil(NULL, '/');
+				lineParser.Expect('/');
+				lineParser.ConsumeUntil(NULL, '/');
+				lineParser.Expect('/');
+				lineParser.ConsumeUntil(NULL, '/');
+				lineParser.Expect('/');
+				int file_name_len = lineParser.GetDataRemaining();
+				if(file_name_len >= MAX_URL_LEN)
+				{
+					fprintf(stderr, "%s: file_name_len[%d] >= MAX_URL_LEN[%d]\n", __PRETTY_FUNCTION__, file_name_len, MAX_URL_LEN);
+					file_name_len = MAX_URL_LEN - 1;
+				}
+				strncpy(fSegments[fSegmentsNum-1].file_name, lineParser.GetCurrentPosition(), file_name_len);
+				fSegments[fSegmentsNum-1].file_name[file_name_len] = '\0';
 
 				// get sequence
 				lineParser.ConsumeUntil(NULL, '_');
