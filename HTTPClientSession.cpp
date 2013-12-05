@@ -721,10 +721,13 @@ SInt64 HTTPClientSession::Run()
                     {
                     	fprintf(stdout, "%s: get %s return error: %d\n", 
                     		__PRETTY_FUNCTION__, fM3U8Parser.fSegments[fGetIndex].relative_url, get_status);
-                   		fprintf(fLogFilep, "%s, error: %d, begin_time: %ld.%ld, end_time: %ld.%ld\n", 
-                    		fM3U8Parser.fSegments[fGetIndex].relative_url, get_status, 
-                    		fSegmentBeginTime.tv_sec, fSegmentBeginTime.tv_usec,
-                    		fSegmentEndTime.tv_sec,   fSegmentEndTime.tv_usec);
+                    	if(fLogFilep != NULL)
+                    	{
+	                   		fprintf(fLogFilep, "%s, error: %d, begin_time: %ld.%ld, end_time: %ld.%ld\n", 
+	                    		fM3U8Parser.fSegments[fGetIndex].relative_url, get_status, 
+	                    		fSegmentBeginTime.tv_sec, fSegmentBeginTime.tv_usec,
+	                    		fSegmentEndTime.tv_sec,   fSegmentEndTime.tv_usec);
+                    	}
                     	
                         fGetIndex ++;
                         fGetTryCount = 0;
@@ -743,10 +746,13 @@ SInt64 HTTPClientSession::Run()
                     {
                     	fprintf(stdout, "%s: get %s done, len=%d\n", 
                     		__PRETTY_FUNCTION__, fM3U8Parser.fSegments[fGetIndex].relative_url, fClient->GetContentLength());
-                    	fprintf(fLogFilep, "%s, len: %u, begin_time: %ld.%ld, end_time: %ld.%ld\n", 
-                    		fM3U8Parser.fSegments[fGetIndex].relative_url, fClient->GetContentLength(), 
-                    		fSegmentBeginTime.tv_sec, fSegmentBeginTime.tv_usec,
-                    		fSegmentEndTime.tv_sec,   fSegmentEndTime.tv_usec);
+                    	if(fLogFilep != NULL)
+                    	{
+	                    	fprintf(fLogFilep, "%s, len: %u, begin_time: %ld.%ld, end_time: %ld.%ld\n", 
+	                    		fM3U8Parser.fSegments[fGetIndex].relative_url, fClient->GetContentLength(), 
+	                    		fSegmentBeginTime.tv_sec, fSegmentBeginTime.tv_usec,
+	                    		fSegmentEndTime.tv_sec,   fSegmentEndTime.tv_usec);
+                    	}
                     	MemoSourceSegment(fClient->GetContentLength(), fSegmentBeginTime, fSegmentEndTime);
                     	if(fClient->GetContentLength() > 0)
                     	{

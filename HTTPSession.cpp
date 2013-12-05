@@ -795,7 +795,11 @@ QTSS_Error  HTTPSession::RecvData()
 
 QTSS_Error HTTPSession::SendData()
 {  	
-	QTSS_Error ret = QTSS_NoErr;	
+	QTSS_Error ret = QTSS_NoErr;
+	if(fStrRemained.Len <= 0)
+    {
+    	return QTSS_ResponseDone;
+    }  	
 
 	u_int64_t should_send_len = fStrRemained.Len;
 		
@@ -1597,7 +1601,7 @@ QTSS_Error HTTPSession::ResponseCmdChannelStatus()
 		content.Put("\t\t</sources>\n");
 		
 		content.Put("\t\t<status>\n");
-		if(channelp->memoryp_ts)
+		if(channelp->memoryp_ts && channelp->sessionp_ts)
 		{
 			MEMORY_T* memoryp = channelp->memoryp_ts;
 			HTTPClientSession* sessionp = channelp->sessionp_ts;
@@ -1630,7 +1634,7 @@ QTSS_Error HTTPSession::ResponseCmdChannelStatus()
 				m3u8p->begin_time, str_m3u8_begin_time, m3u8p->end_time, str_m3u8_end_time,
 				clipp->begin_time, str_clip_begin_time, clipp->end_time, str_clip_end_time);
 		}
-		if(channelp->memoryp_flv)
+		if(channelp->memoryp_flv && channelp->sessionp_flv)
 		{
 			MEMORY_T* memoryp = channelp->memoryp_flv;
 			HTTPClientSession* sessionp = channelp->sessionp_flv;
@@ -1663,7 +1667,7 @@ QTSS_Error HTTPSession::ResponseCmdChannelStatus()
 				m3u8p->begin_time, str_m3u8_begin_time, m3u8p->end_time, str_m3u8_end_time,
 				clipp->begin_time, str_clip_begin_time, clipp->end_time, str_clip_end_time);
 		}
-		if(channelp->memoryp_mp4)
+		if(channelp->memoryp_mp4 && channelp->sessionp_mp4)
 		{
 			MEMORY_T* memoryp = channelp->memoryp_mp4;
 			HTTPClientSession* sessionp = channelp->sessionp_mp4;
