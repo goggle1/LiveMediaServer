@@ -78,8 +78,8 @@ HTTPClientSession::HTTPClientSession(CHANNEL_T* channelp, char* type)
 
 	strncpy(fLiveType, type, MAX_LIVE_TYPE-1);
 	fLiveType[MAX_LIVE_TYPE-1] = '\0';
-	strcpy(fM3U8Path, URI_LIVESTREAM);
-	snprintf(fUrl, MAX_URL_LEN, "%s%s.m3u8?codec=%s", fM3U8Path, channelp->liveid, type);
+	strcpy(fM3U8Path, "livestream");
+	snprintf(fUrl, MAX_URL_LEN, "/%s/%s.m3u8?codec=%s", fM3U8Path, channelp->liveid, type);
 	fUrl[MAX_URL_LEN-1] = '\0';	
 	StrPtrLen path(fM3U8Path);
 	fM3U8Parser.SetPath(&path);
