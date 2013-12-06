@@ -8,32 +8,38 @@
 #include "BaseServer/TimeoutTask.h"
 
 #include "deque.h"
+#include "channel.h"
 #include "HTTPClient.h"
 #include "M3U8Parser.h"
-#include "channel.h"
+
 
 #define MAX_TRY_COUNT	3
 
 class HTTPClientSession : public Task
 {
 	public:
-		HTTPClientSession(const StrPtrLen& inURL, CHANNEL_T* channelp, char* type);
-virtual	~HTTPClientSession();
-virtual     SInt64      Run();
-	int		Start();
-	Bool16	IsDownloaded(SEGMENT_T* segp);
-	Bool16	DownloadTimeout();
-	void 	SetUrl(const StrPtrLen& inURL);
-	int		SetSources(DEQUE_NODE* source_list);
-	int 	Log(char* url, char* datap, UInt32 len);	
-	int 	Write(StrPtrLen& file_name, char* datap, UInt32 len);
-	int 	RewriteM3U8(M3U8Parser* parserp);	
-	int 	MemoM3U8(M3U8Parser* parserp, time_t begin_time, time_t end_time);
-	int 	MemoSegment(SEGMENT_T* segp, char* datap, UInt32 len, time_t begin_time, time_t end_time);
-	MEMORY_T*	GetMemory() { return fMemory; }
-	char*	GetSourceHost() { return fHost; }
-	time_t	CalcBreakTime();
-	char*	GetM3U8Path() { return fM3U8Path.Ptr; };
+			HTTPClientSession(CHANNEL_T* channelp, char* type);
+	virtual	~HTTPClientSession();
+	virtual     SInt64      Run();
+		int		Start();
+		int		Stop();
+		char*	GetM3U8Path() { return fM3U8Path; }
+		char*	GetSourceHost() { return fHost; }	
+		MEMORY_T*	GetMemory() { return fMemory; }	
+		int		UpdateSources(DEQUE_NODE* source_list);
+
+	protected:
+		int		TryStop();
+		int		TrySwitchSources();
+		Bool16	IsDownloaded(SEGMENT_T* segp);
+		Bool16	DownloadTimeout();
+		int		SetSources(DEQUE_NODE* source_list);
+		int 	Log(char* url, char* datap, UInt32 len);	
+		int 	Write(StrPtrLen& file_name, char* datap, UInt32 len);
+		int 	RewriteM3U8(M3U8Parser* parserp);	
+		int 	MemoM3U8(M3U8Parser* parserp, time_t begin_time, time_t end_time);
+		int 	MemoSegment(SEGMENT_T* segp, char* datap, UInt32 len, time_t begin_time, time_t end_time);	
+		time_t	CalcBreakTime();
 
 		//
         // States. Find out what the object is currently doing
@@ -56,25 +62,23 @@ virtual     SInt64      Run();
             kDiedWhilePlaying   = 6     // Connection was forceably closed while playing the movie
         };
 
-	protected:
+	
 		int		SwitchSource(OS_Error theErr);
 		int		SetSource(SOURCE_T* sourcep);
 		int		MemoSourceM3U8(time_t newest_time, u_int64_t download_byte, struct timeval download_begin_time, struct timeval download_end_time);
 		int		MemoSourceSegment(u_int64_t download_byte, struct timeval download_begin_time, struct timeval download_end_time);
 		
-		char				fHost[MAX_HOST_LEN];		
-		//UInt32				fInAddr;
-		//UInt16				fInPort;
+		char				fHost[MAX_HOST_LEN];
 		TCPClientSocket* 	fSocket;
 		HTTPClient*			fClient;
-		StrPtrLen   		fURL;
-		StrPtrLen			fM3U8Path;
-		CHANNEL_T*			fChannel;
+		char				fLiveType[MAX_LIVE_TYPE];
+		char 				fM3U8Path[MAX_URL_LEN];
+		char 				fUrl[MAX_URL_LEN];
+		CHANNEL_T*			fChannel;				
+		MEMORY_T*			fMemory;
 		int					fSourceNum;
 		DEQUE_NODE*			fSourceList;
 		DEQUE_NODE*			fSourceNow;
-		MEMORY_T*			fMemory;
-		char*				fType;
 		
 		UInt32          	fState;     // the state machine
 		UInt32          	fDeathReason;
@@ -91,6 +95,11 @@ virtual     SInt64      Run();
 
 		char				fLogFile[PATH_MAX];
 		FILE*				fLogFilep;
+
+		// from cmd
+		Bool16				fWillStop;
+		Bool16				fWillUpdateSources;
+		DEQUE_NODE*			fWillSourceList;
 		
 };
 

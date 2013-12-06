@@ -59,49 +59,64 @@ int make_dir(StrPtrLen& dir)
 	return 0;
 }
 
-HTTPClientSession::HTTPClientSession(const StrPtrLen& inURL, CHANNEL_T* channelp, char* type)
+HTTPClientSession::HTTPClientSession(CHANNEL_T* channelp, char* type)
 	:fTimeoutTask(this, 60)
 {		
-	fSocket = new TCPClientSocket(Socket::kNonBlockingSocketType);	
-	//fSocket->SetUrl(fInAddr, fInPort);
+	fprintf(stdout, "%s: type=%s, liveid=%s\n", __PRETTY_FUNCTION__, type, channelp->liveid);
 	
-	fClient = new HTTPClient(fSocket/*, channelp*/);	
+	fSocket = new TCPClientSocket(Socket::kNonBlockingSocketType);	
+	
+	fClient = new HTTPClient(fSocket);	
 
 	fChannel= channelp;
+	
 	fSourceNum = 0;
 	fSourceList	= NULL;
 	fSourceNow = NULL;
+	fWillSourceList = NULL;
 	SetSources(fChannel->source_list);
+
+	strncpy(fLiveType, type, MAX_LIVE_TYPE-1);
+	fLiveType[MAX_LIVE_TYPE-1] = '\0';
+	strcpy(fM3U8Path, URI_LIVESTREAM);
+	snprintf(fUrl, MAX_URL_LEN, "%s%s.m3u8?codec=%s", fM3U8Path, channelp->liveid, type);
+	fUrl[MAX_URL_LEN-1] = '\0';	
+	StrPtrLen path(fM3U8Path);
+	fM3U8Parser.SetPath(&path);
+
+	fState = kSendingGetM3U8;	
+	fGetIndex	= 0;
+	fWillStop = false;
+	fWillUpdateSources = false;
 	
-	fType	= strdup(type);
+	snprintf(fLogFile, PATH_MAX, "%s/%s_%s.log", g_config.work_path, fLiveType, fChannel->liveid);
+	fLogFile[PATH_MAX-1] = '\0';
+	fLogFilep = fopen(fLogFile, "a");
+	
 	fMemory = (MEMORY_T*)malloc(sizeof(MEMORY_T));	
+	// if fMemory == NULL, thrown exception.
 	memset(fMemory, 0, sizeof(MEMORY_T));
 	fMemory->clips = (CLIP_T*)malloc(g_config.max_clip_num * sizeof(CLIP_T));
 	memset(fMemory->clips, 0, g_config.max_clip_num * sizeof(CLIP_T));
-	if(strcasecmp(fType, "ts") == 0)
+	if(strcasecmp(fLiveType, LIVE_TS) == 0)
 	{
 		channelp->memoryp_ts = fMemory;
+		channelp->sessionp_ts = this;
 	}
-	else if(strcasecmp(fType, "flv") == 0)
+	else if(strcasecmp(fLiveType, LIVE_FLV) == 0)
 	{
 		channelp->memoryp_flv = fMemory;
+		channelp->sessionp_flv = this;
 	}
-	else if(strcasecmp(fType, "mp4") == 0)
+	else if(strcasecmp(fLiveType, LIVE_MP4) == 0)
 	{
 		channelp->memoryp_mp4 = fMemory;
+		channelp->sessionp_mp4 = this;
 	}
-
-	fState = kSendingGetM3U8;
-	this->SetUrl(inURL);	
 	
-	fGetIndex	= 0;
-
-	snprintf(fLogFile, PATH_MAX, "%s/%s_%s.log", g_config.work_path, fType, fChannel->liveid);
-	fLogFile[PATH_MAX-1] = '\0';
-	fLogFilep = fopen(fLogFile, "a");
 	//this->Signal(Task::kStartEvent);
 
-	fprintf(stdout, "%s\n", __PRETTY_FUNCTION__);
+	
 }
 
 HTTPClientSession::~HTTPClientSession()
@@ -111,9 +126,6 @@ HTTPClientSession::~HTTPClientSession()
 		fclose(fLogFilep);
 		fLogFilep = NULL;
 	}
-	
-	delete [] fM3U8Path.Ptr;
-	delete [] fURL.Ptr;
 
 	if(fMemory != NULL)
 	{
@@ -141,11 +153,6 @@ HTTPClientSession::~HTTPClientSession()
 		fMemory = NULL;
 	}
 	
-	if(fType != NULL)
-	{
-		free(fType);
-		fType = NULL;
-	}
 	
 	if(fClient != NULL)
 	{
@@ -166,57 +173,34 @@ int HTTPClientSession::Start()
 	return 0;
 }
 
-void HTTPClientSession::SetUrl(const StrPtrLen& inURL)
+int HTTPClientSession::Stop()
 {
-    delete [] fURL.Ptr;
-    fURL.Ptr = new char[inURL.Len + 2];
-    fURL.Len = inURL.Len;
-    char* destPtr = fURL.Ptr;
-    
-    // add a leading '/' to the url if it isn't a full URL and doesn't have a leading '/'
-    if ( !inURL.NumEqualIgnoreCase("http://", strlen("http://")) && inURL.Ptr[0] != '/')
-    {
-        *destPtr = '/';
-        destPtr++;
-        fURL.Len++;
-    }
-    ::memcpy(destPtr, inURL.Ptr, inURL.Len);
-    fURL.Ptr[fURL.Len] = '\0';
-
-    // get m3u8 path    
-    delete [] fM3U8Path.Ptr;
-    int path_len = 0;
-    int index = fURL.Len;
-    for(index=fURL.Len; index>=1; index--)
-    {
-    	if(fURL.Ptr[index] == '/')
-    	{
-    		path_len = index - 1;
-    	}
-    }
-    fM3U8Path.Ptr = new char[path_len+1];
-    fM3U8Path.Len = path_len;
-    ::memcpy(fM3U8Path.Ptr, fURL.Ptr+1, path_len);
-    fM3U8Path.Ptr[path_len] = '\0';   
-
-    fM3U8Parser.SetPath(&fM3U8Path);
-    
+	fWillStop = true;
+	return 0;
 }
 
-int HTTPClientSession::SetSources(DEQUE_NODE* source_list)
+int HTTPClientSession::TryStop()
 {
+	if(!fWillStop)
+	{
+		return -1;
+	}
+	
+	fprintf(stdout, "%s\n", __PRETTY_FUNCTION__);
+	fState = kDone;
+	this->Signal(Task::kKillEvent);
+	fWillStop = false;
+	return 0;
+	
+}
+
+
+int HTTPClientSession::SetSources(DEQUE_NODE* source_list)
+{	
 	int ret = 0;
 
 	fprintf(stdout, "%s\n", __PRETTY_FUNCTION__);
-	if(fSourceNow != NULL)
-	{
-		fSourceNum = 0;
-		fSourceList	= NULL;
-		fSourceNow = NULL;
-		fClient->Disconnect();
-	}
 	
-	fState = kSendingGetM3U8;	
 	fSourceList = source_list;
 	fSourceNum = deque_num(fSourceList);
 	if(fSourceNum == 0)
@@ -231,6 +215,42 @@ int HTTPClientSession::SetSources(DEQUE_NODE* source_list)
 	
 	return ret;
 }
+
+int HTTPClientSession::UpdateSources(DEQUE_NODE* source_list)
+{
+	fWillUpdateSources = true;
+	fWillSourceList = source_list;
+	return 0;
+}
+
+int HTTPClientSession::TrySwitchSources()
+{	
+	int ret = 0;
+
+	if(!fWillUpdateSources)
+	{
+		return -1;
+	}
+		
+	fprintf(stdout, "%s\n", __PRETTY_FUNCTION__);
+	
+	if(fSourceNow != NULL)
+	{
+		fSourceNum = 0;
+		fSourceList	= NULL;
+		fSourceNow = NULL;
+		fClient->Disconnect();
+	}
+	
+	fState = kSendingGetM3U8;	
+
+	ret = SetSources(fWillSourceList);	
+	fWillSourceList = NULL;
+	fWillUpdateSources = false;
+	
+	return ret;
+}
+
 
 int HTTPClientSession::SwitchSource(OS_Error theErr)
 {
@@ -469,7 +489,7 @@ int HTTPClientSession::MemoM3U8(M3U8Parser* parserp, time_t begin_time, time_t e
 		{
 			SEGMENT_T* segp = &(parserp->fSegments[index]);
 			content.PutFmtStr("#EXTINF:%u,\n", segp->inf);
-			if(strcasecmp(fType, "ts") == 0)
+			if(strcasecmp(fLiveType, LIVE_TS) == 0)
 			{
 				// do nothing.
 			}
@@ -480,7 +500,7 @@ int HTTPClientSession::MemoM3U8(M3U8Parser* parserp, time_t begin_time, time_t e
 			#if 0
 			content.PutFmtStr("%s\n", segp->m3u8_relative_url);
 			#else
-			content.PutFmtStr("http://%s:%u/%s/%s\n", g_config.service_ip, g_config.port, fM3U8Path.Ptr, segp->m3u8_relative_url);
+			content.PutFmtStr("http://%s:%u/%s/%s\n", g_config.service_ip, g_config.port, fM3U8Path, segp->m3u8_relative_url);
 			#endif
 		}
 	
@@ -503,7 +523,7 @@ int HTTPClientSession::MemoM3U8(M3U8Parser* parserp, time_t begin_time, time_t e
 int HTTPClientSession::RewriteM3U8(M3U8Parser* parserp)
 {
 	char path[PATH_MAX] = {'\0'};
-	sprintf(path, "%s/%s_%s.m3u8", g_config.work_path, fType, fChannel->liveid);
+	sprintf(path, "%s/%s_%s.m3u8", g_config.work_path, fLiveType, fChannel->liveid);
 	int fd = open(path, O_WRONLY|O_CREAT|O_TRUNC, 0666);
 	if(fd == -1)
 	{
@@ -529,7 +549,7 @@ int HTTPClientSession::RewriteM3U8(M3U8Parser* parserp)
 	{
 		SEGMENT_T* segp = &(parserp->fSegments[index]);
 		ret = dprintf(fd, "#EXTINF:%u,\n", segp->inf);
-		if(strcasecmp(fType, "ts") == 0)
+		if(strcasecmp(fLiveType, "ts") == 0)
 		{
 			// do nothing.
 		}
@@ -629,7 +649,7 @@ SInt64 HTTPClientSession::Run()
     #if 0
     fTimeoutTask.RefreshTimeout();
     #endif
-
+	int ret = 0;
     OS_Error theErr = OS_NoErr;    
     while ((theErr == OS_NoErr) && (fState != kDone))
     {
@@ -639,12 +659,22 @@ SInt64 HTTPClientSession::Run()
         {
             case kSendingGetM3U8:
             {
+            	ret = TryStop();
+               	if(ret == 0)
+               	{
+               		break;
+               	}
+               	ret = TrySwitchSources();
+               	if(ret == 0)
+               	{
+               		break;
+               	}
             	fGetIndex = 0;
             	fGetTryCount = 0;
             	//fprintf(stdout, "%s[0x%016lX][0x%016lX][%ld]: get %s\n", __PRETTY_FUNCTION__, this->fDefaultThread, this->fUseThisThread, pthread_self(), fURL.Ptr);            	
-            	theErr = fClient->SendGetM3U8(fURL.Ptr); 
+            	theErr = fClient->SendGetM3U8(fUrl); 
             	fM3U8BeginTime = fClient->fBeginTime;
-               	fM3U8EndTime = fClient->fEndTime;
+               	fM3U8EndTime = fClient->fEndTime;               	
             	if (theErr == OS_NoErr)
                 {                   	
                 	UInt32 get_status = fClient->GetStatus();
@@ -652,7 +682,7 @@ SInt64 HTTPClientSession::Run()
                     {
                     	fprintf(stdout, "%s[0x%016lX][0x%016lX][%ld]: get %s return error: %d\n", 
                     		__PRETTY_FUNCTION__, (long)this->fDefaultThread, (long)this->fUseThisThread, pthread_self(), 
-                    		fURL.Ptr, get_status);
+                    		fUrl, get_status);
                         theErr = ENOT200; // Exit the state machine
                         break;
                     }
@@ -660,7 +690,7 @@ SInt64 HTTPClientSession::Run()
                     {
                     	fprintf(stdout, "%s[0x%016lX][0x%016lX][%ld]: get %s done, len=%d\n", 
                     		__PRETTY_FUNCTION__, (long)this->fDefaultThread, (long)this->fUseThisThread, pthread_self(), 
-                    		fURL.Ptr, fClient->GetContentLength());
+                    		fUrl, fClient->GetContentLength());
                     	//Log(fURL.Ptr, fClient->GetContentBody(), fClient->GetContentLength());
                         fM3U8Parser.Parse(fClient->GetContentBody(), fClient->GetContentLength());
                         MemoSourceM3U8(fM3U8Parser.GetNewestTime(), fClient->GetContentLength(), fM3U8BeginTime, fM3U8EndTime);
@@ -680,6 +710,16 @@ SInt64 HTTPClientSession::Run()
             }
             case kSendingGetSegment:
             {
+            	ret = TryStop();
+               	if(ret == 0)
+               	{
+               		break;
+               	}
+               	ret = TrySwitchSources();
+               	if(ret == 0)
+               	{
+               		break;
+               	}
             	if(fM3U8Parser.fSegmentsNum <= 0)
             	{
             		fState = kSendingGetM3U8;

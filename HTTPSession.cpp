@@ -72,11 +72,6 @@
 #define CMD_SESSION_STATUS 	"session_status"
 #define CMD_QUERY_VERSION 	"queryversion"
 
-#define URI_LIVESTREAM		"/livestream/"
-#define LIVE_TS				"ts"
-#define LIVE_FLV			"flv"
-#define LIVE_MP4			"mp4"
-
 #define MAX_REASON_LEN		256
 #define MAX_TIME_LEN		64
 
@@ -1248,121 +1243,93 @@ QTSS_Error HTTPSession::ResponseCmdUpdateChannel(CHANNEL_T* findp, CHANNEL_T* ch
 	findp->bitrate	= channelp->bitrate;
 	strcpy(findp->channel_name, channelp->channel_name);
 	findp->source_list = channelp->source_list;
-	
-	if(findp->codec_ts != channelp->codec_ts)
+
+	findp->codec_ts = channelp->codec_ts;
+	if(findp->sessionp_ts != NULL)
 	{
-		findp->codec_ts = channelp->codec_ts;
-		if(findp->sessionp_ts != NULL)
+		if(findp->codec_ts == 0 || findp->source_list == NULL)
 		{
 			// stop it
-			findp->sessionp_ts->Signal(Task::kKillEvent);
+			HTTPClientSession* sessionp = findp->sessionp_ts;
 			findp->sessionp_ts = NULL;
+			sessionp->Stop();
 		}
 		else
 		{
-			if(channelp->codec_ts == 1 && channelp->source_list != NULL)
-			{
-				// start it
-				char* type = "ts";
-				char url[MAX_URL_LEN];
-				snprintf(url, MAX_URL_LEN, "/livestream/%s.m3u8?codec=%s", channelp->liveid, type);
-				url[MAX_URL_LEN-1] = '\0';
-				StrPtrLen inURL(url);
-				HTTPClientSession* sessionp = new HTTPClientSession(inURL, findp, type);	
-				if(sessionp == NULL)
-				{
-					return -1;
-				}
-				findp->sessionp_ts = sessionp;
-				sessionp->Start();
-			}
+			// update source_list
+			findp->sessionp_ts->UpdateSources(findp->source_list);
 		}
 	}
 	else
 	{
-		if(findp->sessionp_ts)
-		{
-			findp->sessionp_ts->SetSources(findp->source_list);
-			findp->sessionp_ts->Start();
+		if(findp->codec_ts == 1 && findp->source_list != NULL)
+		{		
+			// start it				
+			HTTPClientSession* sessionp = new HTTPClientSession(findp, LIVE_TS);	
+			if(sessionp != NULL)
+			{
+				sessionp->Start();
+			}
 		}
-	}
+	}	
 
-	if(findp->codec_flv != channelp->codec_flv)
+	findp->codec_flv = channelp->codec_flv;
+	if(findp->sessionp_flv != NULL)
 	{
-		findp->codec_flv = channelp->codec_flv;
-		if(findp->sessionp_flv != NULL)
+		if(findp->codec_flv == 0 || findp->source_list == NULL)
 		{
 			// stop it
-			findp->sessionp_flv->Signal(Task::kKillEvent);
+			HTTPClientSession* sessionp = findp->sessionp_flv;
 			findp->sessionp_flv = NULL;
+			sessionp->Stop();
 		}
 		else
 		{
-			if(channelp->codec_flv == 1 && channelp->source_list != NULL)
-			{
-				// start it
-				char* type = "flv";
-				char url[MAX_URL_LEN];
-				snprintf(url, MAX_URL_LEN, "/livestream/%s.m3u8?codec=%s", channelp->liveid, type);
-				url[MAX_URL_LEN-1] = '\0';
-				StrPtrLen inURL(url);
-				HTTPClientSession* sessionp = new HTTPClientSession(inURL, findp, type);	
-				if(sessionp == NULL)
-				{
-					return -1;
-				}
-				findp->sessionp_flv = sessionp;
-				sessionp->Start();
-			}
+			// update source_list
+			findp->sessionp_flv->UpdateSources(findp->source_list);
 		}
 	}
 	else
 	{
-		if(findp->sessionp_flv)
-		{
-			findp->sessionp_flv->SetSources(findp->source_list);
-			findp->sessionp_flv->Start();
+		if(findp->codec_flv == 1 && findp->source_list != NULL)
+		{		
+			// start it				
+			HTTPClientSession* sessionp = new HTTPClientSession(findp, LIVE_FLV);	
+			if(sessionp != NULL)
+			{
+				sessionp->Start();
+			}
 		}
-	}
-
-	if(findp->codec_mp4 != channelp->codec_mp4)
+	}	
+	
+	findp->codec_mp4 = channelp->codec_mp4;
+	if(findp->sessionp_mp4 != NULL)
 	{
-		findp->codec_mp4 = channelp->codec_mp4;
-		if(findp->sessionp_mp4 != NULL)
+		if(findp->codec_mp4 == 0 || findp->source_list == NULL)
 		{
 			// stop it
-			findp->sessionp_mp4->Signal(Task::kKillEvent);
+			HTTPClientSession* sessionp = findp->sessionp_mp4;
 			findp->sessionp_mp4 = NULL;
+			sessionp->Stop();
 		}
 		else
 		{
-			if(channelp->codec_mp4 == 1 && channelp->source_list != NULL)
-			{
-				// start it
-				char* type = "mp4";
-				char url[MAX_URL_LEN];
-				snprintf(url, MAX_URL_LEN, "/livestream/%s.m3u8?codec=%s", channelp->liveid, type);
-				url[MAX_URL_LEN-1] = '\0';
-				StrPtrLen inURL(url);
-				HTTPClientSession* sessionp = new HTTPClientSession(inURL, findp, type);	
-				if(sessionp == NULL)
-				{
-					return -1;
-				}
-				findp->sessionp_mp4 = sessionp;
-				sessionp->Start();
-			}
+			// update source_list
+			findp->sessionp_mp4->UpdateSources(findp->source_list);
 		}
 	}
 	else
 	{
-		if(findp->sessionp_mp4)
-		{
-			findp->sessionp_mp4->SetSources(findp->source_list);
-			findp->sessionp_mp4->Start();
+		if(findp->codec_mp4 == 1 && findp->source_list != NULL)
+		{		
+			// start it				
+			HTTPClientSession* sessionp = new HTTPClientSession(findp, LIVE_MP4);	
+			if(sessionp != NULL)
+			{
+				sessionp->Start();
+			}
 		}
 	}
-
 
 	if(channelp != NULL)
 	{
@@ -1415,7 +1382,8 @@ QTSS_Error HTTPSession::ResponseCmdDelChannel()
 		char reason[MAX_REASON_LEN] = "";
 		snprintf(reason, MAX_REASON_LEN, "can not find liveid[%s]", channelp->liveid);
 		reason[MAX_REASON_LEN-1] = '\0';
-		ret = ResponseCmdResult(CMD_DEL_CHANNEL, "error", "failure", reason);
+		//ret = ResponseCmdResult(CMD_DEL_CHANNEL, "error", "failure", reason);
+		ret = ResponseCmdResult(CMD_DEL_CHANNEL, "ok", "non-exist", reason);
 
 		channel_release(channelp);
 		channelp = NULL;
@@ -1627,10 +1595,10 @@ QTSS_Error HTTPSession::ResponseCmdChannelStatus()
 			ctime_r(&m3u8p->end_time, str_m3u8_end_time);
 			ctime_r(&clipp->begin_time, str_clip_begin_time);
 			ctime_r(&clipp->end_time, str_clip_end_time);
-			content.PutFmtStr("\t\t\t<%s source=\"%s\" m3u8_num=\"%d\" clip_num=\"%d\" "
+			content.PutFmtStr("\t\t\t<%s source=\"%s\" m3u8_num=\"%d\" clip_num=\"%d[%lu]\" "
 				"m3u8_begin_time=\"%ld[%s]\" m3u8_end_time=\"%ld[%s]\" "
 				"clip_begin_time=\"%ld[%s]\" clip_end_time=\"%ld[%s]\" />\n",
-				"tss", sessionp->GetSourceHost(), memoryp->m3u8_num, memoryp->clip_num,
+				"tss", sessionp->GetSourceHost(), memoryp->m3u8_num, memoryp->clip_num, clipp->sequence,
 				m3u8p->begin_time, str_m3u8_begin_time, m3u8p->end_time, str_m3u8_end_time,
 				clipp->begin_time, str_clip_begin_time, clipp->end_time, str_clip_end_time);
 		}
@@ -1660,10 +1628,10 @@ QTSS_Error HTTPSession::ResponseCmdChannelStatus()
 			ctime_r(&m3u8p->end_time, str_m3u8_end_time);
 			ctime_r(&clipp->begin_time, str_clip_begin_time);
 			ctime_r(&clipp->end_time, str_clip_end_time);
-			content.PutFmtStr("\t\t\t<%s source=\"%s\" m3u8_num=\"%d\" clip_num=\"%d\" "
+			content.PutFmtStr("\t\t\t<%s source=\"%s\" m3u8_num=\"%d\" clip_num=\"%d[%lu]\" "
 				"m3u8_begin_time=\"%ld[%s]\" m3u8_end_time=\"%ld[%s]\" "
 				"clip_begin_time=\"%ld[%s]\" clip_end_time=\"%ld[%s]\" />\n",
-				"flv", sessionp->GetSourceHost(), memoryp->m3u8_num, memoryp->clip_num,
+				"flv", sessionp->GetSourceHost(), memoryp->m3u8_num, memoryp->clip_num, clipp->sequence,
 				m3u8p->begin_time, str_m3u8_begin_time, m3u8p->end_time, str_m3u8_end_time,
 				clipp->begin_time, str_clip_begin_time, clipp->end_time, str_clip_end_time);
 		}
@@ -1693,10 +1661,10 @@ QTSS_Error HTTPSession::ResponseCmdChannelStatus()
 			ctime_r(&m3u8p->end_time, str_m3u8_end_time);
 			ctime_r(&clipp->begin_time, str_clip_begin_time);
 			ctime_r(&clipp->end_time, str_clip_end_time);
-			content.PutFmtStr("\t\t\t<%s source=\"%s\" m3u8_num=\"%d\" clip_num=\"%d\" "
+			content.PutFmtStr("\t\t\t<%s source=\"%s\" m3u8_num=\"%d\" clip_num=\"%d[%lu]\" "
 				"m3u8_begin_time=\"%ld[%s]\" m3u8_end_time=\"%ld[%s]\" "
 				"clip_begin_time=\"%ld[%s]\" clip_end_time=\"%ld[%s]\" />\n",
-				"mp4", sessionp->GetSourceHost(), memoryp->m3u8_num, memoryp->clip_num,
+				"mp4", sessionp->GetSourceHost(), memoryp->m3u8_num, memoryp->clip_num, clipp->sequence,
 				m3u8p->begin_time, str_m3u8_begin_time, m3u8p->end_time, str_m3u8_end_time,
 				clipp->begin_time, str_clip_begin_time, clipp->end_time, str_clip_end_time);
 		}		
@@ -1826,7 +1794,13 @@ QTSS_Error HTTPSession::ResponseCmdResult(char* cmd, char* return_val, char* res
 	if(fCmd.format == 0)
 	{
 		content.PutFmtStr("return=%s\r\n", return_val);
-		content.PutFmtStr("result=%s\r\n", result);
+		content.PutFmtStr("result=%s[%s]\r\n", result, reason);
+		content.PutFmtStr("cmd=%s\r\n", cmd);
+		content.PutFmtStr("server=%s/%s\r\n", BASE_SERVER_NAME, BASE_SERVER_VERSION);
+		time_t now = time(NULL);
+		char str_now[MAX_TIME_LEN] = {0};
+		ctime_r(&now, str_now);
+		content.PutFmtStr("time=%s\r\n", str_now);
 		
 		ResponseContent(content.GetBufPtr(), content.GetBytesWritten(), CONTENT_TYPE_TEXT_PLAIN);
 	}
@@ -2102,7 +2076,7 @@ QTSS_Error HTTPSession::ResponseLiveM3U8()
 	TaskThread* threadp = fHttpClientSession->GetDefaultThread();
 	if(threadp == NULL)
 	{
-		ret = ResponseError(httpNotFound);
+		ret = ResponseError(httpInternalServerError);
 		return ret;
 	}
 	

@@ -3,6 +3,7 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 
+#include "public.h"
 #include "channel.h"
 #include "HTTPClientSession.h"
 
@@ -83,6 +84,7 @@ int channel_add_source(CHANNEL_T* channelp, u_int32_t ip, u_int16_t port)
 }
 
 
+
 int start_channel(CHANNEL_T* channelp)
 {
 	DEQUE_NODE* source_list = channelp->source_list;	
@@ -90,63 +92,38 @@ int start_channel(CHANNEL_T* channelp)
 	{
 		return -1;
 	}
-
-	//DEQUE_NODE* nodep = source_list;
-	//SOURCE_T* sourcep = (SOURCE_T*)nodep->datap;
+	
 	if(channelp->codec_ts)
 	{		
 		if(channelp->sessionp_ts == NULL)
 		{
-			//StrPtrLen 	inURL("http://192.168.8.197:1180/1100000000000000000000000000000000000000.m3u8");
-			//StrPtrLen 	inURL("http://lv.funshion.com/livestream/fd5f6b86b836e38c8eed27c9e66e3e6dcf0a69b2.m3u8?codec=ts");
-			char* type = "ts";
-			char url[MAX_URL_LEN];
-			snprintf(url, MAX_URL_LEN, "/livestream/%s.m3u8?codec=%s", channelp->liveid, type);
-			url[MAX_URL_LEN-1] = '\0';
-			StrPtrLen inURL(url);
-			HTTPClientSession* sessionp = new HTTPClientSession(inURL, channelp, type);	
-			if(sessionp == NULL)
+			HTTPClientSession* sessionp = new HTTPClientSession(channelp, LIVE_TS);
+			if(sessionp != NULL)
 			{
-				return -1;
+				sessionp->Start();
 			}
-			channelp->sessionp_ts = sessionp;
-			sessionp->Start();
 		}
 	}
 	if(channelp->codec_flv)
 	{		
 		if(channelp->sessionp_flv == NULL)
 		{
-			char* type = "flv";
-			char url[MAX_URL_LEN];
-			snprintf(url, MAX_URL_LEN, "/livestream/%s.m3u8?codec=%s", channelp->liveid, type);
-			url[MAX_URL_LEN-1] = '\0';
-			StrPtrLen inURL(url);
-			HTTPClientSession* sessionp = new HTTPClientSession(inURL, channelp, type);	
-			if(sessionp == NULL)
+			HTTPClientSession* sessionp = new HTTPClientSession(channelp, LIVE_FLV);
+			if(sessionp != NULL)
 			{
-				return -1;
+				sessionp->Start();
 			}
-			channelp->sessionp_flv = sessionp;
-			sessionp->Start();
 		}
 	}
 	if(channelp->codec_mp4)
 	{		
 		if(channelp->sessionp_mp4 == NULL)
 		{
-			char* type = "mp4";
-			char url[MAX_URL_LEN];
-			snprintf(url, MAX_URL_LEN, "/livestream/%s.m3u8?codec=%s", channelp->liveid, type);
-			url[MAX_URL_LEN-1] = '\0';
-			StrPtrLen inURL(url);
-			HTTPClientSession* sessionp = new HTTPClientSession(inURL, channelp, type);	
-			if(sessionp == NULL)
+			HTTPClientSession* sessionp = new HTTPClientSession(channelp, LIVE_MP4);
+			if(sessionp != NULL)
 			{
-				return -1;
+				sessionp->Start();
 			}
-			channelp->sessionp_mp4 = sessionp;
-			sessionp->Start();
 		}
 	}	
 	

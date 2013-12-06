@@ -45,7 +45,6 @@ class HTTPClient
         UInt32      		fState;        
 
         // Information we need to send the request
-        //StrPtrLen   	fURL;
         char			fHost[MAX_HOST_LEN];
 
 		enum

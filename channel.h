@@ -17,6 +17,11 @@
 
 #define MAX_M3U8_CONTENT_LEN (1024*16)
 
+#define LIVE_TS				"ts"
+#define LIVE_FLV			"flv"
+#define LIVE_MP4			"mp4"
+
+
 typedef struct data_t
 {
 	void*		datap;	

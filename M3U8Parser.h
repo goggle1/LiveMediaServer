@@ -5,8 +5,8 @@
 #include <sys/types.h>
 
 #include "BaseServer/StrPtrLen.h"
+#include "public.h"
 
-#define MAX_URL_LEN		256
 #define MAX_SEGMENT_NUM	3
 
 typedef struct segment_t
