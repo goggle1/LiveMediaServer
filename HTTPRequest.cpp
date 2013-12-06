@@ -294,7 +294,7 @@ QTSS_Error HTTPRequest::ParseURI(StringParser* parser)
     ::memcpy(fRequestPath, relativeURIDecoded, theBytesWritten); 
     fRequestPath[theBytesWritten] = '\0';
     
-    delete relativeURIDecoded;
+    delete []relativeURIDecoded;
     
 #else    
     fRequestPath = new char[len+1];

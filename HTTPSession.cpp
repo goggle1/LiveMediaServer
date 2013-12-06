@@ -523,9 +523,11 @@ HTTPSession::HTTPSession(SESSION_T* sessionp):
     fStrRemained(fStrResponse),
     fResponse(NULL, 0)    
 {
+#if 0
 	fprintf(stdout, "%s[0x%016lX] remote_ip=0x%08X, port=%u \n", 
 		__PRETTY_FUNCTION__, (long)this,
 		fSocket.GetRemoteAddr(), fSocket.GetRemotePort());
+#endif
 	fFd	= -1;
 	fData = NULL;
 	fDataPosition = 0;
