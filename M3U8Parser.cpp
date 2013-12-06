@@ -225,7 +225,7 @@ int M3U8Parser::Parse(char * datap, UInt32 len)
 				temp[2] = '\0';
 				int isecond = atoi(temp);
 				
-				struct tm seg_now;
+				struct tm seg_now = {0};
 				seg_now.tm_year = iyear - 1900;
 				seg_now.tm_mon = imonth - 1;
 				seg_now.tm_mday = iday;

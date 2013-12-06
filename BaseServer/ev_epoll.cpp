@@ -53,7 +53,7 @@ int construct_event_req(struct eventreq* req, int fd_pos, int event)
     #endif
 
 	#if 1    
-    struct epoll_event ev;
+    struct epoll_event ev = {0};
     ev.data.fd = fd;
     ev.events = 0;
     int ret = epoll_ctl(s_epoll_fd, EPOLL_CTL_MOD, fd, &ev);    
@@ -173,7 +173,7 @@ void epoll_startevents()
     FD_SET(s_Pipes[0], &sReadSet);
     sMaxFDPos = s_Pipes[0];
 	#endif
-	struct epoll_event ev;
+	struct epoll_event ev = {0};
 	ev.data.fd = s_Pipes[0];
 	//ev.events = EPOLLIN|EPOLLET;
 	ev.events = EPOLLIN; // EPOLLLT
@@ -188,7 +188,7 @@ int epoll_modwatch(struct eventreq *req, int which)
         //I believe this is the only variable that is not preemptive safe....
         OSMutexLocker locker(&s_MaxFDPosMutex);
 
-		struct epoll_event ev;
+		struct epoll_event ev = {0};
 		ev.data.fd = req->er_handle;
 		//ev.events = EPOLLET;
 		ev.events = 0; //EPOLLLT;
@@ -242,7 +242,7 @@ int epoll_watchevent(struct eventreq *req, int which)
         //I believe this is the only variable that is not preemptive safe....        
         OSMutexLocker locker(&s_MaxFDPosMutex);
 
-		struct epoll_event ev;
+		struct epoll_event ev = {0};
 		ev.data.fd = req->er_handle;
 		//ev.events = EPOLLET;
 		ev.events = 0; //EPOLLLT;
