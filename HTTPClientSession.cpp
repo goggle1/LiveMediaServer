@@ -19,6 +19,34 @@
 #define ENOT200 	2001
 #define ETIMEOUT 	2002
 
+int timeval_cmp(struct timeval* t1, struct timeval* t2)
+{
+	if(t1->tv_sec < t2->tv_sec)
+	{
+		return -1;
+	}
+	else if(t1->tv_sec > t2->tv_sec)
+	{
+		return 1;
+	}
+	else // if(t1->tv_sec == t2->tv_sec)
+	{
+		if(t1->tv_usec < t2->tv_usec)
+		{
+			return -1;
+		}
+		else if(t1->tv_usec > t2->tv_usec)
+		{
+			return 1;
+		}
+		else // if(t1->tv_usec == t2->tv_usec)
+		{
+			return 0;
+		}
+	}
+}
+
+
 time_t timeval_diff(struct timeval* t2, struct timeval* t1)
 {
 	time_t ret1 = 0;
@@ -60,7 +88,7 @@ int make_dir(StrPtrLen& dir)
 }
 
 HTTPClientSession::HTTPClientSession(CHANNEL_T* channelp, char* type)
-	:fTimeoutTask(this, 60)
+	:fTimeoutTask(this, MAX_SEMENT_TIME)
 {		
 	fprintf(stdout, "%s: type=%s, liveid=%s\n", __PRETTY_FUNCTION__, type, channelp->liveid);
 	
@@ -261,11 +289,12 @@ int HTTPClientSession::SwitchSource(OS_Error theErr)
 	// else
 	// network errno
 	
-	fprintf(stdout, "%s\n", __PRETTY_FUNCTION__);	
+	fprintf(stdout, "%s: LiveType=%s, LiveId=%s\n", __PRETTY_FUNCTION__, fLiveType, fChannel->liveid);	
 	if(fSourceNum <= 1)
 	{
-		// network errno
-		if(theErr != ENOT200 && theErr != ETIMEOUT)
+		// network errno , or timeout
+		//if(theErr != ENOT200 && theErr != ETIMEOUT)
+		if(theErr != ENOT200)
 		{
 			// disconnect
 			fClient->Disconnect();
@@ -300,7 +329,24 @@ int HTTPClientSession::SetSource(SOURCE_T* sourcep)
 
 Bool16 HTTPClientSession::DownloadTimeout()
 {
-	// todo
+	int ret = timeval_cmp(&fClient->fEndTime, &fClient->fBeginTime);
+	if(ret < 0)
+	{
+		return false;
+	}
+	else if(ret == 0)
+	{
+		return false;
+	}
+	
+	time_t diff_time = timeval_diff(&fClient->fEndTime, &fClient->fBeginTime);
+	if(diff_time > MAX_SEMENT_TIME * 6)
+	{
+		fprintf(stdout, "%s: LiveType=%s, LiveId=%s, EndTime=%ld, BeginTime=%ld\n", 
+			__PRETTY_FUNCTION__, fLiveType, fChannel->liveid, fClient->fEndTime.tv_sec, fClient->fBeginTime.tv_sec);	
+		return true;
+	}
+	
 	return false;
 }
 
@@ -653,22 +699,19 @@ SInt64 HTTPClientSession::Run()
     OS_Error theErr = OS_NoErr;    
     while ((theErr == OS_NoErr) && (fState != kDone))
     {
+    	ret = TryStop();
+       	if(ret == 0)
+       	{
+       		return 0;
+       	}
+       	ret = TrySwitchSources();       	
+               	
         //
         // Do the appropriate thing depending on our current state
         switch (fState)
         {
             case kSendingGetM3U8:
-            {
-            	ret = TryStop();
-               	if(ret == 0)
-               	{
-               		break;
-               	}
-               	ret = TrySwitchSources();
-               	if(ret == 0)
-               	{
-               		break;
-               	}
+            {            	
             	fGetIndex = 0;
             	fGetTryCount = 0;
             	//fprintf(stdout, "%s[0x%016lX][0x%016lX][%ld]: get %s\n", __PRETTY_FUNCTION__, this->fDefaultThread, this->fUseThisThread, pthread_self(), fURL.Ptr);            	
@@ -710,16 +753,6 @@ SInt64 HTTPClientSession::Run()
             }
             case kSendingGetSegment:
             {
-            	ret = TryStop();
-               	if(ret == 0)
-               	{
-               		break;
-               	}
-               	ret = TrySwitchSources();
-               	if(ret == 0)
-               	{
-               		break;
-               	}
             	if(fM3U8Parser.fSegmentsNum <= 0)
             	{
             		fState = kSendingGetM3U8;
@@ -808,19 +841,9 @@ SInt64 HTTPClientSession::Run()
 			            		fState = kSendingGetM3U8;
 			            		//RewriteM3U8(&fM3U8Parser);
 			            		MemoM3U8(&fM3U8Parser, fM3U8BeginTime.tv_sec, fM3U8EndTime.tv_sec);			            		
-			            		if(DownloadTimeout())
-			            		{
-			            			theErr = ETIMEOUT; // Exit the state machine
-                        			break; 
-			            		}
 			            		time_t break_time = CalcBreakTime();
 		            			return break_time;
 			            	}
-			            	if(DownloadTimeout())
-		            		{
-		            			theErr = ETIMEOUT; // Exit the state machine
-                    			break; 
-		            		}
 		            	}		            
 		            	else // get_status==200 but content-length == 0,
 		            	{
@@ -856,6 +879,13 @@ SInt64 HTTPClientSession::Run()
 
 	if ((theErr == EINPROGRESS) || (theErr == EAGAIN))
     {
+    	if(DownloadTimeout())
+		{
+			theErr = ETIMEOUT; // Exit the state machine
+			SwitchSource(theErr);
+			time_t break_time = CalcBreakTime();
+       		return break_time;
+		}
         //
         // Request an async event
         fSocket->GetSocket()->SetTask(this);
