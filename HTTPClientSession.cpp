@@ -87,10 +87,10 @@ int make_dir(StrPtrLen& dir)
 	return 0;
 }
 
-HTTPClientSession::HTTPClientSession(CHANNEL_T* channelp, char* type)
+HTTPClientSession::HTTPClientSession(CHANNEL_T* channelp, char* live_type)
 	:fTimeoutTask(this, MAX_SEMENT_TIME)
 {		
-	fprintf(stdout, "%s: type=%s, liveid=%s\n", __PRETTY_FUNCTION__, type, channelp->liveid);
+	fprintf(stdout, "%s: live_type=%s, liveid=%s\n", __PRETTY_FUNCTION__, live_type, channelp->liveid);
 	
 	fSocket = new TCPClientSocket(Socket::kNonBlockingSocketType);	
 	
@@ -104,10 +104,11 @@ HTTPClientSession::HTTPClientSession(CHANNEL_T* channelp, char* type)
 	fWillSourceList = NULL;
 	SetSources(fChannel->source_list);
 
-	strncpy(fLiveType, type, MAX_LIVE_TYPE-1);
+	strncpy(fLiveType, live_type, MAX_LIVE_TYPE-1);
 	fLiveType[MAX_LIVE_TYPE-1] = '\0';
 	strcpy(fM3U8Path, "livestream");
-	snprintf(fUrl, MAX_URL_LEN, "/%s/%s.m3u8?codec=%s", fM3U8Path, channelp->liveid, type);
+	//snprintf(fUrl, MAX_URL_LEN, "/%s/%s.m3u8?codec=%s", fM3U8Path, channelp->liveid, live_type);
+	snprintf(fUrl, MAX_URL_LEN, "/%s/%s.m3u8?codec=%s&len=%d", fM3U8Path, channelp->liveid, live_type, MAX_SEGMENT_NUM);
 	fUrl[MAX_URL_LEN-1] = '\0';	
 	StrPtrLen path(fM3U8Path);
 	fM3U8Parser.SetPath(&path);
@@ -116,8 +117,11 @@ HTTPClientSession::HTTPClientSession(CHANNEL_T* channelp, char* type)
 	fGetIndex	= 0;
 	fWillStop = false;
 	fWillUpdateSources = false;
-	
-	snprintf(fLogFile, PATH_MAX, "%s/%s_%s.log", g_config.work_path, fLiveType, fChannel->liveid);
+
+	gettimeofday(&fBeginTime, NULL);
+	snprintf(fLogFile, PATH_MAX, "%s/%s_%s_%ld_%06ld.log", 
+		g_config.work_path, fLiveType, fChannel->liveid,
+		fBeginTime.tv_sec, fBeginTime.tv_usec);
 	fLogFile[PATH_MAX-1] = '\0';
 	fLogFilep = fopen(fLogFile, "a");
 	
@@ -149,8 +153,10 @@ HTTPClientSession::HTTPClientSession(CHANNEL_T* channelp, char* type)
 
 HTTPClientSession::~HTTPClientSession()
 {	
+	gettimeofday(&fEndTime, NULL);	
 	if(fLogFilep != NULL)
 	{
+		fprintf(fLogFilep, "%s, end_time: %ld.%06ld\n", __PRETTY_FUNCTION__, fEndTime.tv_sec, fEndTime.tv_usec);
 		fclose(fLogFilep);
 		fLogFilep = NULL;
 	}
@@ -340,7 +346,7 @@ Bool16 HTTPClientSession::DownloadTimeout()
 	}
 	
 	time_t diff_time = timeval_diff(&fClient->fEndTime, &fClient->fBeginTime);
-	if(diff_time > MAX_SEMENT_TIME * 6)
+	if(diff_time > MAX_TIMEOUT_TIME)
 	{
 		fprintf(stdout, "%s: LiveType=%s, LiveId=%s, EndTime=%ld, BeginTime=%ld\n", 
 			__PRETTY_FUNCTION__, fLiveType, fChannel->liveid, fClient->fEndTime.tv_sec, fClient->fBeginTime.tv_sec);	
@@ -766,7 +772,7 @@ SInt64 HTTPClientSession::Run()
             	{
 	            	if(IsDownloaded(&(fM3U8Parser.fSegments[fGetIndex])))
 	            	{
-	            		fprintf(stdout, "%s: %s downloaded\n", __PRETTY_FUNCTION__, fM3U8Parser.fSegments[fGetIndex].relative_url);
+	            		//fprintf(stdout, "%s: %s downloaded\n", __PRETTY_FUNCTION__, fM3U8Parser.fSegments[fGetIndex].relative_url);
 	            		fGetIndex ++;
 	            		fGetTryCount = 0;
 	            		if(fGetIndex >= fM3U8Parser.fSegmentsNum)
@@ -796,7 +802,7 @@ SInt64 HTTPClientSession::Run()
                     		__PRETTY_FUNCTION__, fM3U8Parser.fSegments[fGetIndex].relative_url, get_status);
                     	if(fLogFilep != NULL)
                     	{
-	                   		fprintf(fLogFilep, "%s, error: %d, begin_time: %ld.%ld, end_time: %ld.%ld\n", 
+	                   		fprintf(fLogFilep, "%s, error: %d, begin_time: %ld.%06ld, end_time: %ld.%06ld\n", 
 	                    		fM3U8Parser.fSegments[fGetIndex].relative_url, get_status, 
 	                    		fSegmentBeginTime.tv_sec, fSegmentBeginTime.tv_usec,
 	                    		fSegmentEndTime.tv_sec,   fSegmentEndTime.tv_usec);
@@ -821,7 +827,7 @@ SInt64 HTTPClientSession::Run()
                     		__PRETTY_FUNCTION__, fM3U8Parser.fSegments[fGetIndex].relative_url, fClient->GetContentLength());
                     	if(fLogFilep != NULL)
                     	{
-	                    	fprintf(fLogFilep, "%s, len: %u, begin_time: %ld.%ld, end_time: %ld.%ld\n", 
+	                    	fprintf(fLogFilep, "%s, len: %u, begin_time: %ld.%06ld, end_time: %ld.%06ld\n", 
 	                    		fM3U8Parser.fSegments[fGetIndex].relative_url, fClient->GetContentLength(), 
 	                    		fSegmentBeginTime.tv_sec, fSegmentBeginTime.tv_usec,
 	                    		fSegmentEndTime.tv_sec,   fSegmentEndTime.tv_usec);

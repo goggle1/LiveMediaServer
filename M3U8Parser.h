@@ -7,7 +7,9 @@
 #include "BaseServer/StrPtrLen.h"
 #include "public.h"
 
-#define MAX_SEGMENT_NUM	3
+//#define MAX_SEGMENT_NUM	3
+#define MAX_SEGMENT_NUM	12
+
 
 typedef struct segment_t
 {

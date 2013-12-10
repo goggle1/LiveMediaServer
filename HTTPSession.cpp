@@ -71,6 +71,9 @@
 #define CMD_CHANNEL_STATUS 	"channel_status"
 #define CMD_SESSION_STATUS 	"session_status"
 #define CMD_QUERY_VERSION 	"queryversion"
+#define CMD_QUERY_PROCESS 	"query_process"
+#define CMD_QUERY_CHANNEL 	"query_channel"
+#define CMD_QUERY_SESSION	"query_session"
 
 #define MAX_REASON_LEN		256
 #define MAX_TIME_LEN		64
@@ -205,6 +208,67 @@ int channel_read_params(CHANNEL_T* channelp, DEQUE_NODE* param_list)
 	}
 
 	return 0;
+}
+
+int params_get_liveid(DEQUE_NODE* param_list, char live_id[MAX_LIVE_ID])
+{
+	DEQUE_NODE* nodep = param_list;
+	while(nodep)
+	{
+		UriParam* paramp = (UriParam*)nodep->datap;
+		if(strcmp(paramp->key, "liveid") == 0)
+		{
+			strncpy(live_id, paramp->value, HASH_LEN);
+			return 0;
+		}
+		
+		
+		if(nodep->nextp == param_list)
+		{
+			break;
+		}
+		nodep = nodep->nextp;
+	}
+
+	return -1;
+}
+
+
+int params_get_ip(DEQUE_NODE* param_list, char client_ip[MAX_IP_LEN])
+{
+	DEQUE_NODE* nodep = param_list;
+	while(nodep)
+	{
+		UriParam* paramp = (UriParam*)nodep->datap;
+		if(strcmp(paramp->key, "ip") == 0)
+		{
+			strncpy(client_ip, paramp->value, MAX_IP_LEN);
+			return 0;
+		}
+		
+		
+		if(nodep->nextp == param_list)
+		{
+			break;
+		}
+		nodep = nodep->nextp;
+	}
+
+	return -1;
+}
+
+SESSION_T* sessions_find_ip(u_int32_t ip)
+{
+	int index = 0;
+	for(index=0; index<=g_http_session_pos; index++)
+	{
+		SESSION_T* sessionp = &g_http_sessions[index];	
+		if(sessionp->remote_ip == ip)
+		{
+			return sessionp;
+		}
+	}
+	return NULL;
 }
 
 Bool16 file_exist(char* abs_path)
@@ -523,11 +587,10 @@ HTTPSession::HTTPSession(SESSION_T* sessionp):
     fStrRemained(fStrResponse),
     fResponse(NULL, 0)    
 {
-#if 0
 	fprintf(stdout, "%s[0x%016lX] remote_ip=0x%08X, port=%u \n", 
 		__PRETTY_FUNCTION__, (long)this,
-		fSocket.GetRemoteAddr(), fSocket.GetRemotePort());
-#endif
+		sessionp->remote_ip, sessionp->remote_port);
+
 	fFd	= -1;
 	fData = NULL;
 	fDataPosition = 0;
@@ -556,9 +619,8 @@ HTTPSession::~HTTPSession()
 	}
     fprintf(stdout, "%s[0x%016lX] remote_ip=0x%08X, port=%u \n", 
 		__PRETTY_FUNCTION__, (long)this,
-		fSocket.GetRemoteAddr(), fSocket.GetRemotePort());
-	fSessionp->remote_ip = fSocket.GetRemoteAddr();
-    fSessionp->remote_port = fSocket.GetRemotePort();
+		fSessionp->remote_ip, fSessionp->remote_port);
+		
 	gettimeofday(&(fSessionp->end_time), NULL);
 	fSessionp->sessionp = NULL;
 }
@@ -776,9 +838,7 @@ QTSS_Error  HTTPSession::RecvData()
     //    __FILE__, __PRETTY_FUNCTION__, __LINE__, (long)this, read_len, start_pos);
 
     fStrReceived.Len += read_len;
-
-    fSessionp->remote_ip = fSocket.GetRemoteAddr();
-    fSessionp->remote_port = fSocket.GetRemotePort();
+    
     fSessionp->upload_bytes += read_len;
    
     bool check = IsFullRequest();
@@ -1516,6 +1576,82 @@ QTSS_Error HTTPSession::ResponseCmdListChannel()
 	return ret;
 }
 
+QTSS_Error HTTPSession::ResponseCmdQueryChannel()
+{
+	QTSS_Error ret = QTSS_NoErr;
+
+	char live_id[MAX_LIVE_ID] = {'\0'};
+	int get = params_get_liveid(fRequest.fParamPairs, live_id);
+	if(get != 0)
+	{
+		char* request_file = "/query_channel.html";
+		char abs_path[PATH_MAX];
+		snprintf(abs_path, PATH_MAX, "%s%s", g_config.work_path, request_file);
+		abs_path[PATH_MAX-1] = '\0';	
+		ret = ResponseFile(abs_path);		
+		return ret;
+	}
+	
+	CHANNEL_T* channelp = g_channels.FindChannelByHash(live_id);
+	if(channelp == NULL)
+	{
+		char reason[MAX_REASON_LEN] = "";
+		snprintf(reason, MAX_REASON_LEN, "can not find liveid[%s]", live_id);
+		reason[MAX_REASON_LEN-1] = '\0';	
+		ret = ResponseCmdResult(CMD_QUERY_CHANNEL, "error", "failure", reason);
+		return ret;
+	}
+
+	u_int64_t newset_seq_ts = 0;
+	u_int64_t newset_seq_flv = 0;
+	u_int64_t newset_seq_mp4 = 0;	
+	if(channelp->memoryp_ts != NULL)
+	{
+		
+		MEMORY_T* memoryp = channelp->memoryp_ts;
+		int clip_index = memoryp->clip_index;
+		clip_index --;
+		if(clip_index < 0)
+		{
+			clip_index = g_config.max_clip_num - 1;
+		}
+		CLIP_T* clipp = &(memoryp->clips[clip_index]);
+		newset_seq_ts = clipp->sequence;		
+	}
+	if(channelp->memoryp_flv != NULL)
+	{
+		
+		MEMORY_T* memoryp = channelp->memoryp_flv;
+		int clip_index = memoryp->clip_index;
+		clip_index --;
+		if(clip_index < 0)
+		{
+			clip_index = g_config.max_clip_num - 1;
+		}
+		CLIP_T* clipp = &(memoryp->clips[clip_index]);
+		newset_seq_flv = clipp->sequence;		
+	}
+	if(channelp->memoryp_mp4 != NULL)
+	{
+		
+		MEMORY_T* memoryp = channelp->memoryp_mp4;
+		int clip_index = memoryp->clip_index;
+		clip_index --;
+		if(clip_index < 0)
+		{
+			clip_index = g_config.max_clip_num - 1;
+		}
+		CLIP_T* clipp = &(memoryp->clips[clip_index]);
+		newset_seq_mp4 = clipp->sequence;		
+	}
+	
+	char seqs[1024] = {'\0'};
+	snprintf(seqs, 1024, "%lu|%lu|%lu", newset_seq_ts, newset_seq_flv, newset_seq_mp4);
+	seqs[1023] = '\0';
+	ret = ResponseCmdResult(CMD_QUERY_CHANNEL, "ok", seqs, "");
+	return ret;
+}
+
 QTSS_Error HTTPSession::ResponseCmdChannelStatus()
 {
 	QTSS_Error ret = QTSS_NoErr;
@@ -1702,16 +1838,88 @@ QTSS_Error HTTPSession::ResponseCmdChannelStatus()
 	return ret;
 }
 
+
+QTSS_Error HTTPSession::ResponseCmdQuerySession()
+{
+	QTSS_Error ret = QTSS_NoErr;
+
+	char client_ip[MAX_IP_LEN] = {'\0'};
+	int get = params_get_ip(fRequest.fParamPairs, client_ip);
+	if(get != 0)
+	{
+		char* request_file = "/query_session.html";
+		char abs_path[PATH_MAX];
+		snprintf(abs_path, PATH_MAX, "%s%s", g_config.work_path, request_file);
+		abs_path[PATH_MAX-1] = '\0';	
+		ret = ResponseFile(abs_path);		
+		return ret;
+	}
+
+	u_int32_t ip = inet_addr(client_ip);
+	SESSION_T* sessionp = sessions_find_ip(ip);
+	if(sessionp == NULL)
+	{
+		char reason[MAX_REASON_LEN] = "";
+		snprintf(reason, MAX_REASON_LEN, "can not find ip[%s]", client_ip);
+		reason[MAX_REASON_LEN-1] = '\0';
+		ret = ResponseCmdResult(CMD_QUERY_SESSION, "error", "failure", reason);
+		return ret;
+	}
+
+	struct timeval now_time;
+	gettimeofday(&now_time, NULL);
+
+	struct timeval* until_timep = NULL;
+	if(sessionp->end_time.tv_sec == 0)
+	{
+		until_timep = &now_time;
+	}
+	else
+	{
+		until_timep = &sessionp->end_time;
+	}
+
+	u_int64_t upload_rate = network_rate(sessionp->upload_bytes, &sessionp->begin_time, until_timep);
+	u_int64_t download_rate = network_rate(sessionp->download_bytes, &sessionp->begin_time, until_timep);
+
+	char session_ip[MAX_IP_LEN] = {'\0'} ;
+	struct in_addr s = {0};
+	s.s_addr = sessionp->remote_ip;
+	inet_ntop(AF_INET, (const void *)&s, session_ip, MAX_IP_LEN);
+
+	char	buffer[4*1024];
+	StringFormatter content(buffer, sizeof(buffer));
+	content.PutFmtStr("remote_ip=0x%08X[%s]\n"
+		"remote_port=%d\n"
+		"session_type=0x%08X\n"
+		"upload_bytes=%ld\n"
+		"download_bytes=%ld\n"
+		"begin_time=%ld.%06ld\n"
+		"end_time=%ld.%06ld\n"
+		"upload_rate=%ld bps\n"
+		"download_rate=%ld bps\n", 
+		sessionp->remote_ip, session_ip, 
+		sessionp->remote_port, 
+		sessionp->session_type,
+		sessionp->upload_bytes, 
+		sessionp->download_bytes,
+		sessionp->begin_time.tv_sec, sessionp->begin_time.tv_usec, 
+		sessionp->end_time.tv_sec,   sessionp->end_time.tv_usec,
+		upload_rate, 
+		download_rate);	
+
+	ResponseContent(content.GetBufPtr(), content.GetBytesWritten(), CONTENT_TYPE_TEXT_PLAIN);
+	
+	return ret;
+}
+
+
 QTSS_Error HTTPSession::ResponseCmdSessionStatus()
 {
 	QTSS_Error ret = QTSS_NoErr;
 
-	int session_num = g_http_session_num;
-	if(session_num <= 0)
-	{
-		session_num = 1;
-	}
-	fCmdBufferSize = session_num*1*1024;
+	int session_num = g_http_session_pos+1;	
+	fCmdBufferSize = session_num*2*1024;
 	fCmdBuffer = (char*)malloc(fCmdBufferSize);
 	if(fCmdBuffer == NULL)
 	{
@@ -1729,12 +1937,12 @@ QTSS_Error HTTPSession::ResponseCmdSessionStatus()
 
 	struct timeval* until_timep = NULL;	
 	int index = 0;
-	for(index=0; index<MAX_SESSION_NUM; index++)
+	for(index=0; index<=g_http_session_pos; index++)
 	{
 		SESSION_T* sessionp = &g_http_sessions[index];	
 		if(sessionp->sessionp ==  NULL && sessionp->begin_time.tv_sec == 0)
 		{
-			break;
+			continue;
 		}
 
 		if(sessionp->end_time.tv_sec == 0)
@@ -1748,22 +1956,25 @@ QTSS_Error HTTPSession::ResponseCmdSessionStatus()
 
 		u_int64_t upload_rate = network_rate(sessionp->upload_bytes, &sessionp->begin_time, until_timep);
 		u_int64_t download_rate = network_rate(sessionp->download_bytes, &sessionp->begin_time, until_timep);
+
+		char session_ip[MAX_IP_LEN] = {'\0'} ;
+		struct in_addr s = {};
+		s.s_addr = sessionp->remote_ip;
+		inet_ntop(AF_INET, (const void *)&s, session_ip, MAX_IP_LEN);
 		
-		content.PutFmtStr("\t<session remote_ip=\"0x%08X\" remote_port=\"%d\" session_type=\"0x%08X\" "
+		content.PutFmtStr("\t<session remote_ip=\"0x%08X[%s]\" remote_port=\"%d\" session_type=\"0x%08X\" "
 			"upload_bytes=\"%ld\" download_bytes=\"%ld\" "
-			"begin_time=\"%ld.%ld\" end_time=\"%ld.%ld\" "
+			"begin_time=\"%ld.%06ld\" end_time=\"%ld.%06ld\" "
 			"upload_rate=\"%ld bps\" download_rate=\"%ld bps\">\n", 
-			sessionp->remote_ip, sessionp->remote_port, sessionp->session_type,
+			sessionp->remote_ip, session_ip, sessionp->remote_port, sessionp->session_type,
 			sessionp->upload_bytes, sessionp->download_bytes,
 			sessionp->begin_time.tv_sec, sessionp->begin_time.tv_usec, 
 			sessionp->end_time.tv_sec,   sessionp->end_time.tv_usec,
-			upload_rate, download_rate);
-		
+			upload_rate, download_rate);		
 
 		content.Put("\t</session>\n");
 	}
 	content.Put("</sessions>\n");
-
 	
 	//ret = ResponseContent(content.GetBufPtr(), content.GetBytesWritten(), CONTENT_TYPE_APPLICATION_XML);
 	ret = ResponseHeader(content.GetBufPtr(), content.GetBytesWritten(), CONTENT_TYPE_APPLICATION_XML);
@@ -1780,12 +1991,10 @@ QTSS_Error HTTPSession::ResponseCmdSessionStatus()
 		fCmdBufferSize = 0;
 		fCmdContentLength = 0;
 		fCmdContentPosition = 0;
-	}
-	
+	}	
 
 	return ret;
 }
-
 
 
 QTSS_Error HTTPSession::ResponseCmdResult(char* cmd, char* return_val, char* result, char* reason)
@@ -1982,6 +2191,26 @@ QTSS_Error HTTPSession::ResponseCmd()
 	else if(strcmp(fCmd.cmd, CMD_QUERY_VERSION) == 0)
 	{		
 		ret = ResponseCmdResult(CMD_QUERY_VERSION, "ok", CMD_VERSION"|"MY_VERSION, "");
+	}
+	else if(strcmp(fCmd.cmd, CMD_QUERY_PROCESS) == 0)
+	{
+		extern time_t		g_start_time;
+		char str_start_time[MAX_TIME_LEN] = {0};
+		ctime_r(&g_start_time, str_start_time);
+		int len = strlen(str_start_time);
+		if(len >= 2)
+		{
+			str_start_time[len-1] = '\0';
+		}
+		ret = ResponseCmdResult(CMD_QUERY_PROCESS, "ok", str_start_time, "");
+	}
+	else if(strcmp(fCmd.cmd, CMD_QUERY_CHANNEL) == 0)
+	{
+		ret = ResponseCmdQueryChannel();
+	}
+	else if(strcmp(fCmd.cmd, CMD_QUERY_SESSION) == 0)
+	{
+		ret = ResponseCmdQuerySession();
 	}
 	else 
 	{

@@ -95,6 +95,8 @@ class HTTPClientSession : public Task
 
 		char				fLogFile[PATH_MAX];
 		FILE*				fLogFilep;
+		struct timeval		fBeginTime;
+        struct timeval		fEndTime;
 
 		// from cmd
 		Bool16				fWillStop;

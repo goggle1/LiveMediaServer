@@ -134,19 +134,22 @@ int stop_channel(CHANNEL_T* channelp)
 {
 	if(channelp->sessionp_ts != NULL)
 	{	
-		channelp->sessionp_ts->Signal(Task::kKillEvent);
+		channelp->sessionp_ts->Stop();
+		//channelp->sessionp_ts->Signal(Task::kKillEvent);
 		channelp->sessionp_ts = NULL;
 	}
 
 	if(channelp->sessionp_flv != NULL)
 	{	
-		channelp->sessionp_flv->Signal(Task::kKillEvent);
+		channelp->sessionp_flv->Stop();
+		//channelp->sessionp_flv->Signal(Task::kKillEvent);
 		channelp->sessionp_flv = NULL;
 	}
 
 	if(channelp->sessionp_mp4 != NULL)
 	{	
-		channelp->sessionp_mp4->Signal(Task::kKillEvent);
+		channelp->sessionp_mp4->Stop();
+		//channelp->sessionp_mp4->Signal(Task::kKillEvent);
 		channelp->sessionp_mp4 = NULL;
 	}
 	

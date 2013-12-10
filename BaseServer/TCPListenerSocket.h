@@ -62,7 +62,7 @@ class TCPListenerSocket : public TCPSocket, public IdleTask
         void        SlowDown() { fSleepBetweenAccepts = true; }
         void        RunNormal() { fSleepBetweenAccepts = false; }
         //derived object must implement a way of getting tasks & sockets to this object 
-        virtual Task*   GetSessionTask(TCPSocket** outSocket) = 0;
+        virtual Task*   GetSessionTask(TCPSocket** outSocket, struct sockaddr_in* addr) = 0;
         
         virtual SInt64  Run();
             

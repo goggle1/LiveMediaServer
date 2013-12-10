@@ -4,9 +4,9 @@
 #include "HTTPListenerSocket.h"
 
 SESSION_T	g_http_sessions[MAX_SESSION_NUM] = {{0}};
-int			g_http_session_num = 0;
+int			g_http_session_pos = 0;
 
-Task*   HTTPListenerSocket::GetSessionTask(TCPSocket** outSocket)
+Task*   HTTPListenerSocket::GetSessionTask(TCPSocket** outSocket, struct sockaddr_in* addr)
 { 
 	SESSION_T* sessionp = NULL;
 	int index = 0;
@@ -14,9 +14,9 @@ Task*   HTTPListenerSocket::GetSessionTask(TCPSocket** outSocket)
 	{
 		if(g_http_sessions[index].sessionp == NULL)
 		{
-			if(index > g_http_session_num)
+			if(index > g_http_session_pos)
 			{
-				g_http_session_num = index;
+				g_http_session_pos = index;
 			}
 			sessionp = &g_http_sessions[index];
 			memset(sessionp, 0, sizeof(SESSION_T));
@@ -27,6 +27,9 @@ Task*   HTTPListenerSocket::GetSessionTask(TCPSocket** outSocket)
 	{
 		return NULL;
 	}
+	
+	sessionp->remote_ip = addr->sin_addr.s_addr;
+	sessionp->remote_port = addr->sin_port;
 	
     HTTPSession* theTask = new HTTPSession(sessionp);
     

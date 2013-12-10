@@ -142,7 +142,7 @@ void TCPListenerSocket::ProcessEvent(int /*eventBits*/)
             qtss_snprintf(errStr, sizeof(errStr) -1, "accept error = %d '%s' on socket. Clean up and continue.", acceptError, strerror(acceptError)); 
             WarnV( (acceptError == 0), errStr);
             
-            theTask = this->GetSessionTask(&theSocket);
+            theTask = this->GetSessionTask(&theSocket, &addr);
             if (theTask == NULL)
             {   
                 close(osSocket);
@@ -159,7 +159,7 @@ void TCPListenerSocket::ProcessEvent(int /*eventBits*/)
         }
 	}
 	
-    theTask = this->GetSessionTask(&theSocket);
+    theTask = this->GetSessionTask(&theSocket, &addr);
     if (theTask == NULL)
     {    //this should be a disconnect. do an ioctl call?
         close(osSocket);

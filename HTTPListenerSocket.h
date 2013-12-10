@@ -13,7 +13,7 @@ class HTTPListenerSocket : public TCPListenerSocket
         virtual ~HTTPListenerSocket() {}
         
         //sole job of this object is to implement this function
-        virtual Task*   GetSessionTask(TCPSocket** outSocket);
+        virtual Task*   GetSessionTask(TCPSocket** outSocket, struct sockaddr_in* addr);
         
         //check whether the Listener should be idling
         Bool16 OverMaxConnections(UInt32 buffer);

@@ -2,7 +2,7 @@
 #ifndef __PUBLIC_H__
 #define __PUBLIC_H__
 
-#define PROGRAM_VERSION		"0.1.0.016"
+#define PROGRAM_VERSION		"0.1.0.017"
 #define MY_VERSION			PROGRAM_VERSION"@"OS_VERSION
 #define CMD_VERSION			"2.1"
 
@@ -18,7 +18,9 @@
 #define MAX_URL_LEN			256
 
 // 10 seconds
-#define MAX_SEMENT_TIME		10000
+//#define MAX_SEMENT_TIME		10000
+#define MAX_SEMENT_TIME		5000
+#define MAX_TIMEOUT_TIME	(10000*2)
 
 #define MAX_HOST_LEN		64
 

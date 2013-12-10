@@ -25,6 +25,7 @@
 char* 		g_config_file = DEFAULT_CONFIG_FILE;
 CONFIG_T	g_config = {};
 ChannelList g_channels;
+time_t		g_start_time = time(NULL);
 
 int start_server()
 {

@@ -37,7 +37,7 @@ typedef struct session_t
 } SESSION_T;
 
 extern SESSION_T 	g_http_sessions[MAX_SESSION_NUM];
-extern int	g_http_session_num;
+extern int	g_http_session_pos;
 
 class HTTPSession : public Task
 {
@@ -66,6 +66,8 @@ protected:
         	QTSS_Error 		ResponseCmdUpdateChannel(CHANNEL_T* findp, CHANNEL_T* channelp);
         	QTSS_Error 		ResponseCmdChannelStatus();
         	QTSS_Error 		ResponseCmdSessionStatus();
+        	QTSS_Error 		ResponseCmdQueryChannel();
+        	QTSS_Error 		ResponseCmdQuerySession();
         	Bool16 			ResponseContent(char* content, int len, char* type);
         	Bool16 			ResponseHeader(char* content, int len, char* type);
         	QTSS_Error		ResponseFile(char* absolute_path);
