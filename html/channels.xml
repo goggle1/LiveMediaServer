@@ -1,9 +1,3 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<channels>
-	<channel channel_id="0" liveid="78267cf4a7864a887540cf4af3c432dca3d52050" bitrate="0" channel_name="" codec_ts="1" codec_flv="1" codec_mp4="0">
-		<sources>
-			<source ip="221.204.189.59" port="80">
-			</source>
-		</sources>
-	</channel>
+<channels>	
 </channels>
