@@ -128,7 +128,7 @@ class ChannelList
 		int			AddChannel(CHANNEL_T* channelp);
 		int			DeleteChannel(char* liveid);
 		DEQUE_NODE* GetChannels() { return m_channel_list; };
-		int			GetNum() { return m_channel_num; };
+		int			GetNum() { return deque_num(m_channel_list); };
 		
 	protected:
 		DEQUE_NODE* ParseChannels(xmlDocPtr doc, xmlNodePtr cur);
@@ -136,7 +136,6 @@ class ChannelList
 		DEQUE_NODE* ParseSources(xmlDocPtr doc, xmlNodePtr cur);
 		int			ParseSource(xmlDocPtr doc, xmlNodePtr cur, SOURCE_T* sourcep);
 
-		int 		m_channel_num;
 		DEQUE_NODE*	m_channel_list;		
 };
 
