@@ -117,13 +117,17 @@ OS_Error HTTPClient::DoTransaction()
 			//This is the only state where a new request can be made.
 			case kInitial:		
 				gettimeofday(&fBeginTime, NULL);
+				fEndTime.tv_sec = 0;
+				fEndTime.tv_usec = 0;
 				fState = kRequestSending;
 				break;
 
 			//Request Sending state: keep on calling Send while Send returns EAGAIN or EINPROGRESS
 			case kRequestSending:
         		theErr = fSocket->Send(theRequest.Ptr, theRequest.Len);
-        
+        		
+        		gettimeofday(&fEndTime, NULL);
+        		
         		if (theErr != OS_NoErr)
 				{
 					fprintf(stderr, "%s: Send len=%"_U32BITARG_" err = [%"_S32BITARG_"][%s]\n", 
