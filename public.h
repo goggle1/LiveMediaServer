@@ -26,5 +26,8 @@
 
 #define URI_LIVESTREAM		"/livestream/"
 
+#define DEFAULT_SEGMENT_NUM	3
+
+
 #endif
 

@@ -1730,9 +1730,13 @@ QTSS_Error HTTPSession::ResponseCmdChannelStatus()
 			char str_clip_begin_time[MAX_TIME_LEN] = {0};
 			char str_clip_end_time[MAX_TIME_LEN] = {0};
 			ctime_r(&m3u8p->begin_time, str_m3u8_begin_time);
+			str_m3u8_begin_time[strlen(str_m3u8_begin_time)-1] = '\0';
 			ctime_r(&m3u8p->end_time, str_m3u8_end_time);
+			str_m3u8_end_time[strlen(str_m3u8_end_time)-1] = '\0';
 			ctime_r(&clipp->begin_time, str_clip_begin_time);
+			str_clip_begin_time[strlen(str_clip_begin_time)-1] = '\0';
 			ctime_r(&clipp->end_time, str_clip_end_time);
+			str_clip_end_time[strlen(str_clip_end_time)-1] = '\0';
 			content.PutFmtStr("\t\t\t<%s source=\"%s\" m3u8_num=\"%d\" clip_num=\"%d[%lu]\" "
 				"m3u8_begin_time=\"%ld[%s]\" m3u8_end_time=\"%ld[%s]\" "
 				"clip_begin_time=\"%ld[%s]\" clip_end_time=\"%ld[%s]\" />\n",
@@ -1763,9 +1767,13 @@ QTSS_Error HTTPSession::ResponseCmdChannelStatus()
 			char str_clip_begin_time[MAX_TIME_LEN] = {0};
 			char str_clip_end_time[MAX_TIME_LEN] = {0};
 			ctime_r(&m3u8p->begin_time, str_m3u8_begin_time);
+			str_m3u8_begin_time[strlen(str_m3u8_begin_time)-1] = '\0';
 			ctime_r(&m3u8p->end_time, str_m3u8_end_time);
+			str_m3u8_end_time[strlen(str_m3u8_end_time)-1] = '\0';
 			ctime_r(&clipp->begin_time, str_clip_begin_time);
+			str_clip_begin_time[strlen(str_clip_begin_time)-1] = '\0';
 			ctime_r(&clipp->end_time, str_clip_end_time);
+			str_clip_end_time[strlen(str_clip_end_time)-1] = '\0';
 			content.PutFmtStr("\t\t\t<%s source=\"%s\" m3u8_num=\"%d\" clip_num=\"%d[%lu]\" "
 				"m3u8_begin_time=\"%ld[%s]\" m3u8_end_time=\"%ld[%s]\" "
 				"clip_begin_time=\"%ld[%s]\" clip_end_time=\"%ld[%s]\" />\n",
@@ -1796,9 +1804,13 @@ QTSS_Error HTTPSession::ResponseCmdChannelStatus()
 			char str_clip_begin_time[MAX_TIME_LEN] = {0};
 			char str_clip_end_time[MAX_TIME_LEN] = {0};
 			ctime_r(&m3u8p->begin_time, str_m3u8_begin_time);
+			str_m3u8_begin_time[strlen(str_m3u8_begin_time)-1] = '\0';
 			ctime_r(&m3u8p->end_time, str_m3u8_end_time);
+			str_m3u8_end_time[strlen(str_m3u8_end_time)-1] = '\0';
 			ctime_r(&clipp->begin_time, str_clip_begin_time);
+			str_clip_begin_time[strlen(str_clip_begin_time)-1] = '\0';
 			ctime_r(&clipp->end_time, str_clip_end_time);
+			str_clip_end_time[strlen(str_clip_end_time)-1] = '\0';
 			content.PutFmtStr("\t\t\t<%s source=\"%s\" m3u8_num=\"%d\" clip_num=\"%d[%lu]\" "
 				"m3u8_begin_time=\"%ld[%s]\" m3u8_end_time=\"%ld[%s]\" "
 				"clip_begin_time=\"%ld[%s]\" clip_end_time=\"%ld[%s]\" />\n",
@@ -2011,6 +2023,7 @@ QTSS_Error HTTPSession::ResponseCmdResult(char* cmd, char* return_val, char* res
 		time_t now = time(NULL);
 		char str_now[MAX_TIME_LEN] = {0};
 		ctime_r(&now, str_now);
+		str_now[strlen(str_now)-1] = '\0';	
 		content.PutFmtStr("time=%s\r\n", str_now);
 		
 		ResponseContent(content.GetBufPtr(), content.GetBytesWritten(), CONTENT_TYPE_TEXT_PLAIN);
@@ -2074,7 +2087,7 @@ QTSS_Error HTTPSession::ResponseCmdResult(char* cmd, char* return_val, char* res
 		time_t now = time(NULL);
 		char str_now[MAX_TIME_LEN] = {0};
 		ctime_r(&now, str_now);
-		content.PutFmtStr("%s\n", str_now);
+		content.PutFmtStr("%s", str_now);
 		content.Put("</TD>\n");	
 		content.Put("</TR>\n");
 
@@ -2197,11 +2210,7 @@ QTSS_Error HTTPSession::ResponseCmd()
 		extern time_t		g_start_time;
 		char str_start_time[MAX_TIME_LEN] = {0};
 		ctime_r(&g_start_time, str_start_time);
-		int len = strlen(str_start_time);
-		if(len >= 2)
-		{
-			str_start_time[len-1] = '\0';
-		}
+		str_start_time[strlen(str_start_time)-1] = '\0';		
 		ret = ResponseCmdResult(CMD_QUERY_PROCESS, "ok", str_start_time, "");
 	}
 	else if(strcmp(fCmd.cmd, CMD_QUERY_CHANNEL) == 0)
@@ -2320,6 +2329,7 @@ QTSS_Error HTTPSession::ResponseLiveM3U8()
 
 }
 
+#if 0
 QTSS_Error HTTPSession::ContinueLiveM3U8()
 {
 	QTSS_Error ret = QTSS_NoErr;
@@ -2438,6 +2448,111 @@ QTSS_Error HTTPSession::ContinueLiveM3U8()
 
 	return ret;
 }
+#endif
+
+QTSS_Error HTTPSession::ContinueLiveM3U8()
+{
+	QTSS_Error ret = QTSS_NoErr;
+
+	if(!fHttpClientSession->Valid())
+	{
+		ret = ResponseError(httpGone);
+		return ret;
+	}
+
+	MEMORY_T* memoryp = fHttpClientSession->GetMemory();
+	if(fLiveLen == -1)
+	{
+		fLiveLen = DEFAULT_SEGMENT_NUM;
+	}
+	
+		
+	if(memoryp->clip_num <= 0)
+	{
+		ResponseError(httpNotFound);
+		return ret;
+	}
+		
+	int index = memoryp->clip_index - 1;	
+	if(index<0)
+	{
+		index = g_config.max_clip_num - 1;
+	}
+			
+	int count = 0;
+	while(1)
+	{
+		CLIP_T* onep = &(memoryp->clips[index]);
+		//if(param_seq != -1 && (int64_t)onep->sequence < param_seq)
+		if(fLiveSeq != -1 && (int64_t)onep->sequence < fLiveSeq)
+		{	
+			break;
+		}
+								
+		index --;
+		if(index<0)
+		{
+			index = g_config.max_clip_num - 1;
+		}
+
+		count ++;
+		if(count >= memoryp->clip_num || (fLiveLen !=-1 && count >= fLiveLen) )
+		{
+			break;
+		}
+	}
+
+	index ++;
+	if(index>=g_config.max_clip_num)
+	{
+		index = 0;
+	}
+		
+	char m3u8_buffer[MAX_M3U8_CONTENT_LEN];
+	StringFormatter content(m3u8_buffer, MAX_M3U8_CONTENT_LEN);	
+	content.Put("#EXTM3U\n");
+	content.PutFmtStr("#EXT-X-TARGETDURATION:%d\n", memoryp->target_duration);
+	content.PutFmtStr("#EXT-X-MEDIA-SEQUENCE:%lu\n", memoryp->clips[index].sequence);
+		
+	int count2 = 0;
+	while(1)
+	{
+		count2 ++;
+		if(count2>count)
+		{
+			break;
+		}
+		
+		CLIP_T* onep = &(memoryp->clips[index]);
+		content.PutFmtStr("#EXTINF:%u,\n", onep->inf);
+		if(strcasecmp(fLiveType, LIVE_TS) == 0)
+		{
+			// do nothing.
+		}
+		else
+		{
+			content.PutFmtStr("#EXT-X-BYTERANGE:%lu\n", onep->byte_range);
+		}
+		#if 0
+		content.PutFmtStr("%s\n", onep->m3u8_relative_url);
+		#else
+		content.PutFmtStr("http://%s:%u/%s/%s\n", g_config.service_ip, g_config.port, fHttpClientSession->GetM3U8Path(), onep->m3u8_relative_url);
+		#endif
+		
+		index ++;
+		if(index>=g_config.max_clip_num)
+		{
+			index = 0;
+		}
+		
+		
+	}
+	//content.PutTerminator();
+
+	ResponseContent(m3u8_buffer, content.GetBytesWritten(), CONTENT_TYPE_APPLICATION_M3U8);	
+	return ret;
+}
+
 
 QTSS_Error HTTPSession::ResponseLiveSegment()
 {
@@ -2871,7 +2986,7 @@ QTSS_Error HTTPSession::ResponseError(HTTPStatusCode status_code)
 	time_t now = time(NULL);
 	char str_now[MAX_TIME_LEN] = {0};
 	ctime_r(&now, str_now);
-	content.PutFmtStr("%s\n", str_now);
+	content.PutFmtStr("%s", str_now);
 	content.Put("</TD>\n");	
 	content.Put("</TR>\n");
 
