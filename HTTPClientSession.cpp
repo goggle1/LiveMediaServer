@@ -802,10 +802,16 @@ SInt64 HTTPClientSession::Run()
                     		__PRETTY_FUNCTION__, fM3U8Parser.fSegments[fGetIndex].relative_url, get_status);
                     	if(fLogFilep != NULL)
                     	{
-	                   		fprintf(fLogFilep, "%s, error: %d, begin_time: %ld.%06ld, end_time: %ld.%06ld\n", 
+                    		char str_begin_time[MAX_TIME_LEN] = {0};
+                    		char str_end_time[MAX_TIME_LEN] = {0};
+							ctime_r(&fSegmentBeginTime.tv_sec, str_begin_time);
+							str_begin_time[strlen(str_begin_time)-1] = '\0';
+							ctime_r(&fSegmentEndTime.tv_sec, str_end_time);
+							str_end_time[strlen(str_end_time)-1] = '\0';
+	                   		fprintf(fLogFilep, "%s, error: %d, begin: %ld.%06ld [%s], end: %ld.%06ld [%s]\n", 
 	                    		fM3U8Parser.fSegments[fGetIndex].relative_url, get_status, 
-	                    		fSegmentBeginTime.tv_sec, fSegmentBeginTime.tv_usec,
-	                    		fSegmentEndTime.tv_sec,   fSegmentEndTime.tv_usec);
+	                    		fSegmentBeginTime.tv_sec, fSegmentBeginTime.tv_usec, str_begin_time,
+	                    		fSegmentEndTime.tv_sec,   fSegmentEndTime.tv_usec, str_end_time);
                     	}
                     	
                         fGetIndex ++;
@@ -827,10 +833,16 @@ SInt64 HTTPClientSession::Run()
                     		__PRETTY_FUNCTION__, fM3U8Parser.fSegments[fGetIndex].relative_url, fClient->GetContentLength());
                     	if(fLogFilep != NULL)
                     	{
-	                    	fprintf(fLogFilep, "%s, len: %u, begin_time: %ld.%06ld, end_time: %ld.%06ld\n", 
+                    		char str_begin_time[MAX_TIME_LEN] = {0};
+                    		char str_end_time[MAX_TIME_LEN] = {0};
+							ctime_r(&fSegmentBeginTime.tv_sec, str_begin_time);
+							str_begin_time[strlen(str_begin_time)-1] = '\0';
+							ctime_r(&fSegmentEndTime.tv_sec, str_end_time);
+							str_end_time[strlen(str_end_time)-1] = '\0';
+	                    	fprintf(fLogFilep, "%s, len: %u, begin: %ld.%06ld [%s], end_time: %ld.%06ld [%s]\n", 
 	                    		fM3U8Parser.fSegments[fGetIndex].relative_url, fClient->GetContentLength(), 
-	                    		fSegmentBeginTime.tv_sec, fSegmentBeginTime.tv_usec,
-	                    		fSegmentEndTime.tv_sec,   fSegmentEndTime.tv_usec);
+	                    		fSegmentBeginTime.tv_sec, fSegmentBeginTime.tv_usec, str_begin_time,
+	                    		fSegmentEndTime.tv_sec,   fSegmentEndTime.tv_usec, str_end_time);
                     	}
                     	MemoSourceSegment(fClient->GetContentLength(), fSegmentBeginTime, fSegmentEndTime);
                     	if(fClient->GetContentLength() > 0)

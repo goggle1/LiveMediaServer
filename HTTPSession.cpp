@@ -20,6 +20,8 @@
 #define CONTENT_TYPE_TEXT_HTML					"text/html"
 #define CONTENT_TYPE_TEXT_CSS					"text/CSS"
 //#define CONTENT_TYPE_TEXT_XML					"text/xml"
+#define CONTENT_TYPE_TEXT_XSL					"text/xsl"
+
 #define CONTENT_TYPE_APPLICATION_JAVASCRIPT		"application/javascript"
 #define CONTENT_TYPE_APPLICATION_JSON			"application/json"
 #define CONTENT_TYPE_APPLICATION_XML			"application/xml" // text/xml ?
@@ -76,7 +78,6 @@
 #define CMD_QUERY_SESSION	"query_session"
 
 #define MAX_REASON_LEN		256
-#define MAX_TIME_LEN		64
 
 #define RATE_LIMIT_INTERVAL	1000
 
@@ -372,6 +373,10 @@ char* content_type_by_suffix(char* suffix)
 	{
 		return CONTENT_TYPE_TEXT_CSS;
 	}
+	else if(strcasecmp(suffix, ".xsl") == 0)
+	{
+		return CONTENT_TYPE_TEXT_XSL;
+	}
 	else if(strcasecmp(suffix, ".js") == 0)
 	{
 		return CONTENT_TYPE_APPLICATION_JAVASCRIPT;
@@ -592,8 +597,6 @@ HTTPSession::HTTPSession(SESSION_T* sessionp):
 		sessionp->remote_ip, sessionp->remote_port);
 
 	fFd	= -1;
-	fData = NULL;
-	fDataPosition = 0;
 	fCmdBuffer = NULL;
 	fCmdBufferSize = 0;
 	fCmdContentLength = 0;
@@ -602,15 +605,30 @@ HTTPSession::HTTPSession(SESSION_T* sessionp):
     this->SetThreadPicker(&Task::sBlockingTaskThreadPicker);
     fSessionp = sessionp;
     fSessionp->sessionp = this;
+    fHttpClientSession = NULL;
+	fMemory = NULL;
+	fData	= NULL;
+	fDataPosition = 0;
+    fStatistics = NULL;
     gettimeofday(&(fSessionp->begin_time), NULL);    
 }
 
 HTTPSession::~HTTPSession()
 {
+	if(fStatistics != NULL)
+	{
+		fStatistics->session_num --;
+		fStatistics = NULL;
+	}
+
 	if(fFd != -1)
 	{
 		close(fFd);
 		fFd = -1;
+	}
+	if(fData != NULL)
+	{
+		fData = NULL;
 	}
 	if(fCmdBuffer != NULL)
 	{
@@ -892,6 +910,11 @@ QTSS_Error HTTPSession::SendData()
         fStrRemained.Ptr = fResponseBuffer; 
 
         fSessionp->download_bytes += send_len;
+        g_download_bytes += send_len;
+        if(fStatistics != NULL)
+        {
+        	fStatistics->download_bytes += send_len;
+        }
 
         if(fStrRemained.Len <= 0)
 	    {
@@ -1510,6 +1533,7 @@ QTSS_Error HTTPSession::ResponseCmdListChannel()
 	memset(fCmdBuffer, 0, fCmdBufferSize);
 	StringFormatter content(fCmdBuffer, fCmdBufferSize);
 	content.Put("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n");
+	content.Put("<?xml-stylesheet type=\"text/xsl\" href=\"/list_channel.xsl\"?>\n");
 	content.Put("<channels>\n");
 
 	DEQUE_NODE* channel_list = g_channels.GetChannels();
@@ -1602,11 +1626,21 @@ QTSS_Error HTTPSession::ResponseCmdQueryChannel()
 		return ret;
 	}
 
-	u_int64_t newset_seq_ts = 0;
-	u_int64_t newset_seq_flv = 0;
-	u_int64_t newset_seq_mp4 = 0;	
-	if(channelp->memoryp_ts != NULL)
+	time_t	  start_time_ts  = 0;
+	time_t	  start_time_flv = 0;
+	time_t	  start_time_mp4 = 0;
+	char 	  str_start_time_ts[MAX_TIME_LEN] = {0};
+	char 	  str_start_time_flv[MAX_TIME_LEN] = {0};
+	char 	  str_start_time_mp4[MAX_TIME_LEN] = {0};	
+	u_int64_t newest_seq_ts  = 0;
+	u_int64_t newest_seq_flv = 0;
+	u_int64_t newest_seq_mp4 = 0;	
+	if(channelp->memoryp_ts != NULL && channelp->sessionp_ts != NULL)
 	{
+		HTTPClientSession* clientp = channelp->sessionp_ts;
+		start_time_ts = clientp->GetBeginTime()->tv_sec;
+		ctime_r(&start_time_ts, str_start_time_ts);
+		str_start_time_ts[strlen(str_start_time_ts)-1] = '\0';
 		
 		MEMORY_T* memoryp = channelp->memoryp_ts;
 		int clip_index = memoryp->clip_index;
@@ -1616,10 +1650,14 @@ QTSS_Error HTTPSession::ResponseCmdQueryChannel()
 			clip_index = g_config.max_clip_num - 1;
 		}
 		CLIP_T* clipp = &(memoryp->clips[clip_index]);
-		newset_seq_ts = clipp->sequence;		
+		newest_seq_ts = clipp->sequence;		
 	}
-	if(channelp->memoryp_flv != NULL)
+	if(channelp->memoryp_flv != NULL && channelp->sessionp_flv != NULL)
 	{
+		HTTPClientSession* clientp = channelp->sessionp_flv;
+		start_time_flv = clientp->GetBeginTime()->tv_sec;
+		ctime_r(&start_time_flv, str_start_time_flv);
+		str_start_time_flv[strlen(str_start_time_flv)-1] = '\0';
 		
 		MEMORY_T* memoryp = channelp->memoryp_flv;
 		int clip_index = memoryp->clip_index;
@@ -1629,10 +1667,14 @@ QTSS_Error HTTPSession::ResponseCmdQueryChannel()
 			clip_index = g_config.max_clip_num - 1;
 		}
 		CLIP_T* clipp = &(memoryp->clips[clip_index]);
-		newset_seq_flv = clipp->sequence;		
+		newest_seq_flv = clipp->sequence;		
 	}
-	if(channelp->memoryp_mp4 != NULL)
+	if(channelp->memoryp_mp4 != NULL && channelp->sessionp_mp4 != NULL)
 	{
+		HTTPClientSession* clientp = channelp->sessionp_mp4;
+		start_time_mp4 = clientp->GetBeginTime()->tv_sec;
+		ctime_r(&start_time_mp4, str_start_time_mp4);
+		str_start_time_mp4[strlen(str_start_time_mp4)-1] = '\0';
 		
 		MEMORY_T* memoryp = channelp->memoryp_mp4;
 		int clip_index = memoryp->clip_index;
@@ -1642,13 +1684,71 @@ QTSS_Error HTTPSession::ResponseCmdQueryChannel()
 			clip_index = g_config.max_clip_num - 1;
 		}
 		CLIP_T* clipp = &(memoryp->clips[clip_index]);
-		newset_seq_mp4 = clipp->sequence;		
+		newest_seq_mp4 = clipp->sequence;		
 	}
 	
-	char seqs[1024] = {'\0'};
-	snprintf(seqs, 1024, "%lu|%lu|%lu", newset_seq_ts, newset_seq_flv, newset_seq_mp4);
-	seqs[1023] = '\0';
-	ret = ResponseCmdResult(CMD_QUERY_CHANNEL, "ok", seqs, "");
+	static time_t		last_query_time = 0;
+	static u_int64_t	last_download_bytes_ts = 0;
+	static u_int64_t	last_download_bytes_flv = 0;
+	static u_int64_t	last_download_bytes_mp4 = 0;
+	if(last_query_time == 0)
+	{
+		last_query_time = start_time_ts;
+	}
+	if(last_query_time == 0)
+	{
+		last_query_time = start_time_flv;
+	}
+	if(last_query_time == 0)
+	{
+		last_query_time = start_time_mp4;
+	}
+	if(last_query_time == 0)
+	{		
+		extern time_t		g_start_time;
+		last_query_time = g_start_time;
+	}
+	time_t now = time(NULL);
+	time_t diff = now - last_query_time;
+	if(diff == 0)
+	{
+		diff = 1;
+	}
+	u_int64_t download_rate_ts  = (channelp->statistics_ts.download_bytes - last_download_bytes_ts) / diff;
+	u_int64_t download_rate_flv = (channelp->statistics_flv.download_bytes - last_download_bytes_ts) / diff;
+	u_int64_t download_rate_mp4 = (channelp->statistics_mp4.download_bytes - last_download_bytes_ts) / diff;
+
+	char str_last_query_time[MAX_TIME_LEN] = {0};
+	ctime_r(&last_query_time, str_last_query_time);
+	str_last_query_time[strlen(str_last_query_time)-1] = '\0';
+	char str_this_query_time[MAX_TIME_LEN] = {0};
+	ctime_r(&now, str_this_query_time);
+	str_this_query_time[strlen(str_this_query_time)-1] = '\0';
+	
+	char	buffer[4*1024];
+	StringFormatter content(buffer, sizeof(buffer));
+	content.PutFmtStr(
+		"newest_sequence=%ld|%ld|%ld\n"
+		"channel_start_time=%ld[%s]|%ld[%s]|%ld[%s]\n"	
+		"total_session_num=%ld|%ld|%ld\n"
+		"total_download_bytes=%ld|%ld|%ld\n"
+		"last_query_time=%ld[%s]\n"
+		"this_query_time=%ld[%s]\n"
+		"last_download_bytes=%ld|%ld|%ld\n"
+		"this_download_bytes=%ld|%ld|%ld\n"
+		"this_download_rate=%ld|%ld|%ld bps\n", 
+		newest_seq_ts, newest_seq_flv, newest_seq_mp4, 
+		start_time_ts, str_start_time_ts, start_time_flv, str_start_time_flv, start_time_mp4, str_start_time_mp4,
+		channelp->statistics_ts.session_num, channelp->statistics_flv.session_num, channelp->statistics_mp4.session_num,
+		channelp->statistics_ts.download_bytes, channelp->statistics_flv.download_bytes, channelp->statistics_mp4.download_bytes,
+		last_query_time, str_last_query_time,
+		now, str_this_query_time,
+		last_download_bytes_ts, last_download_bytes_flv, last_download_bytes_mp4,
+		channelp->statistics_ts.download_bytes, channelp->statistics_flv.download_bytes, channelp->statistics_mp4.download_bytes,
+		download_rate_ts, download_rate_flv, download_rate_mp4);	
+
+	ResponseContent(content.GetBufPtr(), content.GetBytesWritten(), CONTENT_TYPE_TEXT_PLAIN);
+
 	return ret;
 }
 
@@ -1672,6 +1772,7 @@ QTSS_Error HTTPSession::ResponseCmdChannelStatus()
 	memset(fCmdBuffer, 0, fCmdBufferSize);
 	StringFormatter content(fCmdBuffer, fCmdBufferSize);
 	content.Put("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n");
+	content.Put("<?xml-stylesheet type=\"text/xsl\" href=\"/channel_status.xsl\"?>\n");
 	content.Put("<channels>\n");
 
 	DEQUE_NODE* channel_list = g_channels.GetChannels();
@@ -1851,6 +1952,63 @@ QTSS_Error HTTPSession::ResponseCmdChannelStatus()
 }
 
 
+QTSS_Error HTTPSession::ResponseCmdQueryProcess()
+{
+	QTSS_Error ret = QTSS_NoErr;
+	
+	extern time_t		g_start_time;
+	char str_start_time[MAX_TIME_LEN] = {0};
+	ctime_r(&g_start_time, str_start_time);
+	str_start_time[strlen(str_start_time)-1] = '\0';
+
+	static time_t		last_query_time = 0;
+	static u_int64_t	last_download_bytes = 0;
+	if(last_query_time == 0)
+	{
+		last_query_time = g_start_time;
+	}
+	time_t now = time(NULL);
+	time_t diff = now - last_query_time;
+	if(diff == 0)
+	{
+		diff = 1;
+	}
+	u_int64_t download_rate = (g_download_bytes - last_download_bytes) / diff;
+
+	char str_last_query_time[MAX_TIME_LEN] = {0};
+	ctime_r(&last_query_time, str_last_query_time);
+	str_last_query_time[strlen(str_last_query_time)-1] = '\0';
+	char str_this_query_time[MAX_TIME_LEN] = {0};
+	ctime_r(&now, str_this_query_time);
+	str_this_query_time[strlen(str_this_query_time)-1] = '\0';
+	
+	char	buffer[4*1024];
+	StringFormatter content(buffer, sizeof(buffer));
+	content.PutFmtStr(
+		"process_start_time=%ld[%s]\n"		
+		"total_download_bytes=%ld\n"
+		"last_query_time=%ld[%s]\n"
+		"this_query_time=%ld[%s]\n"
+		"last_download_bytes=%ld\n"
+		"this_download_bytes=%ld\n"
+		"this_download_rate=%ld bps\n", 
+		g_start_time, str_start_time, 
+		g_download_bytes,
+		last_query_time, str_last_query_time,
+		now, str_this_query_time,
+		last_download_bytes,
+		g_download_bytes,
+		download_rate);	
+
+	ResponseContent(content.GetBufPtr(), content.GetBytesWritten(), CONTENT_TYPE_TEXT_PLAIN);
+
+	last_query_time = now;
+	last_download_bytes = g_download_bytes;
+	
+	return ret;
+}
+
+
 QTSS_Error HTTPSession::ResponseCmdQuerySession()
 {
 	QTSS_Error ret = QTSS_NoErr;
@@ -1942,6 +2100,7 @@ QTSS_Error HTTPSession::ResponseCmdSessionStatus()
 	memset(fCmdBuffer, 0, fCmdBufferSize);
 	StringFormatter content(fCmdBuffer, fCmdBufferSize);
 	content.Put("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n");
+	content.Put("<?xml-stylesheet type=\"text/xsl\" href=\"/session_status.xsl\"?>\n");
 	content.Put("<sessions>\n");
 
 	struct timeval now_time;
@@ -2206,12 +2365,8 @@ QTSS_Error HTTPSession::ResponseCmd()
 		ret = ResponseCmdResult(CMD_QUERY_VERSION, "ok", CMD_VERSION"|"MY_VERSION, "");
 	}
 	else if(strcmp(fCmd.cmd, CMD_QUERY_PROCESS) == 0)
-	{
-		extern time_t		g_start_time;
-		char str_start_time[MAX_TIME_LEN] = {0};
-		ctime_r(&g_start_time, str_start_time);
-		str_start_time[strlen(str_start_time)-1] = '\0';		
-		ret = ResponseCmdResult(CMD_QUERY_PROCESS, "ok", str_start_time, "");
+	{		
+		ret = ResponseCmdQueryProcess();
 	}
 	else if(strcmp(fCmd.cmd, CMD_QUERY_CHANNEL) == 0)
 	{
@@ -2288,27 +2443,45 @@ QTSS_Error HTTPSession::ResponseLiveM3U8()
 	fLiveLen = param_count;
 
 	fHttpClientSession = NULL;
-	MEMORY_T* memoryp = NULL;	
+	//MEMORY_T* memoryp = NULL;	
+	fMemory = NULL;	
+	STATISTICS_T* statisticsp = NULL;
 	if(strcasecmp(param_type, LIVE_TS) == 0)
 	{
 		fHttpClientSession = channelp->sessionp_ts;
-		memoryp = channelp->memoryp_ts;
+		//memoryp = channelp->memoryp_ts;
+		fMemory = channelp->memoryp_ts;
+		statisticsp = &(channelp->statistics_ts);
 	}
 	else if(strcasecmp(param_type, LIVE_FLV) == 0)
 	{
 		fHttpClientSession = channelp->sessionp_flv;
-		memoryp = channelp->memoryp_flv;
+		//memoryp = channelp->memoryp_flv;
+		fMemory = channelp->memoryp_flv;
+		statisticsp = &(channelp->statistics_flv);
 	}
 	else if(strcasecmp(param_type, LIVE_MP4) == 0)
 	{
 		fHttpClientSession = channelp->sessionp_mp4;
-		memoryp = channelp->memoryp_mp4;
+		//memoryp = channelp->memoryp_mp4;
+		fMemory = channelp->memoryp_mp4;
+		statisticsp = &(channelp->statistics_mp4);
 	}
 	//if(memoryp == NULL)
 	if(fHttpClientSession == NULL)
 	{
 		ret = ResponseError(httpNotFound);
 		return ret;
+	}
+
+	if(fStatistics != statisticsp)
+	{
+		if(fStatistics != NULL)
+		{
+			fStatistics->session_num --;
+		}
+		statisticsp->session_num ++;
+		fStatistics = statisticsp;
 	}
 
 	fprintf(stdout, "%s: before fDefaultThread=0x%016lX, fUseThisThread=0x%016lX, %ld\n", 
@@ -2329,126 +2502,6 @@ QTSS_Error HTTPSession::ResponseLiveM3U8()
 
 }
 
-#if 0
-QTSS_Error HTTPSession::ContinueLiveM3U8()
-{
-	QTSS_Error ret = QTSS_NoErr;
-
-	if(!fHttpClientSession->Valid())
-	{
-		ret = ResponseError(httpGone);
-		return ret;
-	}
-
-	MEMORY_T* memoryp = fHttpClientSession->GetMemory();
-	//if(param_count == -1 && param_seq == -1)
-	if(fLiveLen == -1 && fLiveSeq == -1)
-	{
-		if(memoryp->m3u8_num == 0)
-		{
-			ret = ResponseError(httpNotFound);
-			return ret;
-		}
-		int index = memoryp->m3u8_index;
-		index --;
-		if(index < 0)
-		{
-			index = MAX_M3U8_NUM-1;		
-		}
-		
-		ResponseContent((char*)memoryp->m3u8s[index].data.datap, memoryp->m3u8s[index].data.len, CONTENT_TYPE_APPLICATION_M3U8);
-	}
-	else
-	{	
-		if(memoryp->clip_num <= 0)
-		{
-			ResponseError(httpNotFound);
-			return ret;
-		}
-		
-		int index = memoryp->clip_index - 1;	
-		if(index<0)
-		{
-			index = g_config.max_clip_num - 1;
-		}
-			
-		int count = 0;
-		while(1)
-		{
-			CLIP_T* onep = &(memoryp->clips[index]);
-			//if(param_seq != -1 && (int64_t)onep->sequence < param_seq)
-			if(fLiveSeq != -1 && (int64_t)onep->sequence < fLiveSeq)
-			{	
-				break;
-			}
-									
-			index --;
-			if(index<0)
-			{
-				index = g_config.max_clip_num - 1;
-			}
-
-			count ++;
-			if(count >= memoryp->clip_num || (fLiveLen !=-1 && count >= fLiveLen) )
-			{
-				break;
-			}
-		}
-
-		index ++;
-		if(index>=g_config.max_clip_num)
-		{
-			index = 0;
-		}
-		
-		char m3u8_buffer[MAX_M3U8_CONTENT_LEN];
-		StringFormatter content(m3u8_buffer, MAX_M3U8_CONTENT_LEN);	
-		content.Put("#EXTM3U\n");
-		content.PutFmtStr("#EXT-X-TARGETDURATION:%d\n", memoryp->target_duration);
-		content.PutFmtStr("#EXT-X-MEDIA-SEQUENCE:%lu\n", memoryp->clips[index].sequence);
-			
-		int count2 = 0;
-		while(1)
-		{
-			count2 ++;
-			if(count2>count)
-			{
-				break;
-			}
-			
-			CLIP_T* onep = &(memoryp->clips[index]);
-			content.PutFmtStr("#EXTINF:%u,\n", onep->inf);
-			if(strcasecmp(fLiveType, LIVE_TS) == 0)
-			{
-				// do nothing.
-			}
-			else
-			{
-				content.PutFmtStr("#EXT-X-BYTERANGE:%lu\n", onep->byte_range);
-			}
-			#if 0
-			content.PutFmtStr("%s\n", onep->m3u8_relative_url);
-			#else
-			content.PutFmtStr("http://%s:%u/%s/%s\n", g_config.service_ip, g_config.port, fHttpClientSession->GetM3U8Path(), onep->m3u8_relative_url);
-			#endif
-			
-			index ++;
-			if(index>=g_config.max_clip_num)
-			{
-				index = 0;
-			}
-			
-			
-		}
-		//content.PutTerminator();
-
-		ResponseContent(m3u8_buffer, content.GetBytesWritten(), CONTENT_TYPE_APPLICATION_M3U8);
-		
-	}
-
-	return ret;
-}
-#endif
 
 QTSS_Error HTTPSession::ContinueLiveM3U8()
 {
@@ -2559,7 +2612,6 @@ QTSS_Error HTTPSession::ResponseLiveSegment()
 	QTSS_Error ret = QTSS_NoErr;
 
 	fLiveRequest = kLiveSegment;
-
 	
 	char* param_type = LIVE_FLV;
 	int   param_seq = -1;
@@ -2644,24 +2696,32 @@ QTSS_Error HTTPSession::ResponseLiveSegment()
 	}
 
 	fHttpClientSession = NULL;
-	MEMORY_T* memoryp = NULL;
+	//MEMORY_T* memoryp = NULL;
+	fMemory = NULL;
+	STATISTICS_T* statisticsp = NULL;
 	char* mime_type = CONTENT_TYPE_APPLICATION_OCTET_STREAM;
 	if(strcasecmp(fLiveType, LIVE_TS) == 0)
 	{
 		fHttpClientSession = channelp->sessionp_ts;
-		memoryp = channelp->memoryp_ts;
+		//memoryp = channelp->memoryp_ts;
+		fMemory = channelp->memoryp_ts;
+		statisticsp = &(channelp->statistics_ts);
 		mime_type = CONTENT_TYPE_VIDEO_MP2T;
 	}
 	else if(strcasecmp(fLiveType, LIVE_FLV) == 0)
 	{
 		fHttpClientSession = channelp->sessionp_flv;
-		memoryp = channelp->memoryp_flv;
+		//memoryp = channelp->memoryp_flv;
+		fMemory = channelp->memoryp_flv;
+		statisticsp = &(channelp->statistics_flv);
 		mime_type = CONTENT_TYPE_VIDEO_FLV;
 	}
 	else if(strcasecmp(fLiveType, LIVE_MP4) == 0)
 	{
 		fHttpClientSession = channelp->sessionp_mp4;
-		memoryp = channelp->memoryp_mp4;
+		//memoryp = channelp->memoryp_mp4;
+		fMemory = channelp->memoryp_mp4;
+		statisticsp = &(channelp->statistics_mp4);
 		mime_type = CONTENT_TYPE_VIDEO_MP4;
 	}
 	//if(memoryp == NULL)
@@ -2669,6 +2729,16 @@ QTSS_Error HTTPSession::ResponseLiveSegment()
 	{
 		ret = ResponseError(httpNotFound);
 		return ret;
+	}
+
+	if(fStatistics != statisticsp)
+	{
+		if(fStatistics != NULL)
+		{
+			fStatistics->session_num --;
+		}
+		statisticsp->session_num ++;
+		fStatistics = statisticsp;
 	}
 
 	fprintf(stdout, "%s: before fDefaultThread=0x%016lX, fUseThisThread=0x%016lX, %ld\n", 

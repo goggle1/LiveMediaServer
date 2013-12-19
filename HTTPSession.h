@@ -23,9 +23,11 @@ typedef struct cmd_t
 #define SESSION_CMD		(0x01<<0)
 #define SESSION_LIVE	(0x01<<1)
 #define SESSION_FILE	(0x01<<2)
+
 //session statistics
 typedef struct session_t
 {	
+	// HTTPSession
 	void*			sessionp;
 	struct timeval	begin_time;	
 	struct timeval	end_time;
@@ -36,6 +38,7 @@ typedef struct session_t
 	u_int16_t		remote_port;
 } SESSION_T;
 
+extern u_int64_t	g_download_bytes;
 extern SESSION_T 	g_http_sessions[MAX_SESSION_NUM];
 extern int	g_http_session_pos;
 
@@ -67,6 +70,7 @@ protected:
         	QTSS_Error 		ResponseCmdChannelStatus();
         	QTSS_Error 		ResponseCmdSessionStatus();
         	QTSS_Error 		ResponseCmdQueryChannel();
+        	QTSS_Error 		ResponseCmdQueryProcess();
         	QTSS_Error 		ResponseCmdQuerySession();
         	Bool16 			ResponseContent(char* content, int len, char* type);
         	Bool16 			ResponseHeader(char* content, int len, char* type);
@@ -126,8 +130,10 @@ protected:
 			int			fLiveSeq;
 			int			fLiveLen;
 			HTTPClientSession*	fHttpClientSession;
+			MEMORY_T*	fMemory;
 			DATA_T* 	fData;
 			int64_t		fDataPosition;
+			STATISTICS_T*	fStatistics;
 			// cmd for macross
 			CMD_T		fCmd;
 			char*		fCmdBuffer;

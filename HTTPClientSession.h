@@ -27,6 +27,7 @@ class HTTPClientSession : public Task
 		char*	GetSourceHost() { return fHost; }	
 		MEMORY_T*	GetMemory() { return fMemory; }	
 		int		UpdateSources(DEQUE_NODE* source_list);
+		struct timeval*	GetBeginTime() { return &fBeginTime; } 
 
 	protected:
 		int		TryStop();

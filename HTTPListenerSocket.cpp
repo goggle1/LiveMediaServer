@@ -3,8 +3,9 @@
 #include "HTTPSession.h"
 #include "HTTPListenerSocket.h"
 
-SESSION_T	g_http_sessions[MAX_SESSION_NUM] = {{0}};
-int			g_http_session_pos = 0;
+u_int64_t		g_download_bytes = 0;
+SESSION_T		g_http_sessions[MAX_SESSION_NUM] = {{0}};
+int				g_http_session_pos = 0;
 
 Task*   HTTPListenerSocket::GetSessionTask(TCPSocket** outSocket, struct sockaddr_in* addr)
 { 

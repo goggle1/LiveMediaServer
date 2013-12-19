@@ -16,18 +16,17 @@
 //#define MAX_CLIP_NUM		61
 
 #define MAX_URL_LEN			256
+#define MAX_HOST_LEN		64
+#define MAX_TIME_LEN		64
 
 // 10 seconds
 //#define MAX_SEMENT_TIME		10000
 #define MAX_SEMENT_TIME		5000
 #define MAX_TIMEOUT_TIME	(10000*2)
 
-#define MAX_HOST_LEN		64
-
 #define URI_LIVESTREAM		"/livestream/"
 
 #define DEFAULT_SEGMENT_NUM	3
-
 
 #endif
 

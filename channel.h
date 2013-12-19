@@ -83,6 +83,15 @@ typedef struct source_t
 	DOWNLOAD_RATE_T download_rate;
 } SOURCE_T;
 
+typedef struct statistics_t
+{
+	// session_num ++
+	// session_num --
+	// when?
+	u_int64_t	session_num;	
+	u_int64_t	download_bytes;
+} STATISTICS_T;
+
 class HTTPClientSession;
 //{"channel_id":"21","LOWER(t.liveid)":"0b49884b3b85f7ccddbe4e96e4ae2eae7a6dec56","bitrate":"800","channel_name":"\u4e1c\u65b9\u536b\u89c6"},
 typedef struct channel_t
@@ -103,6 +112,10 @@ typedef struct channel_t
 	MEMORY_T* 	memoryp_ts;
 	MEMORY_T* 	memoryp_flv;
 	MEMORY_T* 	memoryp_mp4;
+	// statistics
+	STATISTICS_T	statistics_ts;
+	STATISTICS_T	statistics_flv;
+	STATISTICS_T	statistics_mp4;
 } CHANNEL_T;
 
 void source_release(void* datap);
