@@ -673,7 +673,7 @@ void 		HTTPSession::Log()
 			HTTPProtocol::GetStatusCodeAsString(fHttpStatus)->Ptr,
 			fContentLen, "-",
 			user_agent,	"-", "-");
-		fflush(g_log);			
+		//fflush(g_log);			
 	}
 }
 
