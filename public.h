@@ -2,7 +2,7 @@
 #ifndef __PUBLIC_H__
 #define __PUBLIC_H__
 
-#define PROGRAM_VERSION		"0.1.0.019"
+#define PROGRAM_VERSION		"0.1.0.020"
 #define MY_VERSION			PROGRAM_VERSION"@"OS_VERSION
 #define CMD_VERSION			"2.1"
 
@@ -27,6 +27,8 @@
 #define URI_LIVESTREAM		"/livestream/"
 
 #define DEFAULT_SEGMENT_NUM	3
+
+extern struct timeval		g_start_time;
 
 #endif
 

@@ -135,8 +135,7 @@ QTSS_Error  HTTPRequest::Parse(StrPtrLen* str)
 
     fFullRequest.Set(str->Ptr, str->Len);
     
-    StringParser parser(str);  
-
+    StringParser parser(str); 
     //parse status line.
     error = this->ParseFirstLine(&parser);
     //handle any errors that come up    

@@ -123,7 +123,7 @@ HTTPClientSession::HTTPClientSession(CHANNEL_T* channelp, char* live_type)
 		g_config.work_path, fLiveType, fChannel->liveid,
 		fBeginTime.tv_sec, fBeginTime.tv_usec);
 	fLogFile[PATH_MAX-1] = '\0';
-	fLogFilep = fopen(fLogFile, "a");
+	fLog = fopen(fLogFile, "a");
 	
 	fMemory = (MEMORY_T*)malloc(sizeof(MEMORY_T));	
 	// if fMemory == NULL, thrown exception.
@@ -154,11 +154,11 @@ HTTPClientSession::HTTPClientSession(CHANNEL_T* channelp, char* live_type)
 HTTPClientSession::~HTTPClientSession()
 {	
 	gettimeofday(&fEndTime, NULL);	
-	if(fLogFilep != NULL)
+	if(fLog != NULL)
 	{
-		fprintf(fLogFilep, "%s, end_time: %ld.%06ld\n", __PRETTY_FUNCTION__, fEndTime.tv_sec, fEndTime.tv_usec);
-		fclose(fLogFilep);
-		fLogFilep = NULL;
+		fprintf(fLog, "%s, end_time: %ld.%06ld\n", __PRETTY_FUNCTION__, fEndTime.tv_sec, fEndTime.tv_usec);
+		fclose(fLog);
+		fLog = NULL;
 	}
 
 	if(fMemory != NULL)
@@ -800,7 +800,7 @@ SInt64 HTTPClientSession::Run()
                     {
                     	fprintf(stdout, "%s: get %s return error: %d\n", 
                     		__PRETTY_FUNCTION__, fM3U8Parser.fSegments[fGetIndex].relative_url, get_status);
-                    	if(fLogFilep != NULL)
+                    	if(fLog != NULL)
                     	{
                     		char str_begin_time[MAX_TIME_LEN] = {0};
                     		char str_end_time[MAX_TIME_LEN] = {0};
@@ -808,7 +808,7 @@ SInt64 HTTPClientSession::Run()
 							str_begin_time[strlen(str_begin_time)-1] = '\0';
 							ctime_r(&fSegmentEndTime.tv_sec, str_end_time);
 							str_end_time[strlen(str_end_time)-1] = '\0';
-	                   		fprintf(fLogFilep, "%s, error: %d, begin: %ld.%06ld [%s], end: %ld.%06ld [%s]\n", 
+	                   		fprintf(fLog, "%s, error: %d, begin: %ld.%06ld [%s], end: %ld.%06ld [%s]\n", 
 	                    		fM3U8Parser.fSegments[fGetIndex].relative_url, get_status, 
 	                    		fSegmentBeginTime.tv_sec, fSegmentBeginTime.tv_usec, str_begin_time,
 	                    		fSegmentEndTime.tv_sec,   fSegmentEndTime.tv_usec, str_end_time);
@@ -831,7 +831,7 @@ SInt64 HTTPClientSession::Run()
                     {
                     	fprintf(stdout, "%s: get %s done, len=%d\n", 
                     		__PRETTY_FUNCTION__, fM3U8Parser.fSegments[fGetIndex].relative_url, fClient->GetContentLength());
-                    	if(fLogFilep != NULL)
+                    	if(fLog != NULL)
                     	{
                     		char str_begin_time[MAX_TIME_LEN] = {0};
                     		char str_end_time[MAX_TIME_LEN] = {0};
@@ -839,7 +839,7 @@ SInt64 HTTPClientSession::Run()
 							str_begin_time[strlen(str_begin_time)-1] = '\0';
 							ctime_r(&fSegmentEndTime.tv_sec, str_end_time);
 							str_end_time[strlen(str_end_time)-1] = '\0';
-	                    	fprintf(fLogFilep, "%s, len: %u, begin: %ld.%06ld [%s], end_time: %ld.%06ld [%s]\n", 
+	                    	fprintf(fLog, "%s, len: %u, begin: %ld.%06ld [%s], end_time: %ld.%06ld [%s]\n", 
 	                    		fM3U8Parser.fSegments[fGetIndex].relative_url, fClient->GetContentLength(), 
 	                    		fSegmentBeginTime.tv_sec, fSegmentBeginTime.tv_usec, str_begin_time,
 	                    		fSegmentEndTime.tv_sec,   fSegmentEndTime.tv_usec, str_end_time);
@@ -920,33 +920,9 @@ SInt64 HTTPClientSession::Run()
             fDeathReason = kConnectionFailed;
 		
 		//fState = kDone;
-
-		time_t break_time = 1;
-		int switch_ret = SwitchSource(theErr);
-		#if 0
-        if(switch_ret == 0)
-        {    
-        	if(theErr == ENOT200)
-        	{
-				break_time = CalcBreakTime();	
-			}
-			else if(theErr == ETIMEOUT)
-			{
-				break_time = CalcBreakTime();	
-			}
-			else
-			{
-				//break_time = 1;
-				break_time = CalcBreakTime();
-			}
-        }
-        else 
-        {
-        	break_time = CalcBreakTime();			
-        }
-        #endif
-
-		break_time = CalcBreakTime();
+		SwitchSource(theErr);		
+		
+		time_t break_time = CalcBreakTime();
        	return break_time;
 
     }    

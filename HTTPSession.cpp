@@ -601,7 +601,8 @@ HTTPSession::HTTPSession(SESSION_T* sessionp):
 	fCmdBufferSize = 0;
 	fCmdContentLength = 0;
 	fCmdContentPosition = 0;
-    fStatusCode     = 0;
+    fHttpStatus     = 0;
+    fContentLen = 0;
     this->SetThreadPicker(&Task::sBlockingTaskThreadPicker);
     fSessionp = sessionp;
     fSessionp->sessionp = this;
@@ -648,6 +649,34 @@ TCPSocket* HTTPSession::GetSocket()
     return &fSocket;
 }
 
+void 		HTTPSession::Log()
+{
+	if(g_log != NULL)
+	{
+		char session_ip[MAX_IP_LEN] = {'\0'} ;
+		struct in_addr s = {0};
+		s.s_addr = fSessionp->remote_ip;
+		inet_ntop(AF_INET, (const void *)&s, session_ip, MAX_IP_LEN);
+
+		time_t now = time(NULL);
+		char str_time[MAX_TIME_LEN] = {0};
+		ctime_r(&now, str_time);
+		str_time[strlen(str_time)-1] = '\0';
+
+		char user_agent[fRequest.fFieldValues[httpUserAgentHeader].Len + 1];
+		strncpy(user_agent, fRequest.fFieldValues[httpUserAgentHeader].Ptr, fRequest.fFieldValues[httpUserAgentHeader].Len);
+		user_agent[fRequest.fFieldValues[httpUserAgentHeader].Len] = '\0';
+		// remote_ip, remote_port, user, time, "request", http_status, content-length, "-", "user-agent", -, -
+		fprintf(g_log, "%15s %5u %s [%s] \"%s\" %s %u \"%s\" \"%s\" %s %s\n", 
+			session_ip, fSessionp->remote_port, "-",
+			str_time, fRequest.fRequestPath, 
+			HTTPProtocol::GetStatusCodeAsString(fHttpStatus)->Ptr,
+			fContentLen, "-",
+			user_agent,	"-", "-");
+		fflush(g_log);			
+	}
+}
+
 SInt64     HTTPSession::Run()
 {	
     Task::EventFlags events = this->GetEvents();    
@@ -691,6 +720,7 @@ SInt64     HTTPSession::Run()
         {
         	willRequestEvent = willRequestEvent | EV_WR;
         	//fSocket.RequestEvent(EV_WR);
+        	Log();
        	}
        	else
        	{
@@ -775,6 +805,7 @@ SInt64     HTTPSession::Run()
 	        {
 	        	willRequestEvent = willRequestEvent | EV_WR;
 	        	//fSocket.RequestEvent(EV_WR);
+	        	Log();
 	       	}
 	       	else
 	       	{
@@ -993,15 +1024,16 @@ Bool16 HTTPSession::Disconnect()
 QTSS_Error  HTTPSession::ProcessRequest()
 {
     QTSS_Error theError;
-    
+
+    fContentLen = 0;
 	fRequest.Clear();
 	theError = fRequest.Parse(&fStrRequest);   
 	if(theError != QTSS_NoErr)
 	{
 		fprintf(stderr, "%s %s[%d][0x%016lX] HTTPRequest Parse error: %d\n", 
 			__FILE__, __PRETTY_FUNCTION__, __LINE__, (long)this, theError);
-		fStatusCode = httpBadRequest;
-		theError = ResponseError(fStatusCode);
+		fHttpStatus = httpBadRequest;
+		theError = ResponseError(fHttpStatus);
 		
 		this->MoveOnRequest();
 		//return QTSS_RequestFailed;
@@ -1020,8 +1052,8 @@ QTSS_Error  HTTPSession::ProcessRequest()
 		   //unhandled method.
 			fprintf(stderr, "%s %s[%d][0x%016lX] unhandled method: %d", 
 					__FILE__, __PRETTY_FUNCTION__, __LINE__, (long)this, fRequest.fMethod);
-			fStatusCode = httpBadRequest;
-			theError = ResponseError(fStatusCode);
+			fHttpStatus = httpBadRequest;
+			theError = ResponseError(fHttpStatus);
 			//theError = QTSS_RequestFailed;
 			break;		  
 	}	
@@ -1062,7 +1094,8 @@ QTSS_Error HTTPSession::ResponseGet()
 		fRangeStart = atol(start.Ptr);
 		if(fRangeStart < 0)
 		{
-			ret = ResponseError(httpRequestRangeNotSatisfiable);
+			fHttpStatus = httpRequestRangeNotSatisfiable;
+			ret = ResponseError(fHttpStatus);
 			return ret;
 		}
 		
@@ -1072,7 +1105,8 @@ QTSS_Error HTTPSession::ResponseGet()
 			fRangeStop = atol(parser.GetCurrentPosition());
 			if(fRangeStop < 0 || fRangeStart>fRangeStop)
 			{
-				ret = ResponseError(httpRequestRangeNotSatisfiable);
+				fHttpStatus = httpRequestRangeNotSatisfiable;
+				ret = ResponseError(fHttpStatus);
 				return ret;
 			}
 		}
@@ -1114,8 +1148,8 @@ QTSS_Error HTTPSession::ResponseGet()
 	}
 	else
 	{
-		//ret = ResponseFileNotFound(request_file);
-		ret = ResponseError(httpNotFound);		
+		fHttpStatus = httpNotFound;
+		ret = ResponseError(fHttpStatus);		
 	}	
 
 	return ret;
@@ -1527,7 +1561,8 @@ QTSS_Error HTTPSession::ResponseCmdListChannel()
 	if(fCmdBuffer == NULL)
 	{
 		fCmdBufferSize = 0;	
-		ret = ResponseError(httpInternalServerError);
+		fHttpStatus = httpInternalServerError;
+		ret = ResponseError(fHttpStatus);
 		return ret;
 	}
 	memset(fCmdBuffer, 0, fCmdBufferSize);
@@ -1580,7 +1615,7 @@ QTSS_Error HTTPSession::ResponseCmdListChannel()
 	}
 	content.Put("</channels>\n");
 
-	//ret = ResponseContent(content.GetBufPtr(), content.GetBytesWritten(), CONTENT_TYPE_APPLICATION_XML);
+	//ret = ResponseContent(content.GetBufPtr(), content.GetBytesWritten(), CONTENT_TYPE_APPLICATION_XML);	
 	ret = ResponseHeader(content.GetBufPtr(), content.GetBytesWritten(), CONTENT_TYPE_APPLICATION_XML);
 
 	fCmdContentLength = content.GetBytesWritten();	
@@ -1704,9 +1739,8 @@ QTSS_Error HTTPSession::ResponseCmdQueryChannel()
 		last_query_time = start_time_mp4;
 	}
 	if(last_query_time == 0)
-	{		
-		extern time_t		g_start_time;
-		last_query_time = g_start_time;
+	{
+		last_query_time = g_start_time.tv_sec;
 	}
 	time_t now = time(NULL);
 	time_t diff = now - last_query_time;
@@ -1766,7 +1800,8 @@ QTSS_Error HTTPSession::ResponseCmdChannelStatus()
 	if(fCmdBuffer == NULL)
 	{
 		fCmdBufferSize = 0;	
-		ret = ResponseError(httpInternalServerError);
+		fHttpStatus = httpInternalServerError;
+		ret = ResponseError(fHttpStatus);
 		return ret;
 	}
 	memset(fCmdBuffer, 0, fCmdBufferSize);
@@ -1955,17 +1990,16 @@ QTSS_Error HTTPSession::ResponseCmdChannelStatus()
 QTSS_Error HTTPSession::ResponseCmdQueryProcess()
 {
 	QTSS_Error ret = QTSS_NoErr;
-	
-	extern time_t		g_start_time;
+
 	char str_start_time[MAX_TIME_LEN] = {0};
-	ctime_r(&g_start_time, str_start_time);
+	ctime_r(&g_start_time.tv_sec, str_start_time);
 	str_start_time[strlen(str_start_time)-1] = '\0';
 
 	static time_t		last_query_time = 0;
 	static u_int64_t	last_download_bytes = 0;
 	if(last_query_time == 0)
 	{
-		last_query_time = g_start_time;
+		last_query_time = g_start_time.tv_sec;
 	}
 	time_t now = time(NULL);
 	time_t diff = now - last_query_time;
@@ -1992,7 +2026,7 @@ QTSS_Error HTTPSession::ResponseCmdQueryProcess()
 		"last_download_bytes=%ld\n"
 		"this_download_bytes=%ld\n"
 		"this_download_rate=%ld bps\n", 
-		g_start_time, str_start_time, 
+		g_start_time.tv_sec, str_start_time, 
 		g_download_bytes,
 		last_query_time, str_last_query_time,
 		now, str_this_query_time,
@@ -2261,7 +2295,10 @@ QTSS_Error HTTPSession::ResponseCmdResult(char* cmd, char* return_val, char* res
 }
 
 Bool16 HTTPSession::ResponseContent(char* content, int len, char* type)
-{			
+{	
+	fHttpStatus = httpOK;
+	fContentLen = len;
+	
 	fResponse.Set(fStrRemained.Ptr+fStrRemained.Len, kResponseBufferSizeInBytes-fStrRemained.Len);
 	fResponse.PutFmtStr("%s %s %s\r\n", 
     	HTTPProtocol::GetVersionString(http11Version)->Ptr,
@@ -2302,7 +2339,10 @@ Bool16 HTTPSession::ResponseContent(char* content, int len, char* type)
 }
 
 Bool16 HTTPSession::ResponseHeader(char* content, int len, char* type)
-{			
+{		
+	fHttpStatus = httpOK;
+	fContentLen = len;
+	
 	fResponse.Set(fStrRemained.Ptr+fStrRemained.Len, kResponseBufferSizeInBytes-fStrRemained.Len);
 	fResponse.PutFmtStr("%s %s %s\r\n", 
     	HTTPProtocol::GetVersionString(http11Version)->Ptr,
@@ -2345,7 +2385,7 @@ QTSS_Error HTTPSession::ResponseCmd()
 		ret = ResponseCmdListChannel();
 	}
 	else if(strcmp(fCmd.cmd, CMD_ADD_CHANNEL) == 0)
-	{
+	{		
 		ret = ResponseCmdAddChannel();
 	}
 	else if(strcmp(fCmd.cmd, CMD_DEL_CHANNEL) == 0)
@@ -2378,7 +2418,8 @@ QTSS_Error HTTPSession::ResponseCmd()
 	}
 	else 
 	{
-		ret = ResponseError(httpBadRequest);
+		fHttpStatus = httpBadRequest;
+		ret = ResponseError(fHttpStatus);
 	}
 	
 	return ret;
@@ -2406,7 +2447,8 @@ QTSS_Error HTTPSession::ResponseLiveM3U8()
 	CHANNEL_T* channelp = g_channels.FindChannelByHash(fLiveId);
 	if(channelp == NULL)
 	{
-		ret = ResponseError(httpNotFound);
+		fHttpStatus = httpNotFound;
+		ret = ResponseError(fHttpStatus);
 		return ret;
 	}
 
@@ -2489,7 +2531,8 @@ QTSS_Error HTTPSession::ResponseLiveM3U8()
 	TaskThread* threadp = fHttpClientSession->GetDefaultThread();
 	if(threadp == NULL)
 	{
-		ret = ResponseError(httpInternalServerError);
+		fHttpStatus = httpInternalServerError;
+		ret = ResponseError(fHttpStatus);
 		return ret;
 	}
 	
@@ -2509,7 +2552,8 @@ QTSS_Error HTTPSession::ContinueLiveM3U8()
 
 	if(!fHttpClientSession->Valid())
 	{
-		ret = ResponseError(httpGone);
+		fHttpStatus = httpGone;
+		ret = ResponseError(fHttpStatus);
 		return ret;
 	}
 
@@ -2522,7 +2566,8 @@ QTSS_Error HTTPSession::ContinueLiveM3U8()
 		
 	if(memoryp->clip_num <= 0)
 	{
-		ResponseError(httpNotFound);
+		fHttpStatus = httpNotFound;
+		ResponseError(fHttpStatus);
 		return ret;
 	}
 		
@@ -2759,7 +2804,8 @@ QTSS_Error HTTPSession::ContinueLiveSegment()
 
 	if(!fHttpClientSession->Valid())
 	{
-		ret = ResponseError(httpGone);
+		fHttpStatus = httpGone;
+		ret = ResponseError(fHttpStatus);
 		return ret;
 	}
 
@@ -2810,7 +2856,8 @@ QTSS_Error HTTPSession::ContinueLiveSegment()
 	}
 	if(clipp == NULL)
 	{
-		ret = ResponseError(httpNotFound);
+		fHttpStatus = httpNotFound;
+		ret = ResponseError(fHttpStatus);
 		return ret;
 	}
 
@@ -2821,34 +2868,38 @@ QTSS_Error HTTPSession::ContinueLiveSegment()
 		fRangeStop = fData->len-1;
 	}
 
-	HTTPStatusCode status_code = httpOK;	
+	fHttpStatus = httpOK;	
 	if(fHaveRange)
 	{
 		if(fRangeStart > fRangeStop)
 		{
-			ret = ResponseError(httpRequestRangeNotSatisfiable);
+			fHttpStatus = httpRequestRangeNotSatisfiable;
+			ret = ResponseError(fHttpStatus);
 			fData = NULL;
 			return ret;
 		}
 		if(fRangeStop > fData->len-1)
 		{
-			ret = ResponseError(httpRequestRangeNotSatisfiable);
+			fHttpStatus = httpRequestRangeNotSatisfiable;
+			ret = ResponseError(fHttpStatus);
 			fData = NULL;
 			return ret;
 		}
 		
 		fprintf(stdout, "%s: range=%ld-%ld", __PRETTY_FUNCTION__, fRangeStart, fRangeStop);
-		status_code = httpPartialContent;
+		fHttpStatus = httpPartialContent;
 	}
+
+	fContentLen = fRangeStop+1-fRangeStart;
 	
 	fResponse.Set(fStrRemained.Ptr+fStrRemained.Len, kResponseBufferSizeInBytes-fStrRemained.Len);
 	fResponse.PutFmtStr("%s %s %s\r\n", 
 			HTTPProtocol::GetVersionString(http11Version)->Ptr,
-			HTTPProtocol::GetStatusCodeAsString(status_code)->Ptr,
-			HTTPProtocol::GetStatusCodeString(status_code)->Ptr);
+			HTTPProtocol::GetStatusCodeAsString(fHttpStatus)->Ptr,
+			HTTPProtocol::GetStatusCodeString(fHttpStatus)->Ptr);
     fResponse.PutFmtStr("Server: %s/%s\r\n", BASE_SERVER_NAME, BASE_SERVER_VERSION);
     fResponse.PutFmtStr("Accept-Ranges: bytes\r\n");	
-    fResponse.PutFmtStr("Content-Length: %ld\r\n", fRangeStop+1-fRangeStart); 
+    fResponse.PutFmtStr("Content-Length: %ld\r\n", fContentLen); 
     fResponse.PutFmtStr("Connection: keep-alive\r\n");
     fResponse.PutFmtStr("Proxy-Connection: Keep-Alive\r\n");
     fResponse.PutFmtStr("Content-Disposition: attachment;filename=\"%s\"\r\n", clipp->file_name); 
@@ -2882,6 +2933,7 @@ QTSS_Error HTTPSession::ContinueLiveSegment()
 QTSS_Error HTTPSession::ResponseLive()
 {
 	QTSS_Error ret = QTSS_NoErr;
+	
 	//if(strcasestr(fRequest.fAbsoluteURI.Ptr, ".m3u8") != NULL)
 	if(strcasestr(fRequest.fRequestPath, ".m3u8") != NULL)
 	{	
@@ -2918,7 +2970,8 @@ QTSS_Error HTTPSession::ResponseFile(char* abs_path)
 	fFd = open(abs_path, O_RDONLY);
 	if(fFd == -1)
 	{
-		ret = ResponseError(httpInternalServerError);
+		fHttpStatus = httpInternalServerError;
+		ret = ResponseError(fHttpStatus);
 		return ret;
 	}	
 	
@@ -2928,41 +2981,44 @@ QTSS_Error HTTPSession::ResponseFile(char* abs_path)
 		fRangeStop = file_len - 1;
 	}	
 
-	HTTPStatusCode status_code = httpOK;	
+	fHttpStatus = httpOK;	
 	if(fHaveRange)
 	{
 		if(fRangeStart > fRangeStop)
 		{
-			ret = ResponseError(httpRequestRangeNotSatisfiable);
+			fHttpStatus = httpRequestRangeNotSatisfiable;
+			ret = ResponseError(fHttpStatus);
 			close(fFd);
 			fFd = -1;
 			return ret;
 		}
 		if(fRangeStop > file_len - 1)
 		{
-			ret = ResponseError(httpRequestRangeNotSatisfiable);
+			fHttpStatus = httpRequestRangeNotSatisfiable;
+			ret = ResponseError(fHttpStatus);
 			close(fFd);
 			fFd = -1;
 			return ret;
 		}
 		
 		fprintf(stdout, "%s: range=%ld-%ld", __PRETTY_FUNCTION__, fRangeStart, fRangeStop);
-		status_code = httpPartialContent;
+		fHttpStatus = httpPartialContent;
 	}
 	
 	lseek(fFd, fRangeStart, SEEK_SET);
 	
 	char* suffix = file_suffix(abs_path);
 	char* content_type = content_type_by_suffix(suffix);
+	fContentLen = fRangeStop+1-fRangeStart;
 	
 	fResponse.Set(fStrRemained.Ptr+fStrRemained.Len, kResponseBufferSizeInBytes-fStrRemained.Len);		
 	fResponse.PutFmtStr("%s %s %s\r\n", 
 			HTTPProtocol::GetVersionString(http11Version)->Ptr,
-			HTTPProtocol::GetStatusCodeAsString(status_code)->Ptr,			
-			HTTPProtocol::GetStatusCodeString(status_code)->Ptr);
+			HTTPProtocol::GetStatusCodeAsString(fHttpStatus)->Ptr,			
+			HTTPProtocol::GetStatusCodeString(fHttpStatus)->Ptr);
     fResponse.PutFmtStr("Server: %s/%s\r\n", BASE_SERVER_NAME, BASE_SERVER_VERSION);
     fResponse.PutFmtStr("Accept-Ranges: bytes\r\n");	
-    fResponse.PutFmtStr("Content-Length: %ld\r\n", fRangeStop+1-fRangeStart);    
+    fResponse.PutFmtStr("Content-Length: %ld\r\n", fContentLen);    
     if(fHaveRange)
     {
     	//Content-Range: 1000-3000/5000
@@ -3063,6 +3119,8 @@ QTSS_Error HTTPSession::ResponseError(HTTPStatusCode status_code)
 	content.Put("</TABLE>\n");		
 	content.Put("</BODY>\n");
 	content.Put("</HTML>\n");
+
+    fContentLen = content.GetBytesWritten();
     
     fResponse.Set(fStrRemained.Ptr+fStrRemained.Len, kResponseBufferSizeInBytes-fStrRemained.Len);
     fResponse.PutFmtStr("%s %s %s\r\n", 
@@ -3070,7 +3128,7 @@ QTSS_Error HTTPSession::ResponseError(HTTPStatusCode status_code)
     	HTTPProtocol::GetStatusCodeAsString(status_code)->Ptr,
     	HTTPProtocol::GetStatusCodeString(status_code)->Ptr);
     fResponse.PutFmtStr("Server: %s/%s\r\n", BASE_SERVER_NAME, BASE_SERVER_VERSION);
-    fResponse.PutFmtStr("Content-Length: %d\r\n", content.GetBytesWritten());
+    fResponse.PutFmtStr("Content-Length: %d\r\n", fContentLen);
     fResponse.PutFmtStr("Content-Type: %s;charset=%s\r\n", CONTENT_TYPE_TEXT_HTML, CHARSET_UTF8);
     fResponse.Put("\r\n"); 
     fResponse.Put(content.GetBufPtr(), content.GetBytesWritten());

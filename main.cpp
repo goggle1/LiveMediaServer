@@ -3,6 +3,7 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <getopt.h>
+#include <sys/time.h>
 
 #include "BaseServer/OS.h"
 #include "BaseServer/Socket.h"
@@ -22,10 +23,10 @@
 
 #define MAX_URL_LEN		256
 
-char* 		g_config_file = DEFAULT_CONFIG_FILE;
-CONFIG_T	g_config = {};
-ChannelList g_channels;
-time_t		g_start_time = time(NULL);
+char* 			g_config_file = DEFAULT_CONFIG_FILE;
+CONFIG_T		g_config = {};
+ChannelList 	g_channels;
+struct timeval	g_start_time = {};
 
 int start_server()
 {
@@ -239,6 +240,8 @@ int parse_cmd_line(int argc, char* argv[])
 int main(int argc, char* argv[])
 {
 	int ret = 0;
+
+	gettimeofday(&g_start_time, NULL);
 
 	ret = parse_cmd_line(argc, argv);
 	if(ret != 0)

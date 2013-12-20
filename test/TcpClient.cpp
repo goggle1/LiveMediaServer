@@ -10,7 +10,7 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 
-#define DEFAULT_PORT 5050
+#define DEFAULT_PORT 843
 
 int main(int argc, char** argv)
 {
@@ -23,10 +23,14 @@ int main(int argc, char** argv)
     
     if(argc < 2)
     {
-        printf("Usage: client [server IP address]\n");
+        printf("Usage: client [server_ip] [server_port]\n");
         return -1;
     }
     server_ip = argv[1];
+    if(argc >= 3)
+    {
+    	cPort = atoi(argv[2]);
+    }
     
     memset(cbuf, 0, sizeof(cbuf));
     
@@ -40,6 +44,11 @@ int main(int argc, char** argv)
         printf("socket() failure!\n");
         return -1; 
     }
+
+    struct timeval timeo = {3, 0};   
+    socklen_t len = sizeof(timeo); 
+    setsockopt(cClient, SOL_SOCKET, SO_SNDTIMEO, &timeo, len);
+    setsockopt(cClient, SOL_SOCKET, SO_RCVTIMEO, &timeo, len);
     
     if(connect(cClient, (struct sockaddr*)&cli, sizeof(cli)) < 0)
     {
@@ -49,6 +58,7 @@ int main(int argc, char** argv)
 
 	
     char send_buffer[4096];
+    #if 0
     snprintf(send_buffer, 4095, 
     	"GET %s HTTP/1.1\r\n"
 		"User-Agent: %s\r\n"
@@ -57,19 +67,24 @@ int main(int argc, char** argv)
 		"\r\n", 
 		"index.html", "TeslaBrowser", server_ip, DEFAULT_PORT);
 	send_buffer[4095] = '\0';
+	#endif
+	strcpy(send_buffer, "<policy-file-request/>");
 	
-	int total_len = strlen(send_buffer);
+	int total_len = strlen(send_buffer)+1;
 	int first_len = total_len/2;
 	int second_len = total_len - first_len;
-	int ret = send(cClient, send_buffer, first_len, 0);
-	fprintf(stdout, "1st send %d, return %d\n", first_len, ret);
-	ret = send(cClient, send_buffer+first_len, second_len, 0);
-	fprintf(stdout, "2nd send %d, return %d\n", second_len, ret);
+	int ret = send(cClient, send_buffer, total_len, 0);
+	fprintf(stdout, "send() %s, return %d\n", send_buffer, ret);
+	if(ret != total_len)
+	{
+		printf("send() failure!\n");
+        return -1;
+	}
 		
     cLen = recv(cClient, cbuf, sizeof(cbuf),0);    
     if((cLen < 0)||(cLen == 0))
     {
-          printf("recv() failure!\n");
+        printf("recv() failure!\n");
         return -1;
     }
     printf("recv() Data From Server: [%s]\n", cbuf);

@@ -40,7 +40,9 @@ typedef struct session_t
 
 extern u_int64_t	g_download_bytes;
 extern SESSION_T 	g_http_sessions[MAX_SESSION_NUM];
-extern int	g_http_session_pos;
+extern int			g_http_session_pos;
+extern FILE*		g_log;
+
 
 class HTTPSession : public Task
 {
@@ -83,6 +85,7 @@ protected:
 	        QTSS_Error		ContinueLive();
 	        QTSS_Error		ContinueLiveM3U8();
 	        QTSS_Error		ContinueLiveSegment();
+	        void			Log();
 
 			TCPSocket	fSocket;
 		
@@ -141,10 +144,12 @@ protected:
 			int64_t		fCmdContentLength;
 			int64_t		fCmdContentPosition;
 			
-	        HTTPStatusCode fStatusCode; 
+	        HTTPStatusCode 	fHttpStatus; 
+			UInt32			fContentLen;
 
 	        //session statistics
 			SESSION_T*	fSessionp;
+
 };
 
 #endif

@@ -95,7 +95,7 @@ class HTTPClientSession : public Task
 		int					fGetTryCount;
 
 		char				fLogFile[PATH_MAX];
-		FILE*				fLogFilep;
+		FILE*				fLog;
 		struct timeval		fBeginTime;
         struct timeval		fEndTime;
 

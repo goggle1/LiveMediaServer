@@ -111,8 +111,8 @@ void Task::SetSignal(EventFlags events)
     //the event mask. Because atomic_or returns the old state of the mask,
     //we only schedule this task once.
     events |= kAlive;
-    EventFlags oldEvents = atomic_or(&fEvents, events);
-    
+    //EventFlags oldEvents = atomic_or(&fEvents, events);
+   	atomic_or(&fEvents, events);
 }
 
 void Task::Signal(EventFlags events)
