@@ -14,6 +14,7 @@
 <th align="center">download_bytes</th>
 <th align="center">begin_time</th>
 <th align="center">end_time</th>
+<th align="center">now_time</th>
 <th align="center">upload_rate</th>
 <th align="center">download_rate</th>
 </tr>
@@ -30,6 +31,7 @@
 <td align="right"><xsl:value-of select="@download_bytes" /></td>
 <td align="right"><xsl:value-of select="@begin_time" /></td>
 <td align="right"><xsl:value-of select="@end_time" /></td>
+<td align="right"><xsl:value-of select="@now_time" /></td>
 <td align="right"><xsl:value-of select="@upload_rate" /></td>
 <td align="right"><xsl:value-of select="@download_rate" /></td>
 </tr>

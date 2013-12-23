@@ -1748,9 +1748,9 @@ QTSS_Error HTTPSession::ResponseCmdQueryChannel()
 	{
 		diff = 1;
 	}
-	u_int64_t download_rate_ts  = (channelp->statistics_ts.download_bytes - last_download_bytes_ts) / diff;
-	u_int64_t download_rate_flv = (channelp->statistics_flv.download_bytes - last_download_bytes_ts) / diff;
-	u_int64_t download_rate_mp4 = (channelp->statistics_mp4.download_bytes - last_download_bytes_ts) / diff;
+	u_int64_t download_rate_ts  = (channelp->statistics_ts.download_bytes - last_download_bytes_ts)*8 / diff;
+	u_int64_t download_rate_flv = (channelp->statistics_flv.download_bytes - last_download_bytes_ts)*8 / diff;
+	u_int64_t download_rate_mp4 = (channelp->statistics_mp4.download_bytes - last_download_bytes_ts)*8 / diff;
 
 	char str_last_query_time[MAX_TIME_LEN] = {0};
 	ctime_r(&last_query_time, str_last_query_time);
@@ -2007,7 +2007,7 @@ QTSS_Error HTTPSession::ResponseCmdQueryProcess()
 	{
 		diff = 1;
 	}
-	u_int64_t download_rate = (g_download_bytes - last_download_bytes) / diff;
+	u_int64_t download_rate = (g_download_bytes - last_download_bytes)*8 / diff;
 
 	char str_last_query_time[MAX_TIME_LEN] = {0};
 	ctime_r(&last_query_time, str_last_query_time);
@@ -2043,6 +2043,7 @@ QTSS_Error HTTPSession::ResponseCmdQueryProcess()
 }
 
 
+#if 0
 QTSS_Error HTTPSession::ResponseCmdQuerySession()
 {
 	QTSS_Error ret = QTSS_NoErr;
@@ -2100,6 +2101,7 @@ QTSS_Error HTTPSession::ResponseCmdQuerySession()
 		"download_bytes=%ld\n"
 		"begin_time=%ld.%06ld\n"
 		"end_time=%ld.%06ld\n"
+		"now_time=%ld.%06ld\n"
 		"upload_rate=%ld bps\n"
 		"download_rate=%ld bps\n", 
 		sessionp->remote_ip, session_ip, 
@@ -2109,11 +2111,116 @@ QTSS_Error HTTPSession::ResponseCmdQuerySession()
 		sessionp->download_bytes,
 		sessionp->begin_time.tv_sec, sessionp->begin_time.tv_usec, 
 		sessionp->end_time.tv_sec,   sessionp->end_time.tv_usec,
+		now_time.tv_sec, now_time.tv_usec,
 		upload_rate, 
 		download_rate);	
 
 	ResponseContent(content.GetBufPtr(), content.GetBytesWritten(), CONTENT_TYPE_TEXT_PLAIN);
 	
+	return ret;
+}
+#endif
+
+QTSS_Error HTTPSession::ResponseCmdQuerySession()
+{
+	QTSS_Error ret = QTSS_NoErr;
+
+	char client_ip[MAX_IP_LEN] = {'\0'};
+	int get = params_get_ip(fRequest.fParamPairs, client_ip);
+	if(get != 0)
+	{
+		char* request_file = "/query_session.html";
+		char abs_path[PATH_MAX];
+		snprintf(abs_path, PATH_MAX, "%s%s", g_config.work_path, request_file);
+		abs_path[PATH_MAX-1] = '\0';	
+		ret = ResponseFile(abs_path);		
+		return ret;
+	}
+
+	u_int32_t ip = inet_addr(client_ip);
+
+	int session_num = g_http_session_pos+1;	
+	fCmdBufferSize = session_num*2*1024;
+	fCmdBuffer = (char*)malloc(fCmdBufferSize);
+	if(fCmdBuffer == NULL)
+	{
+		fCmdBufferSize = 0;	
+		ret = ResponseError(httpInternalServerError);
+		return ret;
+	}
+	memset(fCmdBuffer, 0, fCmdBufferSize);
+	StringFormatter content(fCmdBuffer, fCmdBufferSize);
+	content.Put("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n");
+	content.Put("<?xml-stylesheet type=\"text/xsl\" href=\"/query_session.xsl\"?>\n");
+	content.PutFmtStr("<sessions ip=\"%s\">\n", client_ip);
+
+	struct timeval now_time;
+	gettimeofday(&now_time, NULL);
+
+	struct timeval* until_timep = NULL;	
+	int index = 0;
+	for(index=0; index<=g_http_session_pos; index++)
+	{
+		SESSION_T* sessionp = &g_http_sessions[index];	
+		if(sessionp->sessionp ==  NULL && sessionp->begin_time.tv_sec == 0)
+		{
+			continue;
+		}
+
+		if(sessionp->remote_ip != ip)
+		{
+			continue;
+		}
+
+		if(sessionp->end_time.tv_sec == 0)
+		{
+			until_timep = &now_time;
+		}
+		else
+		{
+			until_timep = &sessionp->end_time;
+		}
+
+		u_int64_t upload_rate = network_rate(sessionp->upload_bytes, &sessionp->begin_time, until_timep);
+		u_int64_t download_rate = network_rate(sessionp->download_bytes, &sessionp->begin_time, until_timep);
+
+		char session_ip[MAX_IP_LEN] = {'\0'} ;
+		struct in_addr s = {};
+		s.s_addr = sessionp->remote_ip;
+		inet_ntop(AF_INET, (const void *)&s, session_ip, MAX_IP_LEN);
+		
+		content.PutFmtStr("\t<session remote_ip=\"0x%08X[%s]\" remote_port=\"%d\" session_type=\"0x%08X\" "
+			"upload_bytes=\"%ld\" download_bytes=\"%ld\" "
+			"begin_time=\"%ld.%06ld\" end_time=\"%ld.%06ld\" now_time=\"%ld.%06ld\" "
+			"upload_rate=\"%ld bps\" download_rate=\"%ld bps\">\n", 
+			sessionp->remote_ip, session_ip, sessionp->remote_port, sessionp->session_type,
+			sessionp->upload_bytes, sessionp->download_bytes,
+			sessionp->begin_time.tv_sec, sessionp->begin_time.tv_usec, 
+			sessionp->end_time.tv_sec,   sessionp->end_time.tv_usec,
+			now_time.tv_sec, now_time.tv_usec,
+			upload_rate, download_rate);		
+
+		content.Put("\t</session>\n");
+	}
+	content.Put("</sessions>\n");
+	
+	//ret = ResponseContent(content.GetBufPtr(), content.GetBytesWritten(), CONTENT_TYPE_APPLICATION_XML);
+	ret = ResponseHeader(content.GetBufPtr(), content.GetBytesWritten(), CONTENT_TYPE_APPLICATION_XML);
+
+	fCmdContentLength = content.GetBytesWritten();	
+	if(fRequest.fMethod == httpGetMethod)
+	{
+		fCmdContentPosition = 0;
+	}
+	else if(fRequest.fMethod == httpHeadMethod)
+	{
+		free(fCmdBuffer);
+		fCmdBuffer = NULL;
+		fCmdBufferSize = 0;
+		fCmdContentLength = 0;
+		fCmdContentPosition = 0;
+	}	
+
 	return ret;
 }
 
@@ -2169,12 +2276,13 @@ QTSS_Error HTTPSession::ResponseCmdSessionStatus()
 		
 		content.PutFmtStr("\t<session remote_ip=\"0x%08X[%s]\" remote_port=\"%d\" session_type=\"0x%08X\" "
 			"upload_bytes=\"%ld\" download_bytes=\"%ld\" "
-			"begin_time=\"%ld.%06ld\" end_time=\"%ld.%06ld\" "
+			"begin_time=\"%ld.%06ld\" end_time=\"%ld.%06ld\" now_time=\"%ld.%06ld\" "
 			"upload_rate=\"%ld bps\" download_rate=\"%ld bps\">\n", 
 			sessionp->remote_ip, session_ip, sessionp->remote_port, sessionp->session_type,
 			sessionp->upload_bytes, sessionp->download_bytes,
 			sessionp->begin_time.tv_sec, sessionp->begin_time.tv_usec, 
 			sessionp->end_time.tv_sec,   sessionp->end_time.tv_usec,
+			now_time.tv_sec, now_time.tv_usec,
 			upload_rate, download_rate);		
 
 		content.Put("\t</session>\n");

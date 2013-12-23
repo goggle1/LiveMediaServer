@@ -708,7 +708,8 @@ SInt64 HTTPClientSession::Run()
     	ret = TryStop();
        	if(ret == 0)
        	{
-       		return 0;
+       		//return 0;
+       		return -1;
        	}
        	ret = TrySwitchSources();       	
                	
