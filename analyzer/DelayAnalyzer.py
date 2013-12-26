@@ -78,7 +78,11 @@ def main():
         segment_timestamp = file_get_time(section_file)
         begin_time = section_get_time(section_begin_time)
         end_time = section_get_time(section_end_time)
+        if(len(begin_time) == 0):
+            continue
         begin_timestamp = string.atof(begin_time)
+        if(len(end_time) == 0):
+            continue
         end_timestamp = string.atof(end_time)
         download_time = end_timestamp - begin_timestamp
         delay_time = end_timestamp - segment_timestamp
