@@ -1,0 +1,36 @@
+datas = load('analyzer.output');
+download_time = datas(:, 5);
+min_time = min(download_time);
+max_time = max(download_time);
+mean_time = mean(download_time);
+x=linspace(min_time, max_time, 100);
+y1=[];
+for i=x;
+y1=[y1 100*length(find(download_time <= i))/length(download_time)];
+end;
+plot(x, y1);
+xlabel('download time(s)');
+ylabel('percent(%)');
+str=sprintf('min: %f\nmax: %f\nmean: %f\n', min_time, max_time, mean_time);
+text(8, 65, str);
+box on;
+grid on;
+
+
+datas = load('analyzer.output');
+delay_time = datas(:, 6);
+min_time = min(delay_time);
+max_time = max(delay_time);
+mean_time = mean(delay_time);
+x=linspace(min_time, max_time, 100);
+y1=[];
+for i=x;
+y1=[y1 100*length(find(delay_time <= i))/length(delay_time)];
+end;
+plot(x, y1);
+xlabel('delay time(s)');
+ylabel('percent(%)');
+str=sprintf('min: %f\nmax: %f\nmean: %f\n', min_time, max_time, mean_time);
+text(80, 65, str);
+box on;
+grid on;
