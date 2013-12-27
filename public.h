@@ -30,5 +30,7 @@
 
 extern struct timeval		g_start_time;
 
+extern int gettid();
+
 #endif
 

@@ -583,7 +583,6 @@ u_int64_t download_limit(struct timeval* begin_time, struct timeval* end_time, u
 
 }
 
-
 HTTPSession::HTTPSession(SESSION_T* sessionp):
     fSocket(NULL, Socket::kNonBlockingSocketType),
     fStrReceived((char*)fRequestBuffer, 0),
@@ -602,7 +601,8 @@ HTTPSession::HTTPSession(SESSION_T* sessionp):
 	fCmdContentLength = 0;
 	fCmdContentPosition = 0;
     fHttpStatus     = 0;
-    fContentLen = 0;
+    fContentLen = 0;    
+    //this->SetThreadPicker(&Task::sShortTaskThreadPicker);
     this->SetThreadPicker(&Task::sBlockingTaskThreadPicker);
     fSessionp = sessionp;
     fSessionp->sessionp = this;
@@ -649,8 +649,9 @@ TCPSocket* HTTPSession::GetSocket()
     return &fSocket;
 }
 
+#if 0
 void 		HTTPSession::Log()
-{
+{	
 	if(g_log != NULL)
 	{
 		char session_ip[MAX_IP_LEN] = {'\0'} ;
@@ -674,6 +675,63 @@ void 		HTTPSession::Log()
 			fContentLen, "-",
 			user_agent,	"-", "-");
 		//fflush(g_log);			
+	}
+}
+#endif
+
+void 		HTTPSession::Log()
+{
+	//fprintf(stdout, "%s[0x%016lX]: fDefaultThread=[0x%016lX], fUseThisThread=[0x%016lX]\n", 
+	//	__PRETTY_FUNCTION__, (long)this, (long)this->fDefaultThread, (long)this->fUseThisThread);
+	TaskThread* threadp = this->fDefaultThread;
+	if(threadp == NULL)
+	{
+		return;
+	}	
+
+	struct timeval now = {};
+	gettimeofday(&now, NULL);
+	time_t day1 = threadp->fLogTime.tv_sec/(3600*24);
+	time_t day2 = now.tv_sec/(3600*24);
+	if(day1 != day2)
+	{
+		if(threadp->fLog != NULL)
+		{
+			fclose(threadp->fLog);
+			threadp->fLog = NULL;
+		}
+		
+		threadp->fLogTime = now;		
+		char FileName[PATH_MAX] = {'\0'};
+		snprintf(FileName, PATH_MAX, "%s/sessions_%d_%d_%ld_%06ld.log", 
+			g_config.work_path, getpid(), gettid(), threadp->fLogTime.tv_sec, threadp->fLogTime.tv_usec);
+		FileName[PATH_MAX-1] = '\0';
+		threadp->fLog = fopen(FileName, "a");
+	}
+	
+	if(threadp->fLog != NULL)
+	{
+		char session_ip[MAX_IP_LEN] = {'\0'} ;
+		struct in_addr s = {0};
+		s.s_addr = fSessionp->remote_ip;
+		inet_ntop(AF_INET, (const void *)&s, session_ip, MAX_IP_LEN);
+
+		time_t now = time(NULL);
+		char str_time[MAX_TIME_LEN] = {0};
+		ctime_r(&now, str_time);
+		str_time[strlen(str_time)-1] = '\0';
+
+		char user_agent[fRequest.fFieldValues[httpUserAgentHeader].Len + 1];
+		strncpy(user_agent, fRequest.fFieldValues[httpUserAgentHeader].Ptr, fRequest.fFieldValues[httpUserAgentHeader].Len);
+		user_agent[fRequest.fFieldValues[httpUserAgentHeader].Len] = '\0';
+		// remote_ip, remote_port, user, time, "request", http_status, content-length, "-", "user-agent", -, -
+		fprintf(threadp->fLog, "%15s %5u %s [%s] \"%s\" %s %u \"%s\" \"%s\" %s %s\n", 
+			session_ip, fSessionp->remote_port, "-",
+			str_time, fRequest.fRequestPath, 
+			HTTPProtocol::GetStatusCodeAsString(fHttpStatus)->Ptr,
+			fContentLen, "-",
+			user_agent,	"-", "-");
+		fflush(threadp->fLog);			
 	}
 }
 

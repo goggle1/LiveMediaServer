@@ -68,6 +68,7 @@ class HTTPClientSession : public Task
 		int		SetSource(SOURCE_T* sourcep);
 		int		MemoSourceM3U8(time_t newest_time, u_int64_t download_byte, struct timeval download_begin_time, struct timeval download_end_time);
 		int		MemoSourceSegment(u_int64_t download_byte, struct timeval download_begin_time, struct timeval download_end_time);
+		int		SwitchLog(struct timeval until);
 		
 		char				fHost[MAX_HOST_LEN];
 		TCPClientSocket* 	fSocket;
@@ -98,6 +99,7 @@ class HTTPClientSession : public Task
 		FILE*				fLog;
 		struct timeval		fBeginTime;
         struct timeval		fEndTime;
+        struct timeval		fLogTime;
 
 		// from cmd
 		Bool16				fWillStop;

@@ -5,6 +5,9 @@
 #include <getopt.h>
 #include <sys/time.h>
 
+#include <sys/syscall.h>
+#include <unistd.h>
+
 #include "BaseServer/OS.h"
 #include "BaseServer/Socket.h"
 #include "BaseServer/SocketUtils.h"
@@ -27,6 +30,12 @@ char* 			g_config_file = DEFAULT_CONFIG_FILE;
 CONFIG_T		g_config = {};
 ChannelList 	g_channels;
 struct timeval	g_start_time = {};
+
+int gettid()
+{
+	return syscall(SYS_gettid);
+}
+
 
 int start_server()
 {

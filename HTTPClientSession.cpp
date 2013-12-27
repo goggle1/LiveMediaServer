@@ -119,11 +119,16 @@ HTTPClientSession::HTTPClientSession(CHANNEL_T* channelp, char* live_type)
 	fWillUpdateSources = false;
 
 	gettimeofday(&fBeginTime, NULL);
-	snprintf(fLogFile, PATH_MAX, "%s/%s_%s_%ld_%06ld.log", 
-		g_config.work_path, fLiveType, fChannel->liveid,
-		fBeginTime.tv_sec, fBeginTime.tv_usec);
+	fLogTime.tv_sec = 0;
+	fLogTime.tv_usec = 0;
+#if 0
+	fLogTime = fBeginTime;
+	snprintf(fLogFile, PATH_MAX, "%s/%d_%d_%s_%s_%ld_%06ld.log", 
+		g_config.work_path, getpid(), gettid(), fLiveType, fChannel->liveid,
+		fLogTime.tv_sec, fLogTime.tv_usec);
 	fLogFile[PATH_MAX-1] = '\0';
 	fLog = fopen(fLogFile, "a");
+#endif
 	
 	fMemory = (MEMORY_T*)malloc(sizeof(MEMORY_T));	
 	// if fMemory == NULL, thrown exception.
@@ -285,6 +290,30 @@ int HTTPClientSession::TrySwitchSources()
 	return ret;
 }
 
+int HTTPClientSession::SwitchLog(struct timeval until)
+{
+	time_t day1 = fLogTime.tv_sec / (3600*24);
+	time_t day2 = until.tv_sec / (3600*24);
+	if(day1 == day2)
+	{
+		return -1;
+	}
+
+	fLogTime = until;
+	if(fLog != NULL)
+	{
+		fclose(fLog);
+		fLog = NULL;
+	}
+
+	fLogTime = until;
+	snprintf(fLogFile, PATH_MAX, "%s/%d_%d_%s_%s_%ld_%06ld.log", 
+		g_config.work_path, getpid(), gettid(), fLiveType, fChannel->liveid,
+		fLogTime.tv_sec, fLogTime.tv_usec);
+	fLogFile[PATH_MAX-1] = '\0';
+	fLog = fopen(fLogFile, "a");
+	return 0;
+}
 
 int HTTPClientSession::SwitchSource(OS_Error theErr)
 {
@@ -676,7 +705,7 @@ SInt64 HTTPClientSession::Run()
 	
 	if (theEvents & Task::kStartEvent)
     {
-    	// do nothing.
+		SwitchLog(fBeginTime);
     }
 
 	#if 0
@@ -795,7 +824,8 @@ SInt64 HTTPClientSession::Run()
             	fSegmentBeginTime = fClient->fBeginTime;
                 fSegmentEndTime = fClient->fEndTime;  
             	if (theErr == OS_NoErr)
-                {                   	              	
+                {  
+                	SwitchLog(fSegmentBeginTime);
                 	UInt32 get_status = fClient->GetStatus();
                 	if (get_status != 200)
                     {

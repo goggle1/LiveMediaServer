@@ -175,9 +175,25 @@ class TaskThread : public OSThread
         //Implementation detail: all tasks get run on TaskThreads.
         
                         TaskThread() :  OSThread(), fTaskThreadPoolElem()
-                                        {fTaskThreadPoolElem.SetEnclosingObject(this);}
-						virtual         ~TaskThread() { this->StopAndWaitForThread(); }
-           
+                                        {
+                                        	fTaskThreadPoolElem.SetEnclosingObject(this); 
+                                        	fLog = NULL; 
+                                        	fLogTime.tv_sec  = 0;
+                                        	fLogTime.tv_usec = 0;
+                                        }
+						virtual         ~TaskThread() 
+										{ 
+											this->StopAndWaitForThread(); 
+											if(fLog != NULL)
+											{
+												fclose(fLog);
+												fLog = NULL;
+											} 
+										}
+
+        FILE*				fLog;
+        struct timeval		fLogTime;
+        
     private:
     
         enum
@@ -192,7 +208,7 @@ class TaskThread : public OSThread
         
         OSHeap              fHeap;
         OSQueue_Blocking    fTaskQueue;
-        
+
         
         friend class Task;
         friend class TaskThreadPool;

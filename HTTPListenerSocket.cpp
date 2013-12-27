@@ -7,25 +7,31 @@
 u_int64_t		g_download_bytes = 0;
 SESSION_T		g_http_sessions[MAX_SESSION_NUM] = {{0}};
 int				g_http_session_pos = 0;
+#if 0
 FILE*			g_log = NULL;
+#endif
 
 HTTPListenerSocket::HTTPListenerSocket()
 {
+#if 0
 	char FileName[PATH_MAX] = {'\0'};
 	snprintf(FileName, PATH_MAX, "%s/sessions_%ld_%06ld.log", 
 		g_config.work_path, g_start_time.tv_sec, g_start_time.tv_usec);
 	FileName[PATH_MAX-1] = '\0';
 	g_log = fopen(FileName, "a");
 	fprintf(stdout, "%s: open log %s return 0x%016lX\n", __PRETTY_FUNCTION__, FileName, (u_int64_t)g_log);
+#endif
 }
 
 HTTPListenerSocket::~HTTPListenerSocket()
 {
+#if 0
 	if(g_log != NULL)
 	{
 		fclose(g_log);
 		g_log = NULL;
 	}
+#endif
 }
 
 Task*   HTTPListenerSocket::GetSessionTask(TCPSocket** outSocket, struct sockaddr_in* addr)
