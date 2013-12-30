@@ -71,7 +71,8 @@
 #define CMD_DEL_CHANNEL  	"del_channel"
 #define CMD_UPDATE_CHANNEL 	"update_channel"
 #define CMD_CHANNEL_STATUS 	"channel_status"
-#define CMD_SESSION_STATUS 	"session_status"
+#define CMD_HTTP_SESSIONS 	"http_sessions"
+#define CMD_SESSION_LIST 	"session_list"
 #define CMD_QUERY_VERSION 	"queryversion"
 #define CMD_QUERY_PROCESS 	"query_process"
 #define CMD_QUERY_CHANNEL 	"query_channel"
@@ -2283,7 +2284,83 @@ QTSS_Error HTTPSession::ResponseCmdQuerySession()
 }
 
 
-QTSS_Error HTTPSession::ResponseCmdSessionStatus()
+QTSS_Error HTTPSession::ResponseCmdHttpSessions()
+{
+	QTSS_Error ret = QTSS_NoErr;
+
+	int 	session_num_ongoing = 0;
+	int 	session_num_ongoing_data = 0;	// with data flow
+	int 	session_num_ongoing_null = 0; 	// no data flow
+	int		session_num_stopped = 0;
+	int 	session_num_stopped_data = 0;	// with data flow
+	int 	session_num_stopped_null = 0; 	// no data flow
+	
+	struct timeval now_time;
+	gettimeofday(&now_time, NULL);
+	char str_now[MAX_TIME_LEN] = {0};
+	ctime_r(&now_time.tv_sec, str_now);
+	str_now[strlen(str_now)-1] = '\0';	
+	
+	int index = 0;
+	for(index=0; index<=g_http_session_pos; index++)
+	{
+		SESSION_T* sessionp = &g_http_sessions[index];	
+		if(sessionp->sessionp ==  NULL && sessionp->begin_time.tv_sec == 0)
+		{
+			continue;
+		}
+
+		if(sessionp->end_time.tv_sec == 0)
+		{
+			session_num_ongoing ++;
+			if(sessionp->upload_bytes == 0 && sessionp->download_bytes == 0)
+			{
+				session_num_ongoing_null ++;
+			}
+			else
+			{
+				session_num_ongoing_data ++;
+			}
+		}
+		else
+		{
+			session_num_stopped ++;
+			if(sessionp->upload_bytes == 0 && sessionp->download_bytes == 0)
+			{
+				session_num_stopped_null ++;
+			}
+			else
+			{
+				session_num_stopped_data ++;
+			}
+		}
+	}
+		
+	char	buffer[4*1024];
+	StringFormatter content(buffer, sizeof(buffer));
+	content.PutFmtStr(
+		"time=%ld[%s]\n"		
+		"session_num_ongoing=%d\n"
+		"session_num_ongoing_data=%d\n"
+		"session_num_ongoing_null=%d\n"
+		"session_num_stopped=%d\n"
+		"session_num_stopped_data=%d\n"
+		"session_num_stopped_null=%d\n", 
+		now_time.tv_sec, str_now, 
+		session_num_ongoing,
+		session_num_ongoing_data,
+		session_num_ongoing_null,
+		session_num_stopped,
+		session_num_stopped_data,
+		session_num_stopped_null);	
+
+	ResponseContent(content.GetBufPtr(), content.GetBytesWritten(), CONTENT_TYPE_TEXT_PLAIN);
+
+	return ret;
+}
+
+
+QTSS_Error HTTPSession::ResponseCmdSessionList()
 {
 	QTSS_Error ret = QTSS_NoErr;
 
@@ -2562,9 +2639,13 @@ QTSS_Error HTTPSession::ResponseCmd()
 	{
 		ret = ResponseCmdChannelStatus();
 	}
-	else if(strcmp(fCmd.cmd, CMD_SESSION_STATUS) == 0)
+	else if(strcmp(fCmd.cmd, CMD_HTTP_SESSIONS) == 0)
 	{
-		ret = ResponseCmdSessionStatus();
+		ret = ResponseCmdHttpSessions();
+	}
+	else if(strcmp(fCmd.cmd, CMD_SESSION_LIST) == 0)
+	{
+		ret = ResponseCmdSessionList();
 	}
 	else if(strcmp(fCmd.cmd, CMD_QUERY_VERSION) == 0)
 	{		

@@ -70,7 +70,8 @@ protected:
         	QTSS_Error 		ResponseCmdDelChannel(); 
         	QTSS_Error 		ResponseCmdUpdateChannel(CHANNEL_T* findp, CHANNEL_T* channelp);
         	QTSS_Error 		ResponseCmdChannelStatus();
-        	QTSS_Error 		ResponseCmdSessionStatus();
+        	QTSS_Error 		ResponseCmdHttpSessions();
+        	QTSS_Error 		ResponseCmdSessionList();
         	QTSS_Error 		ResponseCmdQueryChannel();
         	QTSS_Error 		ResponseCmdQueryProcess();
         	QTSS_Error 		ResponseCmdQuerySession();
