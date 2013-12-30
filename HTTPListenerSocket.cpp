@@ -21,6 +21,8 @@ HTTPListenerSocket::HTTPListenerSocket()
 	g_log = fopen(FileName, "a");
 	fprintf(stdout, "%s: open log %s return 0x%016lX\n", __PRETTY_FUNCTION__, FileName, (u_int64_t)g_log);
 #endif
+	fprintf(stdout, "%s: sizeof(SESSION_T)==%lu, sizeof(g_http_sessions)=%lu\n", __PRETTY_FUNCTION__, sizeof(SESSION_T), sizeof(g_http_sessions));
+
 }
 
 HTTPListenerSocket::~HTTPListenerSocket()

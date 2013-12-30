@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<config>
+	<ip>0.0.0.0</ip>
+	<port>5050</port>
+	<service_ip>192.168.160.202</service_ip>
+	<bin_path>/home/LiveMS/bin</bin_path>
+	<etc_path>/home/LiveMS/etc</etc_path>	
+	<log_path>/home/LiveMS/log</log_path>
+	<html_path>/home/LiveMS/html</html_path>
+	<max_clip_num>60</max_clip_num>
+	<download_limit>-1bps</download_limit>
+	<download_interval>5000ms</download_interval>
+</config>

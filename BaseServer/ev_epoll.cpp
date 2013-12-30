@@ -162,6 +162,9 @@ void epoll_startevents()
     s_FDsToCloseArray = new int[EPOLL_SIZE];
     for (int i = 0; i < EPOLL_SIZE; i++)
         s_FDsToCloseArray[i] = -1;
+
+    fprintf(stdout, "%s: sizeof(s_epoll_events)==%lu, sizeof(s_CookieArray)=%lu, sizeof(s_FDsToCloseArray)=%lu\n", 
+    	__FUNCTION__, sizeof(s_epoll_events), sizeof(void *)*EPOLL_SIZE, sizeof(int)*EPOLL_SIZE);
     
     //We need to wakeup select when the masks have changed. In order to do this,
     //we create a pipe that gets written to from modwatch, and read when select returns

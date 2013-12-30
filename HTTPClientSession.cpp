@@ -60,7 +60,7 @@ time_t timeval_diff(struct timeval* t2, struct timeval* t1)
 int make_dir(StrPtrLen& dir)
 {
 	char path[PATH_MAX] = {'\0'};
-	sprintf(path, "%s/", g_config.work_path);
+	sprintf(path, "%s/", g_config.html_path);
 	
 	int path_len = strlen(path);	
 	if(path_len+dir.Len >= PATH_MAX)
@@ -88,7 +88,7 @@ int make_dir(StrPtrLen& dir)
 }
 
 HTTPClientSession::HTTPClientSession(CHANNEL_T* channelp, char* live_type)
-	:fTimeoutTask(this, MAX_SEMENT_TIME)
+	:fTimeoutTask(this, g_config.download_interval)
 {		
 	fprintf(stdout, "%s: live_type=%s, liveid=%s\n", __PRETTY_FUNCTION__, live_type, channelp->liveid);
 	
@@ -308,7 +308,7 @@ int HTTPClientSession::SwitchLog(struct timeval until)
 
 	fLogTime = until;
 	snprintf(fLogFile, PATH_MAX, "%s/%d_%d_%s_%s_%ld_%06ld.log", 
-		g_config.work_path, getpid(), gettid(), fLiveType, fChannel->liveid,
+		g_config.log_path, getpid(), gettid(), fLiveType, fChannel->liveid,
 		fLogTime.tv_sec, fLogTime.tv_usec);
 	fLogFile[PATH_MAX-1] = '\0';
 	fLog = fopen(fLogFile, "a");
@@ -604,7 +604,7 @@ int HTTPClientSession::MemoM3U8(M3U8Parser* parserp, time_t begin_time, time_t e
 int HTTPClientSession::RewriteM3U8(M3U8Parser* parserp)
 {
 	char path[PATH_MAX] = {'\0'};
-	sprintf(path, "%s/%s_%s.m3u8", g_config.work_path, fLiveType, fChannel->liveid);
+	sprintf(path, "%s/%s_%s.m3u8", g_config.html_path, fLiveType, fChannel->liveid);
 	int fd = open(path, O_WRONLY|O_CREAT|O_TRUNC, 0666);
 	if(fd == -1)
 	{
@@ -649,7 +649,7 @@ int HTTPClientSession::RewriteM3U8(M3U8Parser* parserp)
 int HTTPClientSession::Write(StrPtrLen& file_name, char * datap, UInt32 len)
 {
 	char path[PATH_MAX] = {'\0'};
-	sprintf(path, "%s/", g_config.work_path);
+	sprintf(path, "%s/", g_config.html_path);
 	
 	int path_len = strlen(path);	
 	if(path_len+file_name.Len >= PATH_MAX)
@@ -685,14 +685,14 @@ time_t HTTPClientSession::CalcBreakTime()
 	struct timeval now;
 	gettimeofday(&now, NULL);
 	time_t diff_time = timeval_diff(&now, &fM3U8BeginTime);
-	time_t break_time = MAX_SEMENT_TIME;			            		
-	if(diff_time>=MAX_SEMENT_TIME)
+	time_t break_time = g_config.download_interval;			            		
+	if(diff_time >= g_config.download_interval)
 	{
-		break_time = 1;
+		break_time = 10;
 	}
 	else
 	{
-		break_time = MAX_SEMENT_TIME - diff_time;
+		break_time = g_config.download_interval - diff_time;
 	}
 	fprintf(stdout, "%s: diff_time=%ld, break_time=%ld\n", 
 		__PRETTY_FUNCTION__, diff_time, break_time);
@@ -916,7 +916,7 @@ SInt64 HTTPClientSession::Run()
 			            			return break_time;
 				            	}
 		            		}
-		            		return MAX_SEMENT_TIME/2;	            		
+		            		return g_config.download_interval/2;	            		
 		            	}
                     }
                 }

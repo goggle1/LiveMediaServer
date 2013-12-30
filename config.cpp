@@ -34,6 +34,35 @@ int parse_config(CONFIG_T* configp, xmlDocPtr doc, xmlNodePtr cur)
 			configp->service_ip[MAX_IP_LEN-1] = '\0';
 			xmlFree(szValue);
 		}
+		else if((!xmlStrcmp(child->name, (const xmlChar*)"bin_path")))
+		{
+			xmlChar* szValue = xmlNodeGetContent(child);
+			snprintf(configp->bin_path, PATH_MAX, "%s", (const char*)szValue);
+			configp->bin_path[PATH_MAX-1] = '\0';
+			xmlFree(szValue);
+		}
+		else if((!xmlStrcmp(child->name, (const xmlChar*)"etc_path")))
+		{
+			xmlChar* szValue = xmlNodeGetContent(child);
+			snprintf(configp->etc_path, PATH_MAX, "%s", (const char*)szValue);
+			configp->etc_path[PATH_MAX-1] = '\0';
+			xmlFree(szValue);
+		}
+		else if((!xmlStrcmp(child->name, (const xmlChar*)"log_path")))
+		{
+			xmlChar* szValue = xmlNodeGetContent(child);
+			snprintf(configp->log_path, PATH_MAX, "%s", (const char*)szValue);
+			configp->log_path[PATH_MAX-1] = '\0';
+			xmlFree(szValue);
+		}
+		else if((!xmlStrcmp(child->name, (const xmlChar*)"html_path")))
+		{
+			xmlChar* szValue = xmlNodeGetContent(child);
+			snprintf(configp->html_path, PATH_MAX, "%s", (const char*)szValue);
+			configp->html_path[PATH_MAX-1] = '\0';
+			xmlFree(szValue);
+		}
+		/*
 		else if((!xmlStrcmp(child->name, (const xmlChar*)"work_path")))
 		{
 			xmlChar* szValue = xmlNodeGetContent(child);
@@ -41,6 +70,8 @@ int parse_config(CONFIG_T* configp, xmlDocPtr doc, xmlNodePtr cur)
 			configp->work_path[PATH_MAX-1] = '\0';
 			xmlFree(szValue);
 		}
+		*/
+		/*
 		else if((!xmlStrcmp(child->name, (const xmlChar*)"channels_file")))
 		{
 			xmlChar* szValue = xmlNodeGetContent(child);
@@ -48,6 +79,7 @@ int parse_config(CONFIG_T* configp, xmlDocPtr doc, xmlNodePtr cur)
 			configp->channels_file[PATH_MAX-1] = '\0';
 			xmlFree(szValue);
 		}
+		*/
 		else if((!xmlStrcmp(child->name, (const xmlChar*)"max_clip_num")))
 		{
 			xmlChar* szValue = xmlNodeGetContent(child);
@@ -57,6 +89,17 @@ int parse_config(CONFIG_T* configp, xmlDocPtr doc, xmlNodePtr cur)
 				max_clip_num = 3;
 			}
 			configp->max_clip_num = max_clip_num + 1;
+			xmlFree(szValue);
+		}
+		else if((!xmlStrcmp(child->name, (const xmlChar*)"download_interval")))
+		{
+			xmlChar* szValue = xmlNodeGetContent(child);
+			int download_interval = atoi((const char*)szValue);
+			if(download_interval < 10)
+			{
+				download_interval = 10;
+			}
+			configp->download_interval = download_interval;
 			xmlFree(szValue);
 		}
 		else if((!xmlStrcmp(child->name, (const xmlChar*)"download_limit")))

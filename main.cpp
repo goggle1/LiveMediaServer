@@ -20,7 +20,7 @@
 #include "channel.h"
 #include "HTTPClientSession.h"
 
-#define DEFAULT_CONFIG_FILE          	"./LiveMediaServer.xml"
+#define DEFAULT_CONFIG_FILE          	"../etc/LiveMediaServer.xml"
 #define DEFAULT_HTTP_SERVER_IP          0
 #define DEFAULT_HTTP_SERVER_PORT        5050
 
@@ -265,6 +265,9 @@ int main(int argc, char* argv[])
 		fprintf(stderr, "config_read %s error!\n", g_config_file);
 		return ret;
 	}
+
+	snprintf(g_config.channels_file, PATH_MAX, "%s/channels.xml", g_config.etc_path);
+	g_config.channels_file[PATH_MAX-1] = '\0';
 	
 	char* channels_file = g_config.channels_file;
 	ret = g_channels.ReadConfig(channels_file);

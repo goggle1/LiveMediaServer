@@ -12,9 +12,14 @@ typedef struct config_t
 	char 		ip[MAX_IP_LEN];	
 	u_int16_t	port;
 	char 		service_ip[MAX_IP_LEN];
-	char		work_path[PATH_MAX];
+	char		etc_path[PATH_MAX];
+	char		bin_path[PATH_MAX];
+	char		log_path[PATH_MAX];
+	char		html_path[PATH_MAX];
+	//char		work_path[PATH_MAX];
 	char		channels_file[PATH_MAX];
 	int32_t		max_clip_num;
+	int32_t		download_interval;
 	//bps
 	u_int64_t	download_limit;
 } CONFIG_T;

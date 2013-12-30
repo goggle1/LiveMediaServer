@@ -705,7 +705,7 @@ void 		HTTPSession::Log()
 		threadp->fLogTime = now;		
 		char FileName[PATH_MAX] = {'\0'};
 		snprintf(FileName, PATH_MAX, "%s/sessions_%d_%d_%ld_%06ld.log", 
-			g_config.work_path, getpid(), gettid(), threadp->fLogTime.tv_sec, threadp->fLogTime.tv_usec);
+			g_config.log_path, getpid(), gettid(), threadp->fLogTime.tv_sec, threadp->fLogTime.tv_usec);
 		FileName[PATH_MAX-1] = '\0';
 		threadp->fLog = fopen(FileName, "a");
 	}
@@ -1199,7 +1199,7 @@ QTSS_Error HTTPSession::ResponseGet()
 	}
 
 	char abs_path[PATH_MAX];
-	snprintf(abs_path, PATH_MAX, "%s%s", g_config.work_path, request_file);
+	snprintf(abs_path, PATH_MAX, "%s%s", g_config.html_path, request_file);
 	abs_path[PATH_MAX-1] = '\0';		
 	if(file_exist(abs_path))
 	{
@@ -1352,7 +1352,7 @@ QTSS_Error HTTPSession::ResponseCmdAddChannel()
 	{
 		char* request_file = "/add_channel.html";
 		char abs_path[PATH_MAX];
-		snprintf(abs_path, PATH_MAX, "%s%s", g_config.work_path, request_file);
+		snprintf(abs_path, PATH_MAX, "%s%s", g_config.html_path, request_file);
 		abs_path[PATH_MAX-1] = '\0';	
 		
 		ret = ResponseFile(abs_path);
@@ -1543,7 +1543,7 @@ QTSS_Error HTTPSession::ResponseCmdDelChannel()
 	{
 		char* request_file = "/del_channel.html";
 		char abs_path[PATH_MAX];
-		snprintf(abs_path, PATH_MAX, "%s%s", g_config.work_path, request_file);
+		snprintf(abs_path, PATH_MAX, "%s%s", g_config.html_path, request_file);
 		abs_path[PATH_MAX-1] = '\0';	
 		
 		ret = ResponseFile(abs_path);
@@ -1704,7 +1704,7 @@ QTSS_Error HTTPSession::ResponseCmdQueryChannel()
 	{
 		char* request_file = "/query_channel.html";
 		char abs_path[PATH_MAX];
-		snprintf(abs_path, PATH_MAX, "%s%s", g_config.work_path, request_file);
+		snprintf(abs_path, PATH_MAX, "%s%s", g_config.html_path, request_file);
 		abs_path[PATH_MAX-1] = '\0';	
 		ret = ResponseFile(abs_path);		
 		return ret;
@@ -2190,7 +2190,7 @@ QTSS_Error HTTPSession::ResponseCmdQuerySession()
 	{
 		char* request_file = "/query_session.html";
 		char abs_path[PATH_MAX];
-		snprintf(abs_path, PATH_MAX, "%s%s", g_config.work_path, request_file);
+		snprintf(abs_path, PATH_MAX, "%s%s", g_config.html_path, request_file);
 		abs_path[PATH_MAX-1] = '\0';	
 		ret = ResponseFile(abs_path);		
 		return ret;

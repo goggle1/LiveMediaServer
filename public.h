@@ -20,9 +20,8 @@
 #define MAX_TIME_LEN		64
 
 // 10 seconds
-//#define MAX_SEMENT_TIME		10000
-#define MAX_SEMENT_TIME		5000
-#define MAX_TIMEOUT_TIME	(10000*2)
+#define SEMENT_DURATION		10000
+#define MAX_TIMEOUT_TIME	(SEMENT_DURATION*2)
 
 #define URI_LIVESTREAM		"/livestream/"
 

@@ -4,6 +4,7 @@
 #include "BaseServer/StringParser.h"
 
 #include "public.h"
+#include "config.h"
 #include "M3U8Parser.h"
 
 M3U8Parser::M3U8Parser()
@@ -260,7 +261,7 @@ Bool16 M3U8Parser::IsOld()
 	}
 
 	time_t now = time(NULL);
-	if(fSegments[fSegmentsNum - 1].begin_time + MAX_SEGMENT_NUM * MAX_SEMENT_TIME < now)
+	if(fSegments[fSegmentsNum - 1].begin_time + g_config.max_clip_num * SEMENT_DURATION < now)
 	{
 		return true;
 	}
