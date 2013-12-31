@@ -31,7 +31,9 @@ def main():
     
     last_chunk_id = 0
     line_num = 0
-    loss_num = 0
+    total_loss_num = 0
+    loss_num_404 = 0
+    loss_num_break = 0
     while(True):
         line = log_file.readline()
         if(line == ''):
@@ -49,20 +51,22 @@ def main():
         if(line_num > 1 and now_chunk_id - last_chunk_id > 1):
             this_loss_num = now_chunk_id-last_chunk_id-1
             print '%s, %d loss, just loss' % (section_file, this_loss_num)
-            loss_num = loss_num + this_loss_num
+            total_loss_num = total_loss_num + this_loss_num
+            loss_num_break = loss_num_break + this_loss_num
             last_chunk_id = now_chunk_id
             continue
                 
         columns = section_len.split(':')
         if(columns[0] == 'error'):
             print '%s, %d loss, error' % (section_file, 1)
-            loss_num = loss_num + 1
+            total_loss_num = total_loss_num + 1
+            loss_num_404 = loss_num_404 + 1
             last_chunk_id = now_chunk_id
             continue
         print '%s, %d loss, ok' % (section_file, 0)  
         last_chunk_id = now_chunk_id
     
-    print 'statistics: line_num=%d, loss_num=%d' % (line_num, loss_num)  
+    print 'statistics: line_num=%d, total_loss_num=%d (error_num=%d, break_num=%d)' % (line_num, total_loss_num, loss_num_404, loss_num_break)  
         
     return True
 
