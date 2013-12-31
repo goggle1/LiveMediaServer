@@ -77,6 +77,8 @@
 #define CMD_QUERY_PROCESS 	"query_process"
 #define CMD_QUERY_CHANNEL 	"query_channel"
 #define CMD_QUERY_SESSION	"query_session"
+#define CMD_GET_CONFIG		"get_config"
+#define CMD_SET_CONFIG		"set_config"
 
 #define MAX_REASON_LEN		256
 
@@ -258,6 +260,31 @@ int params_get_ip(DEQUE_NODE* param_list, char client_ip[MAX_IP_LEN])
 
 	return -1;
 }
+
+
+char* params_get_key(DEQUE_NODE* param_list, char* key)
+{
+	DEQUE_NODE* nodep = param_list;
+	while(nodep)
+	{
+		UriParam* paramp = (UriParam*)nodep->datap;
+		if(strcmp(paramp->key, key) == 0)
+		{
+			return paramp->value;
+			return 0;
+		}
+		
+		
+		if(nodep->nextp == param_list)
+		{
+			break;
+		}
+		nodep = nodep->nextp;
+	}
+
+	return NULL;
+}
+
 
 SESSION_T* sessions_find_ip(u_int32_t ip)
 {
@@ -548,8 +575,8 @@ u_int64_t network_rate(u_int64_t bytes, struct timeval* begin_time, struct timev
 }
 
 u_int64_t download_limit(struct timeval* begin_time, struct timeval* end_time, u_int64_t download_bytes, u_int64_t send_len)
-{
-	if(g_config.download_limit == (u_int64_t)-1)
+{	
+	if(g_config.download_limit < 0)
 	{
 		return send_len;
 	}
@@ -732,7 +759,7 @@ void 		HTTPSession::Log()
 			HTTPProtocol::GetStatusCodeAsString(fHttpStatus)->Ptr,
 			fContentLen, "-",
 			user_agent,	"-", "-");
-		fflush(threadp->fLog);			
+		//fflush(threadp->fLog);			
 	}
 }
 
@@ -1382,7 +1409,7 @@ QTSS_Error HTTPSession::ResponseCmdAddChannel()
 	int result = g_channels.AddChannel(channelp);
 	if(result != 0)
 	{
-		ret = ResponseCmdResult(CMD_ADD_CHANNEL, "error", "failure", "AddChannel() internal failure");
+		ret = ResponseCmdResult(CMD_ADD_CHANNEL, "error", "failure", "AddChannel() internal error");
 		channel_release(channelp);
 		channelp = NULL;
 		return ret;
@@ -1393,17 +1420,17 @@ QTSS_Error HTTPSession::ResponseCmdAddChannel()
 		result = start_channel(channelp);
 		if(result != 0)
 		{
-			ret = ResponseCmdResult(CMD_ADD_CHANNEL, "error", "failure", "start_channel() internal failure");
+			ret = ResponseCmdResult(CMD_ADD_CHANNEL, "error", "failure", "start_channel() internal error");
 			free(channelp);
 			channelp = NULL;
 			return ret;
 		}
 	}
 	
-	result = g_channels.WriteConfig(g_config.channels_file);
+	result = g_channels.WriteConfig(g_config.channels_fullpath);
 	if(result != 0)
 	{
-		ret = ResponseCmdResult(CMD_ADD_CHANNEL, "error", "failure", "WriteConfig() internal failure");
+		ret = ResponseCmdResult(CMD_ADD_CHANNEL, "error", "failure", "WriteConfig() internal error");
 		channel_release(channelp);
 		channelp = NULL;
 		return ret;
@@ -1515,10 +1542,10 @@ QTSS_Error HTTPSession::ResponseCmdUpdateChannel(CHANNEL_T* findp, CHANNEL_T* ch
 		channelp = NULL;
 	}
 		
-	int result = g_channels.WriteConfig(g_config.channels_file);
+	int result = g_channels.WriteConfig(g_config.channels_fullpath);
 	if(result != 0)
 	{
-		ret = ResponseCmdResult(CMD_UPDATE_CHANNEL, "error", "failure", "WriteConfig() internal failure");		
+		ret = ResponseCmdResult(CMD_UPDATE_CHANNEL, "error", "failure", "WriteConfig() internal error");		
 		return ret;
 	}
 	
@@ -1533,7 +1560,7 @@ QTSS_Error HTTPSession::ResponseCmdDelChannel()
 	CHANNEL_T* channelp = (CHANNEL_T*)malloc(sizeof(CHANNEL_T));
 	if(channelp == NULL)
 	{
-		ret = ResponseCmdResult(CMD_DEL_CHANNEL, "error", "failure", "not enough memory!");
+		ret = ResponseCmdResult(CMD_DEL_CHANNEL, "error", "failure", "not enough memory");
 		return ret;
 	}
 	memset(channelp, 0, sizeof(CHANNEL_T));	
@@ -1577,7 +1604,7 @@ QTSS_Error HTTPSession::ResponseCmdDelChannel()
 	int result = g_channels.DeleteChannel(channelp->liveid);
 	if(result != 0)
 	{
-		ret = ResponseCmdResult(CMD_DEL_CHANNEL, "error", "failure", "DeleteChannel() internal failure");	
+		ret = ResponseCmdResult(CMD_DEL_CHANNEL, "error", "failure", "DeleteChannel() internal error");	
 
 		channel_release(channelp);
 		channelp = NULL;
@@ -1585,10 +1612,10 @@ QTSS_Error HTTPSession::ResponseCmdDelChannel()
 		return ret;
 	}
 		
-	result = g_channels.WriteConfig(g_config.channels_file);
+	result = g_channels.WriteConfig(g_config.channels_fullpath);
 	if(result != 0)
 	{
-		ret = ResponseCmdResult(CMD_DEL_CHANNEL, "error", "failure", "WriteConfig() internal failure");
+		ret = ResponseCmdResult(CMD_DEL_CHANNEL, "error", "failure", "WriteConfig() internal error");
 
 		channel_release(channelp);
 		channelp = NULL;
@@ -2444,6 +2471,94 @@ QTSS_Error HTTPSession::ResponseCmdSessionList()
 	return ret;
 }
 
+QTSS_Error HTTPSession::ResponseCmdGetConfig()
+{
+	QTSS_Error ret = QTSS_NoErr;
+	
+	char	buffer[4*1024];
+	StringFormatter content(buffer, sizeof(buffer));
+	content.PutFmtStr(
+		"ip=%s\n"		
+		"port=%u\n"
+		"bin_path=%s\n"
+		"etc_path=%s\n"
+		"log_path=%s\n"
+		"html_path=%s\n"
+		"max_clip_num=%d\n"
+		"download_interval=%d ms\n"
+		"download_limit=%ld bps\n", 
+		g_config.ip,
+		g_config.port,
+		g_config.bin_path,
+		g_config.etc_path, 
+		g_config.log_path, 
+		g_config.html_path,
+		g_config.max_clip_num - 1,
+		g_config.download_interval,
+		g_config.download_limit);	
+
+	ResponseContent(content.GetBufPtr(), content.GetBytesWritten(), CONTENT_TYPE_TEXT_PLAIN);
+
+	return ret;
+}
+
+QTSS_Error HTTPSession::ResponseCmdSetConfig()
+{
+	QTSS_Error ret = QTSS_NoErr;
+
+	char* key1 	 = "download_interval";
+	char* value1 = params_get_key(fRequest.fParamPairs, key1);
+	char* key2 	 = "download_limit";
+	char* value2 = params_get_key(fRequest.fParamPairs, key2);
+	if(value1 == NULL && value2 == NULL)
+	{
+		char* request_file = "/set_config.html";
+		char abs_path[PATH_MAX];
+		snprintf(abs_path, PATH_MAX, "%s%s", g_config.html_path, request_file);
+		abs_path[PATH_MAX-1] = '\0';	
+		ret = ResponseFile(abs_path);		
+		return ret;
+	}
+
+	if(value1 != NULL)
+	{
+		int download_interval = atoi(value1);
+		if(download_interval < MIN_DOWNLOAD_INTERVAL)
+		{
+			char reason[MAX_REASON_LEN] = "";
+			snprintf(reason, MAX_REASON_LEN, "download_interval[%d] < MIN_DOWNLOAD_INTERVAL[%d]", download_interval, MIN_DOWNLOAD_INTERVAL);
+			reason[MAX_REASON_LEN-1] = '\0';
+			ret = ResponseCmdResult(CMD_SET_CONFIG, "error", "failure", reason);
+			return ret;
+		}
+		g_config.download_interval = download_interval; 
+	}
+	if(value2 != NULL)
+	{
+		long download_limit = atol(value2);
+		if(download_limit < MIN_DOWNLOAD_LIMIT)
+		{
+			char reason[MAX_REASON_LEN] = "";
+			snprintf(reason, MAX_REASON_LEN, "download_limit[%ld] < MIN_DOWNLOAD_LIMIT[%ld]", download_limit, (long)MIN_DOWNLOAD_LIMIT);
+			reason[MAX_REASON_LEN-1] = '\0';
+			ret = ResponseCmdResult(CMD_SET_CONFIG, "error", "failure", reason);
+			return ret;
+		}
+		g_config.download_limit = download_limit; 
+	}
+	
+	int result = config_write(&g_config, g_config_file);
+	if(result != 0)
+	{
+		ret = ResponseCmdResult(CMD_SET_CONFIG, "error", "failure", "config_write() internal error");
+		return ret;
+	}
+	
+	ret = ResponseCmdResult(CMD_SET_CONFIG, "ok", "success", "");	
+	return ret;
+
+	
+}
 
 QTSS_Error HTTPSession::ResponseCmdResult(char* cmd, char* return_val, char* result, char* reason)
 {
@@ -2662,6 +2777,14 @@ QTSS_Error HTTPSession::ResponseCmd()
 	else if(strcmp(fCmd.cmd, CMD_QUERY_SESSION) == 0)
 	{
 		ret = ResponseCmdQuerySession();
+	}
+	else if(strcmp(fCmd.cmd, CMD_GET_CONFIG) == 0)
+	{
+		ret = ResponseCmdGetConfig();
+	}
+	else if(strcmp(fCmd.cmd, CMD_SET_CONFIG) == 0)
+	{
+		ret = ResponseCmdSetConfig();
 	}
 	else 
 	{

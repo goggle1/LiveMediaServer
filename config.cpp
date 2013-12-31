@@ -9,6 +9,7 @@ int parse_config(CONFIG_T* configp, xmlDocPtr doc, xmlNodePtr cur)
 	int ret = 0;
 
 	configp->max_clip_num = MAX_CLIP_NUM + 1;
+	configp->download_interval = DEFAULT_DOWNLOAD_INTERVAL;
 	
 	xmlNodePtr child;	
 	child = cur->xmlChildrenNode;
@@ -84,9 +85,9 @@ int parse_config(CONFIG_T* configp, xmlDocPtr doc, xmlNodePtr cur)
 		{
 			xmlChar* szValue = xmlNodeGetContent(child);
 			int max_clip_num = atoi((const char*)szValue);
-			if(max_clip_num < 3)
+			if(max_clip_num < MIN_CLIP_NUM)
 			{
-				max_clip_num = 3;
+				max_clip_num = MIN_CLIP_NUM;
 			}
 			configp->max_clip_num = max_clip_num + 1;
 			xmlFree(szValue);
@@ -95,9 +96,9 @@ int parse_config(CONFIG_T* configp, xmlDocPtr doc, xmlNodePtr cur)
 		{
 			xmlChar* szValue = xmlNodeGetContent(child);
 			int download_interval = atoi((const char*)szValue);
-			if(download_interval < 10)
+			if(download_interval < MIN_DOWNLOAD_INTERVAL)
 			{
-				download_interval = 10;
+				download_interval = MIN_DOWNLOAD_INTERVAL;
 			}
 			configp->download_interval = download_interval;
 			xmlFree(szValue);
@@ -151,4 +152,39 @@ int config_read(CONFIG_T* configp, char* file_name)
 	
 	return ret;
 }
+
+int config_write(CONFIG_T* configp, char* file_name)
+{
+	FILE* filep = fopen(file_name, "w");
+	if(filep == NULL)
+	{
+		return -1;
+	}
+
+	fprintf(filep, "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n");
+	fprintf(filep, "<config>\n");
+	
+	fprintf(filep, "\t<ip>%s</ip>\n", configp->ip);
+	fprintf(filep, "\t<port>%u</port>\n", configp->port);
+	fprintf(filep, "\t<service_ip>%s</service_ip>\n", configp->service_ip);
+	fprintf(filep, "\t<bin_path>%s</bin_path>\n", configp->bin_path);
+	fprintf(filep, "\t<etc_path>%s</etc_path>\n", configp->etc_path);
+	fprintf(filep, "\t<log_path>%s</log_path>\n", configp->log_path);
+	fprintf(filep, "\t<html_path>%s</html_path>\n", configp->html_path);
+	fprintf(filep, "\t<max_clip_num>%d</max_clip_num>\n", configp->max_clip_num - 1);
+	fprintf(filep, "\t<download_interval>%dms</download_interval>\n", configp->download_interval);
+	fprintf(filep, "\t<download_limit>%ldbps</download_limit>\n", configp->download_limit);
+	
+	fprintf(filep, "</config>\n");
+
+	if(filep != NULL)
+	{
+		fclose(filep);
+		filep = NULL;
+	}
+	
+	return 0;
+}
+
+
 

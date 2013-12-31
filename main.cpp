@@ -266,10 +266,10 @@ int main(int argc, char* argv[])
 		return ret;
 	}
 
-	snprintf(g_config.channels_file, PATH_MAX, "%s/channels.xml", g_config.etc_path);
-	g_config.channels_file[PATH_MAX-1] = '\0';
+	snprintf(g_config.channels_fullpath, PATH_MAX, "%s/%s", g_config.etc_path, DEFAULT_CHANNELS_FILE);
+	g_config.channels_fullpath[PATH_MAX-1] = '\0';
 	
-	char* channels_file = g_config.channels_file;
+	char* channels_file = g_config.channels_fullpath;
 	ret = g_channels.ReadConfig(channels_file);
 	if(ret != 0)
 	{

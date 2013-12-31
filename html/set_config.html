@@ -1,0 +1,18 @@
+<html>
+<head>
+<title>
+LiveMediaServer
+</title>
+</head>
+<body>
+<form action="/macross/?cmd=set_config" method="GET"> 
+<table>
+<tr> <td>cmd:	</td>          	<td><input name="cmd" id="cmd" type="text" value="set_config"></td> </tr>
+<tr> <td>download_interval(ms):</td><td><input name="download_interval" id="download_interval" type="text" value=""></td>       </tr>
+<tr> <td>download_limit(bps):<br><[ if < 0, means no limit. ]></td>   <td><input name="download_limit" id="download_limit" type="text" value=""></td>       </tr>
+<tr> <td><input type="reset" value="Reset" /></td>   <td> <input type="submit" value="Submit" /> </td></tr>
+</table>
+</form>
+</body>
+</html>
+
