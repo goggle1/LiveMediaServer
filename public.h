@@ -19,10 +19,6 @@
 #define MAX_HOST_LEN		64
 #define MAX_TIME_LEN		64
 
-// 10 seconds
-#define SEMENT_DURATION		10000
-#define MAX_TIMEOUT_TIME	(SEMENT_DURATION*2)
-
 #define URI_LIVESTREAM		"/livestream/"
 
 #define DEFAULT_SEGMENT_NUM	3

@@ -2485,6 +2485,7 @@ QTSS_Error HTTPSession::ResponseCmdGetConfig()
 		"log_path=%s\n"
 		"html_path=%s\n"
 		"max_clip_num=%d\n"
+		"clip_duration=%d s\n"
 		"download_interval=%d ms\n"
 		"download_limit=%ld bps\n", 
 		g_config.ip,
@@ -2494,6 +2495,7 @@ QTSS_Error HTTPSession::ResponseCmdGetConfig()
 		g_config.log_path, 
 		g_config.html_path,
 		g_config.max_clip_num - 1,
+		g_config.clip_duration,
 		g_config.download_interval,
 		g_config.download_limit);	
 

@@ -10,6 +10,7 @@ int parse_config(CONFIG_T* configp, xmlDocPtr doc, xmlNodePtr cur)
 
 	configp->max_clip_num = MAX_CLIP_NUM + 1;
 	configp->download_interval = DEFAULT_DOWNLOAD_INTERVAL;
+	configp->clip_duration = DEFAULT_CLIP_DURATION;
 	
 	xmlNodePtr child;	
 	child = cur->xmlChildrenNode;
@@ -92,6 +93,17 @@ int parse_config(CONFIG_T* configp, xmlDocPtr doc, xmlNodePtr cur)
 			configp->max_clip_num = max_clip_num + 1;
 			xmlFree(szValue);
 		}
+		else if((!xmlStrcmp(child->name, (const xmlChar*)"clip_duration")))
+		{
+			xmlChar* szValue = xmlNodeGetContent(child);
+			int clip_duration = atoi((const char*)szValue);
+			if(clip_duration < MIN_CLIP_DURATION)
+			{
+				clip_duration = MIN_CLIP_DURATION;
+			}
+			configp->clip_duration = clip_duration;
+			xmlFree(szValue);
+		}
 		else if((!xmlStrcmp(child->name, (const xmlChar*)"download_interval")))
 		{
 			xmlChar* szValue = xmlNodeGetContent(child);
@@ -172,8 +184,9 @@ int config_write(CONFIG_T* configp, char* file_name)
 	fprintf(filep, "\t<log_path>%s</log_path>\n", configp->log_path);
 	fprintf(filep, "\t<html_path>%s</html_path>\n", configp->html_path);
 	fprintf(filep, "\t<max_clip_num>%d</max_clip_num>\n", configp->max_clip_num - 1);
-	fprintf(filep, "\t<download_interval>%dms</download_interval>\n", configp->download_interval);
-	fprintf(filep, "\t<download_limit>%ldbps</download_limit>\n", configp->download_limit);
+	fprintf(filep, "\t<clip_duration>%d s</clip_duration>\n", configp->clip_duration);
+	fprintf(filep, "\t<download_interval>%d ms</download_interval>\n", configp->download_interval);
+	fprintf(filep, "\t<download_limit>%ld bps</download_limit>\n", configp->download_limit);
 	
 	fprintf(filep, "</config>\n");
 

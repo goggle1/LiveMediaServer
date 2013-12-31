@@ -261,7 +261,7 @@ Bool16 M3U8Parser::IsOld()
 	}
 
 	time_t now = time(NULL);
-	if(fSegments[fSegmentsNum - 1].begin_time + g_config.max_clip_num * SEMENT_DURATION < now)
+	if(fSegments[fSegmentsNum - 1].begin_time + g_config.max_clip_num * g_config.clip_duration < now)
 	{
 		return true;
 	}

@@ -8,6 +8,7 @@
 	<log_path>/home/LiveMS/log</log_path>
 	<html_path>/home/LiveMS/html</html_path>
 	<max_clip_num>60</max_clip_num>
-	<download_limit>-1bps</download_limit>
-	<download_interval>5000ms</download_interval>
+	<clip_duration>10 s</clip_duration>
+	<download_limit>-1 bps</download_limit>
+	<download_interval>5000 ms</download_interval>
 </config>

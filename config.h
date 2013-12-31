@@ -5,8 +5,12 @@
 #include <sys/types.h>
 #include <limits.h>
 
-#define MAX_IP_LEN		16
-#define MIN_CLIP_NUM 	3
+#define MAX_IP_LEN			16
+#define MIN_CLIP_NUM 		3
+// 1 s
+#define MIN_CLIP_DURATION			1
+// 10 s
+#define DEFAULT_CLIP_DURATION		10
 // 10 ms
 #define MIN_DOWNLOAD_INTERVAL 		10
 // 5000 ms
@@ -27,6 +31,8 @@ typedef struct config_t
 	//char		work_path[PATH_MAX];
 	char		channels_fullpath[PATH_MAX];
 	int32_t		max_clip_num;
+	int32_t		clip_duration;		
+	// ms
 	int32_t		download_interval;
 	//bps
 	int64_t		download_limit;

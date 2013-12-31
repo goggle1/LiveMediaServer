@@ -15,6 +15,10 @@
 #include "config.h"
 #include "HTTPClientSession.h"
 
+// 10 seconds
+//#define SEMENT_DURATION		10000
+#define MAX_TIMEOUT_TIME	(g_config.clip_duration*1000*2)
+
 // guoqiang errorcodes
 #define ENOT200 	2001
 #define ETIMEOUT 	2002
