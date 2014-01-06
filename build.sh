@@ -4,4 +4,4 @@ make clean
 make
 rm -rf ./bin/*
 cp -rf LiveMediaServer ./bin/ 
-#tar -czvf  LiveMediaServer-0.1.0.022.tar.gz ./bin/ ./etc/ ./html/
+#tar -czvf  LiveMediaServer-0.1.0.022.tar.gz ./bin/ ./etc/ ./html/ ./log/
