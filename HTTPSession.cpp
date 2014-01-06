@@ -718,18 +718,27 @@ void 		HTTPSession::Log()
 	}	
 
 	struct timeval now = {};
-	gettimeofday(&now, NULL);
-	time_t day1 = threadp->fLogTime.tv_sec/(3600*24);
-	time_t day2 = now.tv_sec/(3600*24);
+	struct timezone tz = {};
+	gettimeofday(&now, &tz);
+	time_t second1 = threadp->fLogTime.tv_sec;
+	time_t second2 = now.tv_sec;
+	time_t day1 = (second1 - tz.tz_minuteswest*60)/(3600*24);
+	time_t day2 = (second2 - tz.tz_minuteswest*60)/(3600*24);
 	if(day1 != day2)
 	{
-		if(threadp->fLog != NULL)
+		if(threadp->fLog == NULL)
 		{
+			threadp->fLogTime = now;
+		}
+		else
+		{
+			threadp->fLogTime.tv_sec = day2*3600*24+tz.tz_minuteswest*60;
+			threadp->fLogTime.tv_usec = 0;
 			fclose(threadp->fLog);
 			threadp->fLog = NULL;
 		}
 		
-		threadp->fLogTime = now;		
+		//threadp->fLogTime = now;		
 		char FileName[PATH_MAX] = {'\0'};
 		snprintf(FileName, PATH_MAX, "%s/sessions_%d_%d_%ld_%06ld.log", 
 			g_config.log_path, getpid(), gettid(), threadp->fLogTime.tv_sec, threadp->fLogTime.tv_usec);
@@ -2538,7 +2547,7 @@ QTSS_Error HTTPSession::ResponseCmdSetConfig()
 	if(value2 != NULL)
 	{
 		long download_limit = atol(value2);
-		if(download_limit < MIN_DOWNLOAD_LIMIT)
+		if(download_limit>=0 && download_limit < MIN_DOWNLOAD_LIMIT)
 		{
 			char reason[MAX_REASON_LEN] = "";
 			snprintf(reason, MAX_REASON_LEN, "download_limit[%ld] < MIN_DOWNLOAD_LIMIT[%ld]", download_limit, (long)MIN_DOWNLOAD_LIMIT);

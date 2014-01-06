@@ -2,6 +2,8 @@
 #ifndef __HTTPCLIENTSESSION_H__
 #define __HTTPCLIENTSESSION_H__
 
+#include <sys/time.h>
+
 #include "BaseServer/OSHeaders.h"
 #include "BaseServer/Task.h"
 #include "BaseServer/ClientSocket.h"
@@ -97,6 +99,7 @@ class HTTPClientSession : public Task
 
 		char				fLogFile[PATH_MAX];
 		FILE*				fLog;
+		struct timezone		fTimeZone;
 		struct timeval		fBeginTime;
         struct timeval		fEndTime;
         struct timeval		fLogTime;

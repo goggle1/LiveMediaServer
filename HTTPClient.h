@@ -31,6 +31,9 @@ class HTTPClient
         int			Disconnect();
         int			SetSource(u_int32_t ip, u_int16_t port);
 
+		// Information we need to send the request
+        char			fHost[MAX_HOST_LEN];
+        
 		struct timeval		fBeginTime;
         struct timeval		fEndTime;
         
@@ -42,11 +45,8 @@ class HTTPClient
 		u_int16_t			fSourcePort;
 		
 		enum { kInitial, kRequestSending, kResponseReceiving, kHeaderReceived };
-        UInt32      		fState;        
-
-        // Information we need to send the request
-        char			fHost[MAX_HOST_LEN];
-
+        UInt32      		fState;   
+        
 		enum
         {
 	            kReqBufSize = 4095	            

@@ -6,7 +6,7 @@
 #include <string.h>
 #include <sys/syscall.h>
 #include <unistd.h>
-
+#include <sys/time.h>
 
 pthread_t tid[10];
 
@@ -25,6 +25,16 @@ void * thread_handler(void *arg)
 
 int main(void)
 {
+	struct timeval now1 = {};
+	struct timezone tz1 = {0, 0};
+	gettimeofday(&now1, &tz1);
+	printf("now1: %ld, tz: %d, %d\n", now1.tv_sec, tz1.tz_minuteswest, tz1.tz_dsttime);
+	struct timeval now2 = {};
+	struct timezone tz2 = {0, 0};
+	gettimeofday(&now2, NULL);
+	printf("now2: %ld\n", now2.tv_sec);
+	
+	
     int i, ret;
     pid_t pid;
     printf("main tid:%u,pid:%u\n", (unsigned)pthread_self(),

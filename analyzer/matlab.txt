@@ -1,4 +1,4 @@
-datas = load('analyzer.output');
+datas = load('delay.out');
 download_time = datas(:, 5);
 min_time = min(download_time);
 max_time = max(download_time);
@@ -17,7 +17,7 @@ box on;
 grid on;
 
 
-datas = load('analyzer.output');
+datas = load('delay.out');
 delay_time = datas(:, 6);
 min_time = min(delay_time);
 max_time = max(delay_time);

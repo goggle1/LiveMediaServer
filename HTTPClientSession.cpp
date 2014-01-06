@@ -122,7 +122,7 @@ HTTPClientSession::HTTPClientSession(CHANNEL_T* channelp, char* live_type)
 	fWillStop = false;
 	fWillUpdateSources = false;
 
-	gettimeofday(&fBeginTime, NULL);
+	gettimeofday(&fBeginTime, &fTimeZone);
 	fLogTime.tv_sec = 0;
 	fLogTime.tv_usec = 0;
 #if 0
@@ -154,7 +154,8 @@ HTTPClientSession::HTTPClientSession(CHANNEL_T* channelp, char* live_type)
 		channelp->memoryp_mp4 = fMemory;
 		channelp->sessionp_mp4 = this;
 	}
-	
+
+	fLog = NULL;
 	//this->Signal(Task::kStartEvent);
 
 	
@@ -296,21 +297,28 @@ int HTTPClientSession::TrySwitchSources()
 
 int HTTPClientSession::SwitchLog(struct timeval until)
 {
-	time_t day1 = fLogTime.tv_sec / (3600*24);
-	time_t day2 = until.tv_sec / (3600*24);
+	time_t	second1 = fLogTime.tv_sec;
+	time_t	second2 = until.tv_sec;
+	time_t day1 = (second1 - fTimeZone.tz_minuteswest*60) / (3600*24);
+	time_t day2 = (second2 - fTimeZone.tz_minuteswest*60) / (3600*24);
 	if(day1 == day2)
 	{
 		return -1;
 	}
-
-	fLogTime = until;
-	if(fLog != NULL)
+	
+	if(fLog == NULL)
 	{
+		fLogTime = until;
+	}
+	else
+	{
+		fLogTime.tv_sec = day2*3600*24 + fTimeZone.tz_minuteswest*60;
+		fLogTime.tv_usec = 0;
 		fclose(fLog);
 		fLog = NULL;
 	}
 
-	fLogTime = until;
+	//fLogTime = until;
 	snprintf(fLogFile, PATH_MAX, "%s/%d_%d_%s_%s_%ld_%06ld.log", 
 		g_config.log_path, getpid(), gettid(), fLiveType, fChannel->liveid,
 		fLogTime.tv_sec, fLogTime.tv_usec);
@@ -694,6 +702,10 @@ time_t HTTPClientSession::CalcBreakTime()
 	{
 		break_time = 10;
 	}
+	else if(diff_time < 0)	// ajust time by admin.
+	{
+		break_time = 10;
+	}
 	else
 	{
 		break_time = g_config.download_interval - diff_time;
@@ -759,23 +771,56 @@ SInt64 HTTPClientSession::Run()
             	fM3U8BeginTime = fClient->fBeginTime;
                	fM3U8EndTime = fClient->fEndTime;               	
             	if (theErr == OS_NoErr)
-                {                   	
+                {    
+                	SwitchLog(fM3U8BeginTime);
                 	UInt32 get_status = fClient->GetStatus();
                     if (get_status != 200)
                     {
-                    	fprintf(stdout, "%s[0x%016lX][0x%016lX][%ld]: get %s return error: %d\n", 
-                    		__PRETTY_FUNCTION__, (long)this->fDefaultThread, (long)this->fUseThisThread, pthread_self(), 
-                    		fUrl, get_status);
+                    	fprintf(stdout, "%s[0x%016lX]: %s, %s, error %d\n", 
+                    		__PRETTY_FUNCTION__, (long)this->fDefaultThread, 
+                    		fClient->fHost, fUrl, get_status);
+                    	if(fLog != NULL)
+                    	{
+                    		char str_begin_time[MAX_TIME_LEN] = {0};
+                    		char str_end_time[MAX_TIME_LEN] = {0};
+							ctime_r(&fM3U8BeginTime.tv_sec, str_begin_time);
+							str_begin_time[strlen(str_begin_time)-1] = '\0';
+							ctime_r(&fM3U8EndTime.tv_sec, str_end_time);
+							str_end_time[strlen(str_end_time)-1] = '\0';
+	                   		fprintf(fLog, "%s, source: %s, error: %d, begin: %ld.%06ld [%s], end: %ld.%06ld [%s]\n", 
+	                    		fUrl, fClient->fHost, get_status, 
+	                    		fM3U8BeginTime.tv_sec, fM3U8BeginTime.tv_usec,	str_begin_time,
+	                    		fM3U8EndTime.tv_sec,   fM3U8EndTime.tv_usec, 	str_end_time);
+                    	}
                         theErr = ENOT200; // Exit the state machine
                         break;
                     }
                     else
                     {
-                    	fprintf(stdout, "%s[0x%016lX][0x%016lX][%ld]: get %s done, len=%d\n", 
-                    		__PRETTY_FUNCTION__, (long)this->fDefaultThread, (long)this->fUseThisThread, pthread_self(), 
-                    		fUrl, fClient->GetContentLength());
+                    	fprintf(stdout, "%s[0x%016lX]: %s, %s, ok, len=%d\n", 
+                    		__PRETTY_FUNCTION__, (long)this->fDefaultThread, 
+                    		fClient->fHost, fUrl, fClient->GetContentLength());
+                    	if(fLog != NULL)
+                    	{
+                    		char str_begin_time[MAX_TIME_LEN] = {0};
+                    		char str_end_time[MAX_TIME_LEN] = {0};
+							ctime_r(&fSegmentBeginTime.tv_sec, str_begin_time);
+							str_begin_time[strlen(str_begin_time)-1] = '\0';
+							ctime_r(&fSegmentEndTime.tv_sec, str_end_time);
+							str_end_time[strlen(str_end_time)-1] = '\0';
+	                    	fprintf(fLog, "%s, source: %s, len: %u, begin: %ld.%06ld [%s], end_time: %ld.%06ld [%s]\n", 
+	                    		fUrl, fClient->fHost, fClient->GetContentLength(), 
+	                    		fM3U8BeginTime.tv_sec, fM3U8BeginTime.tv_usec,	str_begin_time,
+	                    		fM3U8EndTime.tv_sec,   fM3U8EndTime.tv_usec, 	str_end_time);
+                    	}
                     	//Log(fURL.Ptr, fClient->GetContentBody(), fClient->GetContentLength());
                         fM3U8Parser.Parse(fClient->GetContentBody(), fClient->GetContentLength());
+                        if(fLog != NULL)
+                        {
+                        	// before parser.
+                        	fprintf(fLog, "%s\n", fM3U8Parser.fData.Ptr);
+                        	// after parser. todo
+                        }
                         MemoSourceM3U8(fM3U8Parser.GetNewestTime(), fClient->GetContentLength(), fM3U8BeginTime, fM3U8EndTime);
                         #if 0
                         if(fM3U8Parser.IsOld())
@@ -829,12 +874,12 @@ SInt64 HTTPClientSession::Run()
                 fSegmentEndTime = fClient->fEndTime;  
             	if (theErr == OS_NoErr)
                 {  
-                	SwitchLog(fSegmentBeginTime);
+                	//SwitchLog(fSegmentBeginTime);
                 	UInt32 get_status = fClient->GetStatus();
                 	if (get_status != 200)
                     {
-                    	fprintf(stdout, "%s: get %s return error: %d\n", 
-                    		__PRETTY_FUNCTION__, fM3U8Parser.fSegments[fGetIndex].relative_url, get_status);
+                    	fprintf(stdout, "%s: %s, %s, error %d\n", 
+                    		__PRETTY_FUNCTION__, fClient->fHost, fM3U8Parser.fSegments[fGetIndex].relative_url, get_status);
                     	if(fLog != NULL)
                     	{
                     		char str_begin_time[MAX_TIME_LEN] = {0};
@@ -843,10 +888,10 @@ SInt64 HTTPClientSession::Run()
 							str_begin_time[strlen(str_begin_time)-1] = '\0';
 							ctime_r(&fSegmentEndTime.tv_sec, str_end_time);
 							str_end_time[strlen(str_end_time)-1] = '\0';
-	                   		fprintf(fLog, "%s, error: %d, begin: %ld.%06ld [%s], end: %ld.%06ld [%s]\n", 
-	                    		fM3U8Parser.fSegments[fGetIndex].relative_url, get_status, 
-	                    		fSegmentBeginTime.tv_sec, fSegmentBeginTime.tv_usec, str_begin_time,
-	                    		fSegmentEndTime.tv_sec,   fSegmentEndTime.tv_usec, str_end_time);
+	                   		fprintf(fLog, "%s, source: %s, error: %d, begin: %ld.%06ld [%s], end: %ld.%06ld [%s]\n", 
+	                    		fM3U8Parser.fSegments[fGetIndex].relative_url, fClient->fHost, get_status, 
+	                    		fSegmentBeginTime.tv_sec, fSegmentBeginTime.tv_usec,	str_begin_time,
+	                    		fSegmentEndTime.tv_sec,   fSegmentEndTime.tv_usec,		str_end_time);
                     	}
                     	
                         fGetIndex ++;
@@ -864,8 +909,8 @@ SInt64 HTTPClientSession::Run()
                     }
                     else
                     {
-                    	fprintf(stdout, "%s: get %s done, len=%d\n", 
-                    		__PRETTY_FUNCTION__, fM3U8Parser.fSegments[fGetIndex].relative_url, fClient->GetContentLength());
+                    	fprintf(stdout, "%s: %s, %s, ok, len=%d\n", 
+                    		__PRETTY_FUNCTION__, fClient->fHost, fM3U8Parser.fSegments[fGetIndex].relative_url, fClient->GetContentLength());
                     	if(fLog != NULL)
                     	{
                     		char str_begin_time[MAX_TIME_LEN] = {0};
@@ -874,8 +919,8 @@ SInt64 HTTPClientSession::Run()
 							str_begin_time[strlen(str_begin_time)-1] = '\0';
 							ctime_r(&fSegmentEndTime.tv_sec, str_end_time);
 							str_end_time[strlen(str_end_time)-1] = '\0';
-	                    	fprintf(fLog, "%s, len: %u, begin: %ld.%06ld [%s], end_time: %ld.%06ld [%s]\n", 
-	                    		fM3U8Parser.fSegments[fGetIndex].relative_url, fClient->GetContentLength(), 
+	                    	fprintf(fLog, "%s, source: %s, len: %u, begin: %ld.%06ld [%s], end_time: %ld.%06ld [%s]\n", 
+	                    		fM3U8Parser.fSegments[fGetIndex].relative_url, fClient->fHost, fClient->GetContentLength(), 
 	                    		fSegmentBeginTime.tv_sec, fSegmentBeginTime.tv_usec, str_begin_time,
 	                    		fSegmentEndTime.tv_sec,   fSegmentEndTime.tv_usec, str_end_time);
                     	}
