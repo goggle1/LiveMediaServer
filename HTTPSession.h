@@ -77,7 +77,7 @@ protected:
         	QTSS_Error 		ResponseCmdQuerySession();
         	QTSS_Error 		ResponseCmdGetConfig();
         	QTSS_Error 		ResponseCmdSetConfig();
-        	Bool16 			ResponseContent(char* content, int len, char* type);
+        	Bool16 			ResponseContent(char* content, int len, char* type, Bool16 no_cache = FALSE);
         	Bool16 			ResponseHeader(char* content, int len, char* type);
         	QTSS_Error		ResponseFile(char* absolute_path);
         	QTSS_Error		ResponseError(HTTPStatusCode StatusCode);

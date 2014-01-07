@@ -2663,7 +2663,7 @@ QTSS_Error HTTPSession::ResponseCmdResult(char* cmd, char* return_val, char* res
 	return QTSS_NoErr;
 }
 
-Bool16 HTTPSession::ResponseContent(char* content, int len, char* type)
+Bool16 HTTPSession::ResponseContent(char* content, int len, char* type, Bool16 no_cache)
 {	
 	fHttpStatus = httpOK;
 	fContentLen = len;
@@ -2674,6 +2674,10 @@ Bool16 HTTPSession::ResponseContent(char* content, int len, char* type)
     	HTTPProtocol::GetStatusCodeAsString(httpOK)->Ptr,
     	HTTPProtocol::GetStatusCodeString(httpOK)->Ptr);
 	fResponse.PutFmtStr("Server: %s/%s\r\n", BASE_SERVER_NAME, BASE_SERVER_VERSION);
+	if(no_cache)
+	{
+		fResponse.Put("Cache-Control: no-cache\r\n");
+	}
 	fResponse.PutFmtStr("Content-Length: %d\r\n", len);
 	//fResponse.PutFmtStr("Content-Type: %s; charset=utf-8\r\n", content_type);
     fResponse.PutFmtStr("Content-Type: %s", type);
@@ -3028,7 +3032,7 @@ QTSS_Error HTTPSession::ContinueLiveM3U8()
 	}
 	//content.PutTerminator();
 
-	ResponseContent(m3u8_buffer, content.GetBytesWritten(), CONTENT_TYPE_APPLICATION_M3U8);	
+	ResponseContent(m3u8_buffer, content.GetBytesWritten(), CONTENT_TYPE_APPLICATION_M3U8, TRUE);	
 	return ret;
 }
 
