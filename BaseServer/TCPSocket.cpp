@@ -81,7 +81,7 @@ void TCPSocket::Set(int inSocket, struct sockaddr_in* remoteaddr)
         socklen_t len = sizeof(fLocalAddr);
 #endif
         int err = ::getsockname(fFileDesc, (struct sockaddr*)&fLocalAddr, &len);
-        AssertV(err == 0, OSThread::GetErrno());
+        //AssertV(err == 0, OSThread::GetErrno());
         fState |= kBound;
         fState |= kConnected;
     }

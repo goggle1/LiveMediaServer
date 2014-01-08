@@ -2489,6 +2489,7 @@ QTSS_Error HTTPSession::ResponseCmdGetConfig()
 	content.PutFmtStr(
 		"ip=%s\n"		
 		"port=%u\n"
+		"service_ip=%s\n"
 		"bin_path=%s\n"
 		"etc_path=%s\n"
 		"log_path=%s\n"
@@ -2499,6 +2500,7 @@ QTSS_Error HTTPSession::ResponseCmdGetConfig()
 		"download_limit=%ld bps\n", 
 		g_config.ip,
 		g_config.port,
+		g_config.service_ip,
 		g_config.bin_path,
 		g_config.etc_path, 
 		g_config.log_path, 

@@ -81,7 +81,7 @@ void EventContext::InitNonBlocking(int inFileDesc)
     int flag = ::fcntl(fFileDesc, F_GETFL, 0);
     int err = ::fcntl(fFileDesc, F_SETFL, flag | O_NONBLOCK);
 #endif
-    AssertV(err == 0, OSThread::GetErrno());
+    //AssertV(err == 0, OSThread::GetErrno());
 }
 
 void EventContext::Cleanup()
@@ -186,7 +186,10 @@ void EventContext::RequestEvent(int theMask)
 		if (epoll_modwatch(&fEventReq, theMask) != 0)
 #endif
 #endif  
-            AssertV(false, OSThread::GetErrno());
+		{			
+            //AssertV(false, OSThread::GetErrno());
+            // do nothing.
+        }
     }
     else
     {
@@ -228,10 +231,12 @@ void EventContext::RequestEvent(int theMask)
 #else
 		if (epoll_watchevent(&fEventReq, theMask) != 0)
 #endif
-#endif  
+#endif
+		{
             //this should never fail, but if it does, cleanup.
-            AssertV(false, OSThread::GetErrno());
-            
+            //AssertV(false, OSThread::GetErrno());
+            // do nothing.
+        }            
     }
 }
 
@@ -267,7 +272,7 @@ void EventThread::Entry()
 	        }
         }
         
-        AssertV(theErrno == 0, theErrno);
+        //AssertV(theErrno == 0, theErrno);
         
         //ok, there's data waiting on this socket. Send a wakeup.
         if (theCurrentEvent.er_data != NULL)

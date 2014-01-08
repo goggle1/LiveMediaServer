@@ -136,7 +136,7 @@ void    Socket::SetSocketBufSize(UInt32 inNewSize)
 
     int bufSize = inNewSize;
     int err = ::setsockopt(fFileDesc, SOL_SOCKET, SO_SNDBUF, (char*)&bufSize, sizeof(int));
-    AssertV(err == 0, OSThread::GetErrno());
+    //AssertV(err == 0, OSThread::GetErrno());
     
 #if SOCKET_DEBUG
 	int setValue;

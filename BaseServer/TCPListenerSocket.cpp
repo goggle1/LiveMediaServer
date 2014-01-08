@@ -80,7 +80,7 @@ OS_Error TCPListenerSocket::Initialize(UInt32 addr, UInt16 port)
         // to run out of memory faster if it gets bogged down, but it is unavoidable.
         this->SetSocketRcvBufSize(96 * 1024);       
         err = this->Listen(kListenQueueLength);
-        AssertV(err == 0, OSThread::GetErrno()); 
+        //AssertV(err == 0, OSThread::GetErrno()); 
         if (err != 0) break;
         
     } while (false);

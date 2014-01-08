@@ -179,10 +179,10 @@ void TCPClientSocket::SetOptions(int sndBufSize,int rcvBufSize)
     //qtss_printf("TCPClientSocket::SetOptions sndBufSize=%d,rcvBuf=%d,keepAlive=%d,noDelay=%d\n",sndBufSize,rcvBufSize,(int)keepAlive,(int)noDelay);
     int err = 0;
     err = ::setsockopt(fSocket.GetSocketFD(), SOL_SOCKET, SO_SNDBUF, (char*)&sndBufSize, sizeof(int));
-    AssertV(err == 0, OSThread::GetErrno());
+    //AssertV(err == 0, OSThread::GetErrno());
 
     err = ::setsockopt(fSocket.GetSocketFD(), SOL_SOCKET, SO_RCVBUF, (char*)&rcvBufSize, sizeof(int));
-    AssertV(err == 0, OSThread::GetErrno());
+    //AssertV(err == 0, OSThread::GetErrno());
 
 #if __FreeBSD__ || __MacOSX__
     struct timeval time;
@@ -191,10 +191,10 @@ void TCPClientSocket::SetOptions(int sndBufSize,int rcvBufSize)
     time.tv_usec = 0;
 
     err = ::setsockopt(fSocket.GetSocketFD(), SOL_SOCKET, SO_RCVTIMEO, (char*)&time, sizeof(time));
-    AssertV(err == 0, OSThread::GetErrno());
+    //AssertV(err == 0, OSThread::GetErrno());
 
     err = ::setsockopt(fSocket.GetSocketFD(), SOL_SOCKET, SO_SNDTIMEO, (char*)&time, sizeof(time));
-    AssertV(err == 0, OSThread::GetErrno());
+    //AssertV(err == 0, OSThread::GetErrno());
 #endif
 
 }
