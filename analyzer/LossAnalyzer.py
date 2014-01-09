@@ -7,9 +7,17 @@ import datetime
 def print_usage(program_name):
     print '%s [log_file]' % (program_name)
 
+def file_get_suffix(file_name):
+    #/livestream/3702892333/78267cf4a7864a887540cf4af3c432dca3d52050/flv/2013/12/25/20131017T171949_03_20131225_153710_3509995.flv
+    #print file_name
+    items = file_name.split('.')
+    suffix = items[1]
+    return suffix
+
 
 def file_get_id(file_name):
     #/livestream/3702892333/78267cf4a7864a887540cf4af3c432dca3d52050/flv/2013/12/25/20131017T171949_03_20131225_153710_3509995.flv
+    #print file_name
     items = file_name.split('/')
     only_name = items[8]
     columns = only_name.split('.')
@@ -40,12 +48,16 @@ def main():
             break           
         items = line.split(',')        
         if(len(items) < 4):
-            continue
-        line_num = line_num + 1
+            continue        
         section_file        = items[0]
-        section_len         = items[1]
-        section_begin_time  = items[2]
-        section_end_time    = items[3]        
+        section_source      = items[1]
+        section_len         = items[2]
+        section_begin_time  = items[3]
+        section_end_time    = items[4]
+        file_suffix = file_get_suffix(section_file)     
+        if(file_suffix != 'flv') and (file_suffix != 'ts'):
+            continue   
+        line_num = line_num + 1
         str_chunk_id = file_get_id(section_file)
         now_chunk_id = string.atoi(str_chunk_id)
         if(line_num > 1 and now_chunk_id - last_chunk_id > 1):
