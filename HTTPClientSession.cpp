@@ -92,7 +92,7 @@ int make_dir(StrPtrLen& dir)
 }
 
 HTTPClientSession::HTTPClientSession(CHANNEL_T* channelp, char* live_type)
-	:fTimeoutTask(this, g_config.download_interval)
+//	:fTimeoutTask(this, g_config.download_interval)
 {		
 	fprintf(stdout, "%s: live_type=%s, liveid=%s\n", __PRETTY_FUNCTION__, live_type, channelp->liveid);
 	
@@ -106,7 +106,6 @@ HTTPClientSession::HTTPClientSession(CHANNEL_T* channelp, char* live_type)
 	fSourceList	= NULL;
 	fSourceNow = NULL;
 	fWillSourceList = NULL;
-	SetSources(fChannel->source_list);
 
 	strncpy(fLiveType, live_type, MAX_LIVE_TYPE-1);
 	fLiveType[MAX_LIVE_TYPE-1] = '\0';
@@ -156,6 +155,7 @@ HTTPClientSession::HTTPClientSession(CHANNEL_T* channelp, char* live_type)
 	}
 
 	fLog = NULL;
+	
 	//this->Signal(Task::kStartEvent);
 
 	
@@ -368,7 +368,13 @@ int HTTPClientSession::SetSource(SOURCE_T* sourcep)
 	char* 	ip_str = inet_ntoa(in);	
 	snprintf(fHost, MAX_HOST_LEN, "%s:%d", ip_str, sourcep->port);
 	fHost[MAX_HOST_LEN-1] = '\0';
-	 
+
+	fprintf(stdout, "%s: LiveType=%s, LiveId=%s, Source: %s\n", __PRETTY_FUNCTION__, fLiveType, fChannel->liveid, fHost);
+	if(fLog != NULL)
+	{
+   		fprintf(fLog, "SetSource: %s\n", fHost);
+	}
+    	
 	ret = fClient->SetSource(sourcep->ip, sourcep->port);
 
 	return ret;
@@ -389,8 +395,21 @@ Bool16 HTTPClientSession::DownloadTimeout()
 	time_t diff_time = timeval_diff(&fClient->fEndTime, &fClient->fBeginTime);
 	if(diff_time > MAX_TIMEOUT_TIME)
 	{
-		fprintf(stdout, "%s: LiveType=%s, LiveId=%s, EndTime=%ld, BeginTime=%ld\n", 
+		fprintf(stdout, "%s: LiveType=%s, LiveId=%s, EndTime=%ld, BeginTime=%ld, so timeout\n", 
 			__PRETTY_FUNCTION__, fLiveType, fChannel->liveid, fClient->fEndTime.tv_sec, fClient->fBeginTime.tv_sec);	
+		if(fLog != NULL)
+    	{
+    		char str_begin_time[MAX_TIME_LEN] = {0};
+    		char str_end_time[MAX_TIME_LEN] = {0};
+			ctime_r(&fClient->fBeginTime.tv_sec, str_begin_time);
+			str_begin_time[strlen(str_begin_time)-1] = '\0';
+			ctime_r(&fClient->fEndTime.tv_sec, str_end_time);
+			str_end_time[strlen(str_end_time)-1] = '\0';
+       		fprintf(fLog, "%s, source: %s, error: %s, begin: %ld.%06ld [%s], end: %ld.%06ld [%s]\n", 
+        		fClient->fUrl, fClient->fHost, "timeout", 
+        		fClient->fBeginTime.tv_sec, fClient->fBeginTime.tv_usec,	str_begin_time,
+        		fClient->fEndTime.tv_sec,   fClient->fEndTime.tv_usec, 	str_end_time);
+    	}
 		return true;
 	}
 	
@@ -721,31 +740,26 @@ SInt64 HTTPClientSession::Run()
 	
 	if (theEvents & Task::kStartEvent)
     {
-		SwitchLog(fBeginTime);
+		SwitchLog(fBeginTime);		
+		SetSources(fChannel->source_list);
     }
 
-	#if 0
-	if (theEvents & Task::kTimeoutEvent)
-	{
-		if(fState == kDone)
-			return 0;
-			
-	    fDeathReason = kSessionTimedout;
-	    fState = kDone;
-	    return 0;
-	}
-	#endif
-
-    // We have been told to delete ourselves. Do so... NOW!!!!!!!!!!!!!!!
+	// We have been told to delete ourselves. Do so... NOW!!!!!!!!!!!!!!!
     if (theEvents & Task::kKillEvent)
     {
         return -1;
     }
+    
+	#if 0
+	if (theEvents & Task::kTimeoutEvent)
+	{
+		fprintf(stdout, "%s: kTimeoutEvent\n", __PRETTY_FUNCTION__);
+	}
 
     // Refresh the timeout. There is some legit activity going on...
-    #if 0
     fTimeoutTask.RefreshTimeout();
     #endif
+    
 	int ret = 0;
     OS_Error theErr = OS_NoErr;    
     while ((theErr == OS_NoErr) && (fState != kDone))
@@ -808,7 +822,7 @@ SInt64 HTTPClientSession::Run()
 							str_begin_time[strlen(str_begin_time)-1] = '\0';
 							ctime_r(&fSegmentEndTime.tv_sec, str_end_time);
 							str_end_time[strlen(str_end_time)-1] = '\0';
-	                    	fprintf(fLog, "%s, source: %s, len: %u, begin: %ld.%06ld [%s], end_time: %ld.%06ld [%s]\n", 
+	                    	fprintf(fLog, "%s, source: %s, len: %8u, begin: %ld.%06ld [%s], end_time: %ld.%06ld [%s]\n", 
 	                    		fUrl, fClient->fHost, fClient->GetContentLength(), 
 	                    		fM3U8BeginTime.tv_sec, fM3U8BeginTime.tv_usec,	str_begin_time,
 	                    		fM3U8EndTime.tv_sec,   fM3U8EndTime.tv_usec, 	str_end_time);
@@ -919,7 +933,7 @@ SInt64 HTTPClientSession::Run()
 							str_begin_time[strlen(str_begin_time)-1] = '\0';
 							ctime_r(&fSegmentEndTime.tv_sec, str_end_time);
 							str_end_time[strlen(str_end_time)-1] = '\0';
-	                    	fprintf(fLog, "%s, source: %s, len: %u, begin: %ld.%06ld [%s], end_time: %ld.%06ld [%s]\n", 
+	                    	fprintf(fLog, "%s, source: %s, len: %8u, begin: %ld.%06ld [%s], end_time: %ld.%06ld [%s]\n", 
 	                    		fM3U8Parser.fSegments[fGetIndex].relative_url, fClient->fHost, fClient->GetContentLength(), 
 	                    		fSegmentBeginTime.tv_sec, fSegmentBeginTime.tv_usec, str_begin_time,
 	                    		fSegmentEndTime.tv_sec,   fSegmentEndTime.tv_usec, str_end_time);
@@ -1007,7 +1021,7 @@ SInt64 HTTPClientSession::Run()
 
     }    
 	
-	return 0;
+	return g_config.download_interval;
 }
 
 

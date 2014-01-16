@@ -25,6 +25,7 @@ HTTPClient::HTTPClient(TCPClientSocket* inSocket/*, CHANNEL_T* channelp*/)
 	//fSource = NULL;
 	
 	//SetSources(fChannel->source_list);
+	fUrl = NULL;
 
 	::memset(fSendBuffer, 0,kReqBufSize + 1);
     ::memset(fRecvHeaderBuffer, 0,kReqBufSize + 1);
@@ -70,7 +71,8 @@ int HTTPClient::SetSource(u_int32_t ip, u_int16_t port)
 OS_Error HTTPClient::SendGetM3U8(char* url)
 {
 	if (!IsTransactionInProgress())
-    {    	
+    {  
+    	fUrl = url;
 		StringFormatter fmt(fSendBuffer, kReqBufSize);
         fmt.PutFmtStr(
             	"GET %s HTTP/1.1\r\n"
@@ -88,7 +90,8 @@ OS_Error HTTPClient::SendGetM3U8(char* url)
 OS_Error HTTPClient::SendGetSegment(char* url)
 {
 	if (!IsTransactionInProgress())
-    {    	
+    {   
+    	fUrl = url;
 		StringFormatter fmt(fSendBuffer, kReqBufSize);
         fmt.PutFmtStr(
             	"GET %s HTTP/1.1\r\n"

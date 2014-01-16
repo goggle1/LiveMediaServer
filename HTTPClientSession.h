@@ -87,7 +87,7 @@ class HTTPClientSession : public Task
 		UInt32          	fState;     // the state machine
 		UInt32          	fDeathReason;
 
-		TimeoutTask     	fTimeoutTask; // Kills this connection in the event the server isn't responding
+		//TimeoutTask     	fTimeoutTask; // Kills this connection in the event the server isn't responding
 
 		M3U8Parser		   	fM3U8Parser;  
 		struct timeval		fM3U8BeginTime;

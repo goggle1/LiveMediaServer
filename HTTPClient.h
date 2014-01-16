@@ -33,6 +33,7 @@ class HTTPClient
 
 		// Information we need to send the request
         char			fHost[MAX_HOST_LEN];
+        char*			fUrl;
         
 		struct timeval		fBeginTime;
         struct timeval		fEndTime;
