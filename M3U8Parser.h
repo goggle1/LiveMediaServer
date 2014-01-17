@@ -8,7 +8,7 @@
 #include "public.h"
 
 //#define MAX_SEGMENT_NUM	3
-#define MAX_SEGMENT_NUM	12
+#define MAX_SEGMENT_NUM	24
 
 
 typedef struct segment_t

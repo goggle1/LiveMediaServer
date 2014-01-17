@@ -63,7 +63,8 @@ class TimeoutTaskThread : public IdleTask
         //this thread runs every minute and checks for timeouts
         enum
         {
-            kIntervalSeconds = 60   //UInt32
+            //kIntervalSeconds = 60   //UInt32
+            kIntervalSeconds = 1   //UInt32
         };
 
         virtual SInt64          Run();

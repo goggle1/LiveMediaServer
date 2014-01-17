@@ -92,7 +92,7 @@ int make_dir(StrPtrLen& dir)
 }
 
 HTTPClientSession::HTTPClientSession(CHANNEL_T* channelp, char* live_type)
-//	:fTimeoutTask(this, g_config.download_interval)
+	:fTimeoutTask(this, g_config.download_interval)
 {		
 	fprintf(stdout, "%s: live_type=%s, liveid=%s\n", __PRETTY_FUNCTION__, live_type, channelp->liveid);
 	
@@ -106,15 +106,26 @@ HTTPClientSession::HTTPClientSession(CHANNEL_T* channelp, char* live_type)
 	fSourceList	= NULL;
 	fSourceNow = NULL;
 	fWillSourceList = NULL;
-
+	
 	strncpy(fLiveType, live_type, MAX_LIVE_TYPE-1);
 	fLiveType[MAX_LIVE_TYPE-1] = '\0';
 	strcpy(fM3U8Path, "livestream");
-	//snprintf(fUrl, MAX_URL_LEN, "/%s/%s.m3u8?codec=%s", fM3U8Path, channelp->liveid, live_type);
-	snprintf(fUrl, MAX_URL_LEN, "/%s/%s.m3u8?codec=%s&len=%d", fM3U8Path, channelp->liveid, live_type, MAX_SEGMENT_NUM);
-	fUrl[MAX_URL_LEN-1] = '\0';	
 	StrPtrLen path(fM3U8Path);
 	fM3U8Parser.SetPath(&path);
+
+	fLastChunkId = 0;
+	fWithChunkId = false;
+	if(fWithChunkId)
+	{
+		snprintf(fUrl, MAX_URL_LEN, "/%s/%s.m3u8?codec=%s&len=%d&seq=%lu", fM3U8Path, channelp->liveid, live_type, MAX_SEGMENT_NUM, fLastChunkId);
+		fUrl[MAX_URL_LEN-1] = '\0';
+	}
+	else
+	{
+		snprintf(fUrl, MAX_URL_LEN, "/%s/%s.m3u8?codec=%s&len=%d", fM3U8Path, channelp->liveid, live_type, MAX_SEGMENT_NUM);
+		fUrl[MAX_URL_LEN-1] = '\0';	
+	}
+	
 
 	fState = kSendingGetM3U8;	
 	fGetIndex	= 0;
@@ -154,8 +165,7 @@ HTTPClientSession::HTTPClientSession(CHANNEL_T* channelp, char* live_type)
 		channelp->sessionp_mp4 = this;
 	}
 
-	fLog = NULL;
-	
+	fLog = NULL;		
 	//this->Signal(Task::kStartEvent);
 
 	
@@ -395,8 +405,8 @@ Bool16 HTTPClientSession::DownloadTimeout()
 	time_t diff_time = timeval_diff(&fClient->fEndTime, &fClient->fBeginTime);
 	if(diff_time > MAX_TIMEOUT_TIME)
 	{
-		fprintf(stdout, "%s: LiveType=%s, LiveId=%s, EndTime=%ld, BeginTime=%ld, so timeout\n", 
-			__PRETTY_FUNCTION__, fLiveType, fChannel->liveid, fClient->fEndTime.tv_sec, fClient->fBeginTime.tv_sec);	
+		fprintf(stdout, "%s: Url=%s, EndTime=%ld, BeginTime=%ld, so timeout\n", 
+			__PRETTY_FUNCTION__, fClient->fUrl, fClient->fEndTime.tv_sec, fClient->fBeginTime.tv_sec);	
 		if(fLog != NULL)
     	{
     		char str_begin_time[MAX_TIME_LEN] = {0};
@@ -750,10 +760,10 @@ SInt64 HTTPClientSession::Run()
         return -1;
     }
     
-	#if 0
+	#if 1
 	if (theEvents & Task::kTimeoutEvent)
 	{
-		fprintf(stdout, "%s: kTimeoutEvent\n", __PRETTY_FUNCTION__);
+		fprintf(stdout, "%s: kTimeoutEvent\n", __PRETTY_FUNCTION__); 
 	}
 
     // Refresh the timeout. There is some legit activity going on...
@@ -780,7 +790,8 @@ SInt64 HTTPClientSession::Run()
             {            	
             	fGetIndex = 0;
             	fGetTryCount = 0;
-            	//fprintf(stdout, "%s[0x%016lX][0x%016lX][%ld]: get %s\n", __PRETTY_FUNCTION__, this->fDefaultThread, this->fUseThisThread, pthread_self(), fURL.Ptr);            	
+            	//fprintf(stdout, "%s[0x%016lX][0x%016lX][%ld]: get %s\n", __PRETTY_FUNCTION__, this->fDefaultThread, this->fUseThisThread, pthread_self(), fUrl); 
+            	//MakeUrl();
             	theErr = fClient->SendGetM3U8(fUrl); 
             	fM3U8BeginTime = fClient->fBeginTime;
                	fM3U8EndTime = fClient->fEndTime;               	
@@ -844,6 +855,14 @@ SInt64 HTTPClientSession::Run()
                         }
                         #endif
                         //RewriteM3U8(&fM3U8Parser);
+                        if(fM3U8Parser.fSegmentsNum <= 0)
+		            	{
+		            		fState = kSendingGetM3U8;
+		            		//RewriteM3U8(&fM3U8Parser);
+							MemoM3U8(&fM3U8Parser, fM3U8BeginTime.tv_sec, fM3U8EndTime.tv_sec);
+		            		time_t break_time = CalcBreakTime();
+		            		return break_time;
+		            	}
                         fState = kSendingGetSegment;
                     }
                 }
@@ -852,15 +871,6 @@ SInt64 HTTPClientSession::Run()
             }
             case kSendingGetSegment:
             {
-            	if(fM3U8Parser.fSegmentsNum <= 0)
-            	{
-            		fState = kSendingGetM3U8;
-            		//RewriteM3U8(&fM3U8Parser);
-					MemoM3U8(&fM3U8Parser, fM3U8BeginTime.tv_sec, fM3U8EndTime.tv_sec);
-            		time_t break_time = CalcBreakTime();
-            		return break_time;
-            	}
-				
             	while(1)
             	{
 	            	if(IsDownloaded(&(fM3U8Parser.fSegments[fGetIndex])))
@@ -887,8 +897,7 @@ SInt64 HTTPClientSession::Run()
             	fSegmentBeginTime = fClient->fBeginTime;
                 fSegmentEndTime = fClient->fEndTime;  
             	if (theErr == OS_NoErr)
-                {  
-                	//SwitchLog(fSegmentBeginTime);
+                { 
                 	UInt32 get_status = fClient->GetStatus();
                 	if (get_status != 200)
                     {
@@ -937,7 +946,8 @@ SInt64 HTTPClientSession::Run()
 	                    		fM3U8Parser.fSegments[fGetIndex].relative_url, fClient->fHost, fClient->GetContentLength(), 
 	                    		fSegmentBeginTime.tv_sec, fSegmentBeginTime.tv_usec, str_begin_time,
 	                    		fSegmentEndTime.tv_sec,   fSegmentEndTime.tv_usec, str_end_time);
-                    	}
+                    	}  
+                    	fLastChunkId = fM3U8Parser.fSegments[fGetIndex].sequence;
                     	MemoSourceSegment(fClient->GetContentLength(), fSegmentBeginTime, fSegmentEndTime);
                     	if(fClient->GetContentLength() > 0)
                     	{
@@ -1021,7 +1031,8 @@ SInt64 HTTPClientSession::Run()
 
     }    
 	
-	return g_config.download_interval;
+	//return g_config.download_interval;
+	return 0;
 }
 
 
