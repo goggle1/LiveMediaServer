@@ -752,6 +752,7 @@ time_t HTTPClientSession::CalcBreakTime()
 SInt64 HTTPClientSession::Run()
 {	
 	Task::EventFlags theEvents = this->GetEvents(); 
+	//fprintf(stdout, "%s: theEvents=0x%08X\n", __PRETTY_FUNCTION__, theEvents);
 	
 	if (theEvents & Task::kStartEvent)
     {
@@ -768,7 +769,8 @@ SInt64 HTTPClientSession::Run()
 	#if 1
 	if (theEvents & Task::kTimeoutEvent)
 	{
-		fprintf(stdout, "%s: kTimeoutEvent\n", __PRETTY_FUNCTION__); 
+		// do nothing.
+		//fprintf(stdout, "%s: theEvents=0x%08X, kTimeoutEvent\n", __PRETTY_FUNCTION__, theEvents); 		
 	}
 
     // Refresh the timeout. There is some legit activity going on...
@@ -796,7 +798,7 @@ SInt64 HTTPClientSession::Run()
             	fGetIndex = 0;
             	fGetTryCount = 0;
             	MakeUrl();
-            	fprintf(stdout, "%s: get %s\n", __PRETTY_FUNCTION__, fUrl);             	
+            	//fprintf(stdout, "%s: get %s\n", __PRETTY_FUNCTION__, fUrl);             	
             	theErr = fClient->SendGetM3U8(fUrl); 
             	fM3U8BeginTime = fClient->fBeginTime;
                	fM3U8EndTime = fClient->fEndTime;               	
