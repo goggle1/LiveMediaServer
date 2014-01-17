@@ -115,17 +115,7 @@ HTTPClientSession::HTTPClientSession(CHANNEL_T* channelp, char* live_type)
 
 	fLastChunkId = 0;
 	fWithChunkId = false;
-	if(fWithChunkId)
-	{
-		snprintf(fUrl, MAX_URL_LEN, "/%s/%s.m3u8?codec=%s&len=%d&seq=%lu", fM3U8Path, channelp->liveid, live_type, MAX_SEGMENT_NUM, fLastChunkId);
-		fUrl[MAX_URL_LEN-1] = '\0';
-	}
-	else
-	{
-		snprintf(fUrl, MAX_URL_LEN, "/%s/%s.m3u8?codec=%s&len=%d", fM3U8Path, channelp->liveid, live_type, MAX_SEGMENT_NUM);
-		fUrl[MAX_URL_LEN-1] = '\0';	
-	}
-	
+	MakeUrl();	
 
 	fState = kSendingGetM3U8;	
 	fGetIndex	= 0;
@@ -219,6 +209,21 @@ HTTPClientSession::~HTTPClientSession()
 		fSocket = NULL;
 	}
 	fprintf(stdout, "%s\n", __PRETTY_FUNCTION__);
+}
+
+int HTTPClientSession::MakeUrl()
+{
+	if(fWithChunkId)
+	{
+		snprintf(fUrl, MAX_URL_LEN, "/%s/%s.m3u8?codec=%s&len=%d&seq=%lu", fM3U8Path, fChannel->liveid, fLiveType, MAX_SEGMENT_NUM, fLastChunkId);
+		fUrl[MAX_URL_LEN-1] = '\0';
+	}
+	else
+	{
+		snprintf(fUrl, MAX_URL_LEN, "/%s/%s.m3u8?codec=%s&len=%d", fM3U8Path, fChannel->liveid, fLiveType, MAX_SEGMENT_NUM);
+		fUrl[MAX_URL_LEN-1] = '\0';	
+	}
+	return 0;
 }
 
 int HTTPClientSession::Start()
@@ -790,8 +795,8 @@ SInt64 HTTPClientSession::Run()
             {            	
             	fGetIndex = 0;
             	fGetTryCount = 0;
-            	//fprintf(stdout, "%s[0x%016lX][0x%016lX][%ld]: get %s\n", __PRETTY_FUNCTION__, this->fDefaultThread, this->fUseThisThread, pthread_self(), fUrl); 
-            	//MakeUrl();
+            	MakeUrl();
+            	fprintf(stdout, "%s: get %s\n", __PRETTY_FUNCTION__, fUrl);             	
             	theErr = fClient->SendGetM3U8(fUrl); 
             	fM3U8BeginTime = fClient->fBeginTime;
                	fM3U8EndTime = fClient->fEndTime;               	
@@ -855,15 +860,44 @@ SInt64 HTTPClientSession::Run()
                         }
                         #endif
                         //RewriteM3U8(&fM3U8Parser);
-                        if(fM3U8Parser.fSegmentsNum <= 0)
-		            	{
-		            		fState = kSendingGetM3U8;
-		            		//RewriteM3U8(&fM3U8Parser);
-							MemoM3U8(&fM3U8Parser, fM3U8BeginTime.tv_sec, fM3U8EndTime.tv_sec);
-		            		time_t break_time = CalcBreakTime();
-		            		return break_time;
+                        if(!fWithChunkId)
+                        {                        	
+                        	if(fM3U8Parser.fSegmentsNum <= 0)
+			            	{
+			            		fWithChunkId = false;
+			            		fState = kSendingGetM3U8;
+			            		//RewriteM3U8(&fM3U8Parser);
+								MemoM3U8(&fM3U8Parser, fM3U8BeginTime.tv_sec, fM3U8EndTime.tv_sec);		            		
+			            		time_t break_time = CalcBreakTime();
+		            			return break_time;
+			            	}
+			            	else
+			            	{
+			            		fWithChunkId = true;
+			            		fState = kSendingGetSegment;
+			            	}
+                        }
+                        else
+                        {
+	                        if(fM3U8Parser.fSegmentsNum <= 0)
+			            	{
+			            		fWithChunkId = false;
+			            		fState = kSendingGetM3U8;
+			            		//RewriteM3U8(&fM3U8Parser);
+								MemoM3U8(&fM3U8Parser, fM3U8BeginTime.tv_sec, fM3U8EndTime.tv_sec);		            		
+			            		return 10;
+			            	}
+			            	else if(fM3U8Parser.fSegmentsNum == MAX_SEGMENT_NUM)
+			            	{
+			            		fWithChunkId = false;
+			            		fState = kSendingGetSegment;
+			            	}
+			            	else
+			            	{
+			            		fWithChunkId = true;
+			            		fState = kSendingGetSegment;
+			            	} 
 		            	}
-                        fState = kSendingGetSegment;
                     }
                 }
                 

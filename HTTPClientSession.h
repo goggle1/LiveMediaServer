@@ -32,6 +32,7 @@ class HTTPClientSession : public Task
 		struct timeval*	GetBeginTime() { return &fBeginTime; } 
 
 	protected:
+		int 	MakeUrl();
 		int		TryStop();
 		int		TrySwitchSources();
 		Bool16	IsDownloaded(SEGMENT_T* segp);
