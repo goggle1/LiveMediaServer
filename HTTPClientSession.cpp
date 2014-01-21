@@ -1040,7 +1040,19 @@ SInt64 HTTPClientSession::Run()
     	if(DownloadTimeout())
 		{
 			theErr = ETIMEOUT; // Exit the state machine
-			SwitchSource(theErr);
+			int result = SwitchSource(theErr);
+			if(result < 0) // switch failed, only one source.
+			{
+				fGetIndex ++;                        
+	            // if all the segments downloaded, get m3u8 again
+	            if(fGetIndex >= fM3U8Parser.fSegmentsNum)
+	        	{
+	        		fState = kSendingGetM3U8;
+	        		//RewriteM3U8(&fM3U8Parser);
+					MemoM3U8(&fM3U8Parser, fM3U8BeginTime.tv_sec, fM3U8EndTime.tv_sec);
+	        	}	
+			}
+			
 			time_t break_time = CalcBreakTime();
        		return break_time;
 		}
