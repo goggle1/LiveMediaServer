@@ -5,6 +5,7 @@
 #include <libxml/xmlmemory.h>
 #include <libxml/parser.h>
 
+#include "common.h"
 #include "deque.h"
 
 #define HASH_LEN 			40
@@ -15,7 +16,7 @@
 #define MAX_M3U8_NUM		2
 #define MAX_URL_LEN			256
 
-#define MAX_M3U8_CONTENT_LEN (1024*16)
+#define MAX_M3U8_CONTENT_LEN (MAX_SEGMENT_NUM*1024)
 
 #define LIVE_TS				"ts"
 #define LIVE_FLV			"flv"

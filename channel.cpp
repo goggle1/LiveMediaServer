@@ -3,7 +3,7 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 
-#include "public.h"
+#include "common.h"
 #include "channel.h"
 #include "HTTPClientSession.h"
 

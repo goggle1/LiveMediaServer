@@ -4,13 +4,13 @@
 
 #include "BaseServer/ClientSocket.h"
 
-#include "public.h"
+#include "common.h"
 #include "channel.h"
 
 class HTTPClient
 {
 	public:
-		HTTPClient(TCPClientSocket* inSocket/*, CHANNEL_T* channelp*/);
+		HTTPClient(TCPClientSocket* inSocket);
 		~HTTPClient();		
 		
 		OS_Error    SendGetM3U8(char* url);
@@ -30,6 +30,11 @@ class HTTPClient
         //int			SetSources(DEQUE_NODE* source_list);
         int			Disconnect();
         int			SetSource(u_int32_t ip, u_int16_t port);
+		
+        Bool16		ConnectTimeout();
+        
+	protected:
+		Bool16		IsTimeout();
 
 		// Information we need to send the request
         char			fHost[MAX_HOST_LEN];
@@ -38,7 +43,6 @@ class HTTPClient
 		struct timeval		fBeginTime;
         struct timeval		fEndTime;
         
-	protected:
 		TCPClientSocket*	fSocket;	
 		//CHANNEL_T*			fChannel;
 		//DEQUE_NODE*			fSource;
@@ -70,7 +74,8 @@ class HTTPClient
         // For tracking media data that got read into the header buffer
         UInt32      fPacketDataInHeaderBufferLen;
         char*       fPacketDataInHeaderBuffer;
-		
+
+        friend class HTTPClientSession;		
 };
 
 #endif

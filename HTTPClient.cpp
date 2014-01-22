@@ -10,7 +10,7 @@
 
 #include "HTTPClient.h"
 
-HTTPClient::HTTPClient(TCPClientSocket* inSocket/*, CHANNEL_T* channelp*/)
+HTTPClient::HTTPClient(TCPClientSocket* inSocket)
 : 	fSocket(inSocket),	
 	fState(kInitial),	
 	fRecvContentBuffer(NULL),
@@ -20,11 +20,7 @@ HTTPClient::HTTPClient(TCPClientSocket* inSocket/*, CHANNEL_T* channelp*/)
     fStatus(0),
 	fPacketDataInHeaderBufferLen(0),
     fPacketDataInHeaderBuffer(NULL)
-{	
-	//fChannel = channelp;
-	//fSource = NULL;
-	
-	//SetSources(fChannel->source_list);
+{
 	fUrl = NULL;
 
 	::memset(fSendBuffer, 0,kReqBufSize + 1);
@@ -105,6 +101,52 @@ OS_Error HTTPClient::SendGetSegment(char* url)
     
     return this->DoTransaction();
 
+}
+
+Bool16 HTTPClient::IsTimeout()
+{
+	int ret = timeval_cmp(&fEndTime, &fBeginTime);
+	if(ret < 0)
+	{
+		return false;
+	}
+	else if(ret == 0)
+	{
+		return false;
+	}
+	
+	time_t diff_time = timeval_diff(&fEndTime, &fBeginTime);
+	if(diff_time > MAX_CONNECT_TIME)
+	{			
+		return true;
+	}
+
+	return false;
+}
+
+Bool16 HTTPClient::ConnectTimeout()
+{
+	if(fState == kInitial)
+	{
+		return false;
+	}
+	else if(fState == kRequestSending)
+	{
+		return IsTimeout();
+	}
+	else if(fState == kResponseReceiving || fState == kHeaderReceived)
+	{
+		if(fHeaderRecvLen == 0)
+		{
+			return IsTimeout();
+		}
+		else
+		{
+			return false;
+		}
+	}
+
+	return false;
 }
 
 OS_Error HTTPClient::DoTransaction()

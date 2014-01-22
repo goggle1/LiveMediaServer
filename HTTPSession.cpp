@@ -11,7 +11,7 @@
 
 #include "BaseServer/StringParser.h"
 
-#include "public.h"
+#include "common.h"
 #include "config.h"
 #include "channel.h"
 #include "HTTPSession.h"
@@ -622,6 +622,11 @@ HTTPSession::HTTPSession(SESSION_T* sessionp):
 	fprintf(stdout, "%s[0x%016lX] remote_ip=0x%08X, port=%u \n", 
 		__PRETTY_FUNCTION__, (long)this,
 		sessionp->remote_ip, sessionp->remote_port);
+		
+	char task_name[32] = {'\0'};
+	snprintf(task_name, 32, "s_0x%08X:%u", sessionp->remote_ip, sessionp->remote_port);
+	task_name[32 - 1] = '\0';
+	this->SetTaskName(task_name);
 
 	fFd	= -1;
 	fCmdBuffer = NULL;

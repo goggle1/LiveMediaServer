@@ -1,7 +1,7 @@
 #include <libxml/xmlmemory.h>
 #include <libxml/parser.h>
 
-#include "public.h"
+#include "common.h"
 #include "config.h"
 
 int parse_config(CONFIG_T* configp, xmlDocPtr doc, xmlNodePtr cur)

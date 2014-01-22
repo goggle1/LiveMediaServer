@@ -5,10 +5,7 @@
 #include <sys/types.h>
 
 #include "BaseServer/StrPtrLen.h"
-#include "public.h"
-
-//#define MAX_SEGMENT_NUM	3
-#define MAX_SEGMENT_NUM	24
+#include "common.h"
 
 
 typedef struct segment_t

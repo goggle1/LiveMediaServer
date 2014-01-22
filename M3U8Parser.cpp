@@ -3,7 +3,7 @@
 
 #include "BaseServer/StringParser.h"
 
-#include "public.h"
+#include "common.h"
 #include "config.h"
 #include "M3U8Parser.h"
 
