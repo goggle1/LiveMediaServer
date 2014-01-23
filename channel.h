@@ -43,7 +43,8 @@ typedef struct clip_t
 	char 		file_name[MAX_URL_LEN];
 	DATA_T		data;
 	time_t		begin_time;
-	time_t		end_time;
+	// if end_time == 0, download undone.
+	time_t		end_time;	
 } CLIP_T;
 
 //typedef DATA_T M3U8_T;

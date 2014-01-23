@@ -83,7 +83,7 @@ OS_Error HTTPClient::SendGetM3U8(char* url)
     return this->DoTransaction();
 }
 
-OS_Error HTTPClient::SendGetSegment(char* url)
+OS_Error HTTPClient::SendGetSegment(char* url, u_int64_t range_start)
 {
 	if (!IsTransactionInProgress())
     {   
@@ -91,11 +91,12 @@ OS_Error HTTPClient::SendGetSegment(char* url)
 		StringFormatter fmt(fSendBuffer, kReqBufSize);
         fmt.PutFmtStr(
             	"GET %s HTTP/1.1\r\n"
+            	"Range: bytes=%lu-\r\n"
 				"User-Agent: %s\r\n"
 				"HOST: %s\r\n"
 				"Accept: */*\r\n"
 				"\r\n", 
-				url, USER_AGENT, fHost);
+				url, range_start, USER_AGENT, fHost);
 		fmt.PutTerminator();
     }
     
@@ -187,6 +188,16 @@ OS_Error HTTPClient::DoTransaction()
         		fHeaderRecvLen = 0;
         		fHeaderLen = 0;
         		::memset(fRecvHeaderBuffer, 0, kReqBufSize+1);
+        		
+        		// Zero out fields that will change with every HTTP response            
+	            fStatus = 0;
+	            fContentLength = 0;
+	            fChunked = false;
+	            fChunkTail = false;
+	            fRangeStart = 0;
+	            fRangeStop = 0;
+	            fRangeLength = 0;
+	            
 
             	fState = kResponseReceiving;
 				break;
@@ -301,11 +312,16 @@ OS_Error HTTPClient::ReceiveResponse()
             fHeaderLen = theResponseData - &fRecvHeaderBuffer[0];
             fContentRecvLen = fHeaderRecvLen - fHeaderLen;
 
+			#if 0
             // Zero out fields that will change with every HTTP response            
             fStatus = 0;
             fContentLength = 0;
             fChunked = false;
             fChunkTail = false;
+            fRangeStart = 0;
+            fRangeStop = 0;
+            fRangeLength = 0;
+            #endif
         
             // Parse the response.
             StrPtrLen theData(fRecvHeaderBuffer, fHeaderLen);
@@ -335,6 +351,8 @@ OS_Error HTTPClient::ReceiveResponse()
                 static StrPtrLen sLastModifiedHeader("Last-Modified"); 
 				//Transfer-Encoding: chunked
                 static StrPtrLen sTransferEncodingHeader("Transfer-Encoding"); 
+                //Content-Range: bytes 0-800/801
+                static StrPtrLen sContentRangeHeader("Content-Range");
                                
                 StrPtrLen theKey;
                 theParser.GetThruEOL(&theKey);
@@ -369,6 +387,17 @@ OS_Error HTTPClient::ReceiveResponse()
                     // Immediately copy the bit of the content body that we've already
                     // read off of the socket.					
                     ::memcpy(fRecvContentBuffer, theResponseData, fContentRecvLen);
+                }
+                else if (theKey.NumEqualIgnoreCase(sContentRangeHeader.Ptr, sContentRangeHeader.Len))
+                {
+					//exclusive with interleaved
+                    StringParser theCRangeParser(&theKey);
+                    theCRangeParser.ConsumeUntil(NULL, StringParser::sDigitMask);
+                    fRangeStart = theCRangeParser.ConsumeInteger(NULL);
+                    theCRangeParser.ConsumeUntil(NULL, StringParser::sDigitMask);
+                    fRangeStop  = theCRangeParser.ConsumeInteger(NULL);
+                    theCRangeParser.ConsumeUntil(NULL, StringParser::sDigitMask);
+                    fRangeLength= theCRangeParser.ConsumeInteger(NULL);                    
                 }
                 else if (theKey.NumEqualIgnoreCase(sConnectionHeader.Ptr, sConnectionHeader.Len))
                 {

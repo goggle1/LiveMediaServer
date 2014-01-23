@@ -7,7 +7,6 @@
 #include "BaseServer/StrPtrLen.h"
 #include "common.h"
 
-
 typedef struct segment_t
 {
 	//#EXTINF:10,
@@ -27,7 +26,9 @@ typedef struct segment_t
 	char	m3u8_relative_url[MAX_URL_LEN];
 	// 20131017T174027_03_20131024_155801_565631.ts
 	char 	file_name[MAX_URL_LEN];
+	
 } SEGMENT_T;
+
 
 class M3U8Parser
 {

@@ -17,6 +17,18 @@
 
 #define MAX_TRY_COUNT	3
 
+typedef struct segment_download_t
+{
+	//SEGMENT_T* segp;
+	// for download
+	int32_t		get_index;
+	int32_t 	download_count;
+	//u_int64_t	content_length;
+	u_int64_t	range_start;
+	//u_int64_t	receive_length;
+} SEGMENT_DOWNLOAD_T;
+
+
 class HTTPClientSession : public Task
 {
 	public:
@@ -32,18 +44,21 @@ class HTTPClientSession : public Task
 		struct timeval*	GetBeginTime() { return &fBeginTime; } 
 
 	protected:
-		int 	MakeUrl();
+		int 	MakeUrlM3U8();
 		int		TryStop();
 		int		TrySwitchSources();
 		Bool16	IsDownloaded(SEGMENT_T* segp);
+		Bool16	ConnectionTimeout();
 		Bool16	DownloadTimeout();
 		int		SetSources(DEQUE_NODE* source_list);
 		int 	Log(char* url, char* datap, UInt32 len);	
 		int 	Write(StrPtrLen& file_name, char* datap, UInt32 len);
 		int 	RewriteM3U8(M3U8Parser* parserp);	
 		int 	MemoM3U8(M3U8Parser* parserp, time_t begin_time, time_t end_time);
-		int 	MemoSegment(SEGMENT_T* segp, char* datap, UInt32 len, time_t begin_time, time_t end_time);	
+		int 	MemoSegment(SEGMENT_T* segp, UInt64 range_start, UInt64 content_length, char* datap, UInt32 len, time_t begin_time, time_t end_time);			
+		int 	MoveSegment();
 		time_t	CalcBreakTime();
+		int 	GetSegmentInit();
 
 		//
         // States. Find out what the object is currently doing
@@ -69,8 +84,8 @@ class HTTPClientSession : public Task
 	
 		int		SwitchSource(OS_Error theErr);
 		int		SetSource(SOURCE_T* sourcep);
-		int		MemoSourceM3U8(time_t newest_time, u_int64_t download_byte, struct timeval download_begin_time, struct timeval download_end_time);
-		int		MemoSourceSegment(u_int64_t download_byte, struct timeval download_begin_time, struct timeval download_end_time);
+		int		RateSourceM3U8(time_t newest_time, u_int64_t download_byte, struct timeval download_begin_time, struct timeval download_end_time);
+		int		RateSourceSegment(u_int64_t download_byte, struct timeval download_begin_time, struct timeval download_end_time);
 		int		SwitchLog(struct timeval until);
 		
 		char				fHost[MAX_HOST_LEN];
@@ -78,7 +93,8 @@ class HTTPClientSession : public Task
 		HTTPClient*			fClient;
 		char				fLiveType[MAX_LIVE_TYPE];
 		char 				fM3U8Path[MAX_URL_LEN];
-		char 				fUrl[MAX_URL_LEN];
+		char 				fUrlM3U8[MAX_URL_LEN];
+		char 				fUrlSegment[MAX_URL_LEN];
 		CHANNEL_T*			fChannel;				
 		MEMORY_T*			fMemory;
 		int					fSourceNum;
@@ -96,7 +112,7 @@ class HTTPClientSession : public Task
 		struct timeval		fSegmentBeginTime;
 		struct timeval		fSegmentEndTime;
 		int					fGetIndex;
-		//int					fGetTryCount;
+		SEGMENT_DOWNLOAD_T	fGetSegment;
 
 		char				fLogFile[PATH_MAX];
 		FILE*				fLog;

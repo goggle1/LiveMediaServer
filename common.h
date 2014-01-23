@@ -27,7 +27,9 @@
 
 // 10 seconds
 //#define SEMENT_DURATION		10000
-#define MAX_DOWNLOAD_TIME	(g_config.clip_duration*1000*2)
+//#define MAX_DOWNLOAD_TIME	(g_config.clip_duration*1000*2)
+#define MAX_DOWNLOAD_TIME	(g_config.clip_duration*1000)
+
 
 #define MAX_CONNECT_TIME	5000
 

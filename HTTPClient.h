@@ -14,7 +14,7 @@ class HTTPClient
 		~HTTPClient();		
 		
 		OS_Error    SendGetM3U8(char* url);
-		OS_Error    SendGetSegment(char* url);
+		OS_Error    SendGetSegment(char* url, u_int64_t range_start);
 		//
         // Once you call all of the above functions, assuming they return an error, you
         // should call DoTransaction until it returns OS_NoErr, then you can move onto your
@@ -67,6 +67,9 @@ class HTTPClient
         // Response data we get back
         UInt32      fStatus;        
         UInt32      fContentLength;   
+        UInt32      fRangeStart;  
+        UInt32      fRangeStop;
+        UInt32      fRangeLength;
         Bool16		fChunked;
         Bool16		fChunkTail;
         
