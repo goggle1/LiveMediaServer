@@ -582,10 +582,12 @@ int HTTPClientSession::MemoSegment(SEGMENT_T* onep, UInt64 range_start, UInt64 c
 		clipp->data.len = 0;
 	}
 
+	/*
 	fprintf(stdout, "%s: %s, range_start=%lu, content_length=%lu, len=%u\n", 
 		__PRETTY_FUNCTION__, 
 		clipp->relative_url,
 		range_start, content_length, len);
+	*/
 	
 	if(clipp->data.size >= content_length)
 	{
@@ -853,6 +855,8 @@ SInt64 HTTPClientSession::Run()
             {            	
             	fGetIndex = 0;
             	fGetSegment.get_index  = -1;
+            	fGetSegment.range_start = 0;
+            	fGetSegment.download_count = 0;
             	MakeUrlM3U8();
             	//fprintf(stdout, "%s: get %s\n", __PRETTY_FUNCTION__, fUrlM3U8);             	
             	theErr = fClient->SendGetM3U8(fUrlM3U8); 
@@ -1076,9 +1080,8 @@ SInt64 HTTPClientSession::Run()
 			{
 				fState = kSendingGetM3U8;
 			}
-			
-			time_t break_time = CalcBreakTime();
-       		return break_time;
+						
+       		return 10;
     	}
     	
     	if(DownloadTimeout())
