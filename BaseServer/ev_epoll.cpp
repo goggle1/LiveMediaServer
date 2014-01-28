@@ -305,9 +305,7 @@ int epoll_removeevent(int which)
 		ev.data.fd = which;
 		ev.events = EPOLLET;
 		//ev.events = 0; //EPOLLLT;
-        int ret  = epoll_ctl(s_epoll_fd, EPOLL_CTL_DEL, which, &ev);
-        fprintf(stdout, "%s: epoll_ctl del %d, return %d\n", 
-        	__FUNCTION__, which, ret);
+        int ret  = epoll_ctl(s_epoll_fd, EPOLL_CTL_DEL, which, &ev);        
     	if(ret != 0)
         {
         	fprintf(stderr, "%s: epoll_ctl del %d, return %d, errno=%d, %s\n", 
