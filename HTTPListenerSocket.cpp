@@ -38,6 +38,9 @@ HTTPListenerSocket::~HTTPListenerSocket()
 
 Task*   HTTPListenerSocket::GetSessionTask(TCPSocket** outSocket, struct sockaddr_in* addr)
 { 
+	fprintf(stdout, "%s: remote_ip=0x%08X, port=%u \n", 
+		__PRETTY_FUNCTION__, addr->sin_addr.s_addr, addr->sin_port);
+	
 	SESSION_T* sessionp = NULL;
 	int index = 0;
 	for(index=0; index<MAX_SESSION_NUM; index++)
@@ -55,6 +58,7 @@ Task*   HTTPListenerSocket::GetSessionTask(TCPSocket** outSocket, struct sockadd
 	}	
 	if(sessionp == NULL)
 	{
+		fprintf(stderr, "%s: %d run out, no session position!\n", __PRETTY_FUNCTION__, MAX_SESSION_NUM);
 		return NULL;
 	}
 	
