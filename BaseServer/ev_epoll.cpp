@@ -69,6 +69,8 @@ int construct_event_req(struct eventreq* req, int fd_pos, int event)
 
 void pipe_has_event()
 {
+	return;
+	
 	char theBuffer[4096]; 
     (void)::read(s_Pipes[0], &theBuffer[0], 4096);
     
@@ -177,11 +179,14 @@ void epoll_startevents()
     FD_SET(s_Pipes[0], &sReadSet);
     sMaxFDPos = s_Pipes[0];
 	#endif
+
+	#if 0
 	struct epoll_event ev = {0};
 	ev.data.fd = s_Pipes[0];
 	//ev.events = EPOLLIN|EPOLLET;
 	ev.events = EPOLLIN; // EPOLLLT
 	epoll_ctl(s_epoll_fd, EPOLL_CTL_ADD, s_Pipes[0], &ev);
+	#endif
     
 }
 
@@ -318,11 +323,13 @@ int epoll_removeevent(int which)
             
         //put this fd into the fd's to close array, so that when select wakes up, it will
         //close the fd
+        #if 0
         UInt32 theIndex = 0;
         while ((s_FDsToCloseArray[theIndex] != -1) && (theIndex < EPOLL_SIZE) )
             theIndex++;
         Assert(s_FDsToCloseArray[theIndex] == -1);
         s_FDsToCloseArray[theIndex] = which;
+        #endif
 #if EV_DEBUGGING
     qtss_printf("removeevent: Disabled %d \n", which);
 #endif
@@ -358,12 +365,14 @@ int epoll_waitevent(struct eventreq *req, void* /*onlyForMacOSX*/)
             	//if((s_epoll_events[s_CurrentFDPos].events | EPOLLIN) || (s_epoll_events[s_CurrentFDPos].events | EPOLLOUT))
             	if(s_epoll_events[s_CurrentFDPos].events != 0)
             	{
+            		#if 0
             		if(s_epoll_events[s_CurrentFDPos].data.fd == s_Pipes[0])
             		{
             			pipe_has_event();   
 					    s_NumFDsProcessed++;
             		}
             		else
+            		#endif
             		{
             			isSet = true;
             			break;
