@@ -56,8 +56,8 @@ int construct_event_req(struct eventreq* req, int fd_pos, int event)
     struct epoll_event ev = {0};
     ev.data.fd = fd;
     ev.events = 0;
-    //int ret = epoll_ctl(s_epoll_fd, EPOLL_CTL_MOD, fd, &ev);    
-    int ret = epoll_ctl(s_epoll_fd, EPOLL_CTL_DEL, fd, &ev);    
+    int ret = epoll_ctl(s_epoll_fd, EPOLL_CTL_MOD, fd, &ev);    
+    //int ret = epoll_ctl(s_epoll_fd, EPOLL_CTL_DEL, fd, &ev);    
     if(ret != 0)
     {
     	fprintf(stderr, "%s: epoll_ctl mod %d, return %d, errno=%d, %s\n", __FUNCTION__, fd, ret, errno, strerror(errno));
@@ -77,7 +77,7 @@ void pipe_has_event()
         //OSMutexLocker locker(&s_MaxFDPosMutex);
         for (UInt32 theIndex = 0; ((s_FDsToCloseArray[theIndex] != -1) && (theIndex < EPOLL_SIZE)); theIndex++)
         {
-            (void)::close(s_FDsToCloseArray[theIndex]);
+            //(void)::close(s_FDsToCloseArray[theIndex]);
             s_FDsToCloseArray[theIndex] = -1;
         }
     }
@@ -179,8 +179,8 @@ void epoll_startevents()
 	#endif
 	struct epoll_event ev = {0};
 	ev.data.fd = s_Pipes[0];
-	ev.events = EPOLLIN|EPOLLET;
-	//ev.events = EPOLLIN; // EPOLLLT
+	//ev.events = EPOLLIN|EPOLLET;
+	ev.events = EPOLLIN; // EPOLLLT
 	epoll_ctl(s_epoll_fd, EPOLL_CTL_ADD, s_Pipes[0], &ev);
     
 }
@@ -194,8 +194,8 @@ int epoll_modwatch(struct eventreq *req, int which)
 
 		struct epoll_event ev = {0};
 		ev.data.fd = req->er_handle;
-		ev.events = EPOLLET;
-		//ev.events = 0; //EPOLLLT;
+		//ev.events = EPOLLET;
+		ev.events = 0; //EPOLLLT;
 	
         //Add or remove this fd from the specified sets
         if (which & EV_RE)
@@ -208,10 +208,8 @@ int epoll_modwatch(struct eventreq *req, int which)
             ev.events = ev.events | EPOLLOUT;
         }
 
-        //int ret = epoll_ctl(s_epoll_fd, EPOLL_CTL_MOD, req->er_handle, &ev);
-        int ret = epoll_ctl(s_epoll_fd, EPOLL_CTL_ADD, req->er_handle, &ev);
-        //fprintf(stdout, "%s: epoll_ctl mod %d[%d], return %d\n", 
-        //	__FUNCTION__, req->er_handle, which, ret);
+        int ret = epoll_ctl(s_epoll_fd, EPOLL_CTL_MOD, req->er_handle, &ev);
+        //int ret = epoll_ctl(s_epoll_fd, EPOLL_CTL_ADD, req->er_handle, &ev);        
         if(ret != 0)
         {
         	fprintf(stderr, "%s: epoll_ctl mod %d[%d], return %d, errno=%d, %s\n", 
@@ -233,8 +231,8 @@ int epoll_modwatch(struct eventreq *req, int which)
     }
     
     //write to the pipe so that select wakes up and registers the new mask
-    int theErr = ::write(s_Pipes[1], "p", 1);
-    Assert(theErr == 1);
+    //int theErr = ::write(s_Pipes[1], "p", 1);
+    //Assert(theErr == 1);
 
     return 0;
 }
@@ -249,8 +247,8 @@ int epoll_watchevent(struct eventreq *req, int which)
 
 		struct epoll_event ev = {0};
 		ev.data.fd = req->er_handle;
-		ev.events = EPOLLET;
-		//ev.events = 0; //EPOLLLT;
+		//ev.events = EPOLLET ;
+		ev.events = 0; //EPOLLLT;
 	
         //Add or remove this fd from the specified sets
         if (which & EV_RE)
@@ -287,8 +285,8 @@ int epoll_watchevent(struct eventreq *req, int which)
     }
     
     //write to the pipe so that select wakes up and registers the new mask
-    int theErr = ::write(s_Pipes[1], "p", 1);
-    Assert(theErr == 1);
+    //int theErr = ::write(s_Pipes[1], "p", 1);
+    //Assert(theErr == 1);
 
     return 0;
 }
@@ -303,9 +301,10 @@ int epoll_removeevent(int which)
         
 		struct epoll_event ev;
 		ev.data.fd = which;
-		ev.events = EPOLLET;
-		//ev.events = 0; //EPOLLLT;
-        int ret  = epoll_ctl(s_epoll_fd, EPOLL_CTL_DEL, which, &ev);        
+		//ev.events = EPOLLET;
+		ev.events = 0; //EPOLLLT;
+        //int ret  = epoll_ctl(s_epoll_fd, EPOLL_CTL_DEL, which, &ev);        
+        int ret  = 0;        
     	if(ret != 0)
         {
         	fprintf(stderr, "%s: epoll_ctl del %d, return %d, errno=%d, %s\n", 
@@ -330,8 +329,8 @@ int epoll_removeevent(int which)
     }
     
     //write to the pipe so that select wakes up and registers the new mask
-    int theErr = ::write(s_Pipes[1], "p", 1);
-    Assert(theErr == 1);
+    //int theErr = ::write(s_Pipes[1], "p", 1);
+    //Assert(theErr == 1);
 
     return 0;
 }

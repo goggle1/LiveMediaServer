@@ -28,6 +28,8 @@
 //#define __USE_POSIX
 #define __linux__	1
 #define USE_DEFAULT_STD_LIB
+
+// select or epoll
 //#define MIO_SELECT 1
 
 
