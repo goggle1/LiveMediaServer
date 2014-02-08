@@ -3292,7 +3292,7 @@ QTSS_Error HTTPSession::ContinueLiveSegment()
 			return ret;
 		}
 		
-		fprintf(stdout, "%s: range=%ld-%ld", __PRETTY_FUNCTION__, fRangeStart, fRangeStop);
+		//fprintf(stdout, "%s: range=%ld-%ld\n", __PRETTY_FUNCTION__, fRangeStart, fRangeStop);
 		fHttpStatus = httpPartialContent;
 	}
 
