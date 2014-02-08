@@ -215,6 +215,8 @@ int epoll_modwatch(struct eventreq *req, int which)
 
         int ret = epoll_ctl(s_epoll_fd, EPOLL_CTL_MOD, req->er_handle, &ev);
         //int ret = epoll_ctl(s_epoll_fd, EPOLL_CTL_ADD, req->er_handle, &ev);        
+        //fprintf(stdout, "%s: epoll_ctl mod %d[%d], return %d\n", 
+	    //    	__FUNCTION__, req->er_handle, which, ret);
         if(ret != 0)
         {
         	fprintf(stderr, "%s: epoll_ctl mod %d[%d], return %d, errno=%d, %s\n", 
