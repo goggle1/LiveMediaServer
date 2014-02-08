@@ -559,7 +559,7 @@ int epoll_waitevent(struct eventreq *req, void* /*onlyForMacOSX*/)
 		#if 0
         s_NumFDsBackFromEpoll = ::select(sMaxFDPos+1, &sReturnedReadSet, &sReturnedWriteSet, NULL, &tv);
         #endif
-        memset(s_epoll_events, 0, sizeof(s_epoll_events));
+        //memset(s_epoll_events, 0, sizeof(s_epoll_events));
         s_NumFDsBackFromEpoll = ::epoll_wait(s_epoll_fd, s_epoll_events, EPOLL_SIZE, timeout);
         if(s_NumFDsBackFromEpoll == -1)
         {

@@ -176,20 +176,35 @@ void EventContext::RequestEvent(int theMask)
     
     if (fWatchEventCalled)
     {
-        fEventReq.er_eventbits = theMask;
+     	//fEventReq.er_eventbits = theMask;   
 #if MACOSXEVENTQUEUE
+		fEventReq.er_eventbits = theMask;
         if (modwatch(&fEventReq, theMask) != 0)
-#else
-#if MIO_SELECT
-        if (select_modwatch(&fEventReq, theMask) != 0)
-#else
-		if (epoll_modwatch(&fEventReq, theMask) != 0)
-#endif
-#endif  
-		{			
+        {			
             //AssertV(false, OSThread::GetErrno());
             // do nothing.
         }
+#else
+#if MIO_SELECT
+		fEventReq.er_eventbits = theMask;
+        if (select_modwatch(&fEventReq, theMask) != 0)
+        {			
+            //AssertV(false, OSThread::GetErrno());
+            // do nothing.
+        }
+#else
+		//if(fEventReq.er_eventbits != theMask)
+		{
+			fEventReq.er_eventbits = theMask;
+			if (epoll_modwatch(&fEventReq, theMask) != 0)
+			{			
+	            //AssertV(false, OSThread::GetErrno());
+	            // do nothing.
+	        }
+        }
+#endif
+#endif  
+		
     }
     else
     {
