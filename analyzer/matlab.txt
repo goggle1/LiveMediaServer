@@ -34,3 +34,76 @@ str=sprintf('min: %f\nmax: %f\nmean: %f\n', min_time, max_time, mean_time);
 text(80, 65, str);
 box on;
 grid on;
+
+function c=hash_hits(INDEX)
+FILE_NAME=sprintf('%d.list', INDEX);
+fid=fopen(FILE_NAME,'r');
+text=textscan(fid,'%40s%4d%2d%2d%2d%2d%2d%d','delimiter', '\t -:');
+column1=text{1};
+column2=text{2};
+column3=text{3};
+column4=text{4};
+column5=text{5};
+column6=text{6};
+column7=text{7};
+column8=text{8};
+fclose(fid); 
+
+hits_date=[];
+for i=1:size(column2)
+	one_date=datenum(double(column2(i)), double(column3(i)), double(column4(i)));
+	hits_date=[hits_date one_date];
+end
+hits_date=hits_date';
+hits_num=column8;
+plot(hits_date, hits_num);
+datetick('x','mm/dd') 
+xlabel('hits date');
+ylabel('hits num');
+box on;
+grid on;
+
+hold on;
+
+for i=0:1:99
+	hash_hits(i);
+end
+
+for i=1000:1:1099
+	hash_hits(i);
+end
+
+for i=10000:1:10099
+	hash_hits(i);
+end
+
+for i=100000:1:100099
+	hash_hits(i);
+end
+
+for i=200000:1:200099
+	hash_hits(i);
+end
+
+for i=300000:1:300099
+	hash_hits(i);
+end
+
+for i=400000:1:400099
+	hash_hits(i);
+end
+
+for i=500000:1:500099
+	hash_hits(i);
+end
+
+for i=600000:1:600099
+	hash_hits(i);
+end
+
+for i=700000:1:700099
+	hash_hits(i);
+end
+
+
+

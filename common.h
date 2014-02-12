@@ -2,7 +2,7 @@
 #ifndef __COMMON_H__
 #define __COMMON_H__
 
-#define PROGRAM_VERSION		"0.1.0.026"
+#define PROGRAM_VERSION		"0.1.0.027"
 #define MY_VERSION			PROGRAM_VERSION"@"OS_VERSION
 #define CMD_VERSION			"2.1"
 
