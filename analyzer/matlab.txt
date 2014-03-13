@@ -106,4 +106,11 @@ for i=700000:1:700099
 end
 
 
+x=0:0.01:10;
+y=0.025+normpdf(x,2,1.5);
+plot(x,y);
+ylim([0.0 0.35]);
+box on;
+grid on;
+
 

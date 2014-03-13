@@ -104,6 +104,7 @@ int start_channel(CHANNEL_T* channelp)
 			}
 		}
 	}
+#if 0
 	if(channelp->codec_flv)
 	{		
 		if(channelp->sessionp_flv == NULL)
@@ -125,7 +126,8 @@ int start_channel(CHANNEL_T* channelp)
 				sessionp->Start();
 			}
 		}
-	}	
+	}
+#endif
 	
 	return 0;
 }

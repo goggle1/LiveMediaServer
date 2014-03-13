@@ -27,7 +27,7 @@ PROGRAM   := LiveMediaServer
 # The directories in which source files reside.
 # At least one path should be specified.
 # SRCDIRS   := .        # current directory
-SRCDIRS   := . ./BaseServer
+SRCDIRS   := . ./BaseServer ./ts2flv
 
 # The source file types (headers excluded).
 # At least one type should be specified.

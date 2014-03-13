@@ -10,6 +10,8 @@
 #include "BaseServer/StringParser.h"
 #include "BaseServer/StringFormatter.h"
 
+#include "ts2flv/TS.h"
+
 #include "common.h"
 #include "config.h"
 #include "HTTPClientSession.h"
@@ -101,6 +103,7 @@ HTTPClientSession::HTTPClientSession(CHANNEL_T* channelp, char* live_type)
 	memset(fMemory, 0, sizeof(MEMORY_T));
 	fMemory->clips = (CLIP_T*)malloc(g_config.max_clip_num * sizeof(CLIP_T));
 	memset(fMemory->clips, 0, g_config.max_clip_num * sizeof(CLIP_T));
+	
 	if(strcasecmp(fLiveType, LIVE_TS) == 0)
 	{
 		channelp->memoryp_ts = fMemory;
@@ -116,6 +119,13 @@ HTTPClientSession::HTTPClientSession(CHANNEL_T* channelp, char* live_type)
 		channelp->memoryp_mp4 = fMemory;
 		channelp->sessionp_mp4 = this;
 	}
+
+	fMemory2 = (MEMORY_T*)malloc(sizeof(MEMORY_T));	
+	// if fMemory == NULL, thrown exception.
+	memset(fMemory2, 0, sizeof(MEMORY_T));
+	fMemory2->clips = (CLIP_T*)malloc(g_config.max_clip_num * sizeof(CLIP_T));
+	memset(fMemory2->clips, 0, g_config.max_clip_num * sizeof(CLIP_T));
+	channelp->memoryp_flv = fMemory2;
 
 	fLog = NULL;		
 	//this->Signal(Task::kStartEvent);
@@ -558,12 +568,25 @@ int HTTPClientSession::MoveSegment()
 		fMemory->clip_num = g_config.max_clip_num-1;
 	}	
 
+	fMemory2->clip_index ++;
+	if(fMemory2->clip_index >= g_config.max_clip_num)
+	{
+		fMemory2->clip_index = 0;
+	}
+	
+	fMemory2->clip_num ++;
+	if(fMemory2->clip_num > g_config.max_clip_num-1)
+	{
+		fMemory2->clip_num = g_config.max_clip_num-1;
+	}
+
 	return 0;
 }
 
 int HTTPClientSession::MemoSegment(SEGMENT_T* onep, UInt64 range_start, UInt64 content_length, char * datap, UInt32 len, time_t begin_time, time_t end_time)
 {	
 	CLIP_T* clipp = &(fMemory->clips[fMemory->clip_index]);	
+	CLIP_T* clip2p = &(fMemory2->clips[fMemory2->clip_index]);
 	if(range_start == 0)
 	{
 		clipp->inf = onep->inf;
@@ -580,6 +603,39 @@ int HTTPClientSession::MemoSegment(SEGMENT_T* onep, UInt64 range_start, UInt64 c
 		clipp->file_name[MAX_URL_LEN-1] = '\0';
 
 		clipp->data.len = 0;
+
+		clip2p->inf = onep->inf;
+		clip2p->byte_range = onep->byte_range;
+		clip2p->sequence = onep->sequence;	
+		
+		strncpy(clip2p->relative_url, onep->relative_url, MAX_URL_LEN-1);
+		clip2p->relative_url[MAX_URL_LEN-1] = '\0';	
+		{
+			char* 	temp_str = clip2p->relative_url;
+			int 	temp_len = strlen(temp_str);
+			char* 	suff_str = strstr(temp_str, ".ts");
+			strcpy(suff_str, ".flv");
+		}
+
+		strncpy(clip2p->m3u8_relative_url, onep->m3u8_relative_url, MAX_URL_LEN-1);
+		clip2p->m3u8_relative_url[MAX_URL_LEN-1] = '\0';
+		{
+			char* 	temp_str = clip2p->m3u8_relative_url;
+			int 	temp_len = strlen(temp_str);
+			char* 	suff_str = strstr(temp_str, ".ts");
+			strcpy(suff_str, ".flv");
+		}
+
+		strncpy(clip2p->file_name, onep->file_name, MAX_URL_LEN-1);
+		clip2p->file_name[MAX_URL_LEN-1] = '\0';
+		{
+			char* 	temp_str = clip2p->file_name;
+			int 	temp_len = strlen(temp_str);
+			char* 	suff_str = strstr(temp_str, ".ts");
+			strcpy(suff_str, ".flv");
+		}
+
+		clip2p->data.len = 0;
 	}
 
 	/*
@@ -620,11 +676,30 @@ int HTTPClientSession::MemoSegment(SEGMENT_T* onep, UInt64 range_start, UInt64 c
 	{
 		clipp->begin_time = begin_time;
 		clipp->end_time = 0;
+		clip2p->begin_time = begin_time;
+		clip2p->end_time = 0;
 	}
 
 	if(range_start + len >= content_length)
 	{
 		clipp->end_time = end_time;
+		clip2p->end_time = end_time;
+
+		if((int)clip2p->data.size >= clipp->data.len)
+		{
+			// do nothing.
+		}
+		else
+		{
+			void* newp = realloc(clip2p->data.datap, clipp->data.len);
+			if(newp == NULL)
+			{
+				return -1;
+			}
+			clip2p->data.datap = newp;
+			clip2p->data.size = clipp->data.len;
+		}
+		clip2p->data.len = fTs2flv.buff2buff((u_int8_t*)clipp->data.datap, clipp->data.len, (u_int8_t*)clip2p->data.datap, (int)clip2p->data.size);
 		
 		MoveSegment();
 	}

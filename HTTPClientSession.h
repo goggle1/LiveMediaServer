@@ -9,11 +9,12 @@
 #include "BaseServer/ClientSocket.h"
 #include "BaseServer/TimeoutTask.h"
 
+#include "ts2flv/ts2flv.h"
+
 #include "deque.h"
 #include "channel.h"
 #include "HTTPClient.h"
 #include "M3U8Parser.h"
-
 
 #define MAX_TRY_COUNT	3
 
@@ -97,6 +98,7 @@ class HTTPClientSession : public Task
 		char 				fUrlSegment[MAX_URL_LEN];
 		CHANNEL_T*			fChannel;				
 		MEMORY_T*			fMemory;
+		MEMORY_T*			fMemory2;
 		int					fSourceNum;
 		DEQUE_NODE*			fSourceList;
 		DEQUE_NODE*			fSourceNow;
@@ -129,6 +131,8 @@ class HTTPClientSession : public Task
 		//sequence, or chunk id
 		u_int64_t			fLastChunkId;
 		Bool16				fWithChunkId;
+
+		TS2FLV				fTs2flv;
 		
 };
 

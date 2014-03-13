@@ -67,6 +67,16 @@ password:
 124.232.151.187 
 61.55.176.14 
 
+<sources>
+                        <source ip="183.61.240.179" port="5050">
+                        </source>
+                        <source ip="115.238.189.13" port="5050">
+                        </source>
+                        <source ip="118.72.255.139" port="5050">
+                        </source>
+                        <source ip="121.18.237.35" port="5050">
+                        </source>
+                </sources>
 
 
 http://124.205.11.249:5050/macross/?cmd=add_channel&channel_id=&liveid=78267cf4a7864a887540cf4af3c432dca3d52050&bitrate=&channel_name=&codec_ts=1&codec_flv=1&source=118.72.255.139%3A5050&source=121.18.237.35%3A5050
@@ -74,24 +84,117 @@ http://124.205.11.249:5050/macross/?cmd=add_channel&channel_id=&liveid=0b49884b3
 http://124.205.11.249:5050/macross/?cmd=add_channel&channel_id=&liveid=d2ebd4c1be0756f80bc2211721dee3b905a28436&bitrate=&channel_name=&codec_ts=1&codec_flv=1&source=118.72.255.139%3A5050&source=121.18.237.35%3A5050
 http://124.205.11.249:5050/macross/?cmd=add_channel&channel_id=&liveid=f55620cec48a8319e6e164540e05fa7920e68294&bitrate=&channel_name=&codec_ts=1&codec_flv=1&source=118.72.255.139%3A5050&source=121.18.237.35%3A5050
 http://124.205.11.249:5050/macross/?cmd=add_channel&channel_id=&liveid=e90c5e63d96569df1c161eb27b813b4678db9fa2&bitrate=&channel_name=&codec_ts=1&codec_flv=1&source=118.72.255.139%3A5050&source=121.18.237.35%3A5050
-http://124.205.11.249:5050/macross/?cmd=add_channel&channel_id=&liveid=fd5f6b86b836e38c8eed27c9e66e3e6dcf0a69b2&bitrate=&channel_name=&codec_ts=1&codec_flv=1&source=118.72.255.139%3A5050&source=121.18.237.35%3A5050
 http://124.205.11.249:5050/macross/?cmd=add_channel&channel_id=&liveid=d19424ac0814684224fe20bec16c3f1ad7ca9ca7&bitrate=&channel_name=&codec_ts=1&codec_flv=1&source=118.72.255.139%3A5050&source=121.18.237.35%3A5050
 http://124.205.11.249:5050/macross/?cmd=add_channel&channel_id=&liveid=8a61f3f455c748f373934648f650e8beeceaf2c3&bitrate=&channel_name=&codec_ts=1&codec_flv=1&source=118.72.255.139%3A5050&source=121.18.237.35%3A5050
 
-http://211.161.45.183:5050/macross/?cmd=add_channel&channel_id=&liveid=78267cf4a7864a887540cf4af3c432dca3d52050&bitrate=&channel_name=&codec_ts=1&codec_flv=1&source=118.72.255.139%3A5050&source=121.18.237.35%3A5050
-http://211.161.45.183:5050/macross/?cmd=add_channel&channel_id=&liveid=0b49884b3b85f7ccddbe4e96e4ae2eae7a6dec56&bitrate=&channel_name=&codec_ts=1&codec_flv=1&source=118.72.255.139%3A5050&source=121.18.237.35%3A5050
-http://211.161.45.183:5050/macross/?cmd=add_channel&channel_id=&liveid=d2ebd4c1be0756f80bc2211721dee3b905a28436&bitrate=&channel_name=&codec_ts=1&codec_flv=1&source=118.72.255.139%3A5050&source=121.18.237.35%3A5050
-http://211.161.45.183:5050/macross/?cmd=add_channel&channel_id=&liveid=f55620cec48a8319e6e164540e05fa7920e68294&bitrate=&channel_name=&codec_ts=1&codec_flv=1&source=118.72.255.139%3A5050&source=121.18.237.35%3A5050
-http://211.161.45.183:5050/macross/?cmd=add_channel&channel_id=&liveid=e90c5e63d96569df1c161eb27b813b4678db9fa2&bitrate=&channel_name=&codec_ts=1&codec_flv=1&source=118.72.255.139%3A5050&source=121.18.237.35%3A5050
-http://211.161.45.183:5050/macross/?cmd=add_channel&channel_id=&liveid=fd5f6b86b836e38c8eed27c9e66e3e6dcf0a69b2&bitrate=&channel_name=&codec_ts=1&codec_flv=1&source=118.72.255.139%3A5050&source=121.18.237.35%3A5050
-http://211.161.45.183:5050/macross/?cmd=add_channel&channel_id=&liveid=d19424ac0814684224fe20bec16c3f1ad7ca9ca7&bitrate=&channel_name=&codec_ts=1&codec_flv=1&source=118.72.255.139%3A5050&source=121.18.237.35%3A5050
-http://211.161.45.183:5050/macross/?cmd=add_channel&channel_id=&liveid=8a61f3f455c748f373934648f650e8beeceaf2c3&bitrate=&channel_name=&codec_ts=1&codec_flv=1&source=118.72.255.139%3A5050&source=121.18.237.35%3A5050
+http://112.65.226.211:5050/macross/?cmd=add_channel&channel_id=&liveid=78267cf4a7864a887540cf4af3c432dca3d52050&bitrate=&channel_name=&codec_ts=1&codec_flv=1&source=118.72.255.139%3A5050&source=121.18.237.35%3A5050
+http://112.65.226.211:5050/macross/?cmd=add_channel&channel_id=&liveid=0b49884b3b85f7ccddbe4e96e4ae2eae7a6dec56&bitrate=&channel_name=&codec_ts=1&codec_flv=1&source=118.72.255.139%3A5050&source=121.18.237.35%3A5050
+http://112.65.226.211:5050/macross/?cmd=add_channel&channel_id=&liveid=d2ebd4c1be0756f80bc2211721dee3b905a28436&bitrate=&channel_name=&codec_ts=1&codec_flv=1&source=118.72.255.139%3A5050&source=121.18.237.35%3A5050
+http://112.65.226.211:5050/macross/?cmd=add_channel&channel_id=&liveid=f55620cec48a8319e6e164540e05fa7920e68294&bitrate=&channel_name=&codec_ts=1&codec_flv=1&source=118.72.255.139%3A5050&source=121.18.237.35%3A5050
+http://112.65.226.211:5050/macross/?cmd=add_channel&channel_id=&liveid=d19424ac0814684224fe20bec16c3f1ad7ca9ca7&bitrate=&channel_name=&codec_ts=1&codec_flv=1&source=118.72.255.139%3A5050&source=121.18.237.35%3A5050
+http://112.65.226.211:5050/macross/?cmd=add_channel&channel_id=&liveid=8a61f3f455c748f373934648f650e8beeceaf2c3&bitrate=&channel_name=&codec_ts=1&codec_flv=1&source=118.72.255.139%3A5050&source=121.18.237.35%3A5050
+http://112.65.226.211:5050/macross/?cmd=add_channel&channel_id=&liveid=e90c5e63d96569df1c161eb27b813b4678db9fa2&bitrate=&channel_name=&codec_ts=1&codec_flv=1&source=118.72.255.139%3A5050&source=121.18.237.35%3A5050
+http://112.65.226.211:5050/macross/?cmd=add_channel&channel_id=&liveid=f55620cec48a8319e6e164540e05fa7920e68294&bitrate=&channel_name=&codec_ts=1&codec_flv=1&source=118.72.255.139%3A5050&source=121.18.237.35%3A5050
 
-http://192.168.160.202:5050/macross/?cmd=add_channel&channel_id=&liveid=78267cf4a7864a887540cf4af3c432dca3d52050&bitrate=&channel_name=&codec_ts=1&codec_flv=1&source=118.72.255.139%3A5050&source=121.18.237.35%3A5050
-http://192.168.160.202:5050/macross/?cmd=add_channel&channel_id=&liveid=0b49884b3b85f7ccddbe4e96e4ae2eae7a6dec56&bitrate=&channel_name=&codec_ts=1&codec_flv=1&source=118.72.255.139%3A5050&source=121.18.237.35%3A5050
-http://192.168.160.202:5050/macross/?cmd=add_channel&channel_id=&liveid=d2ebd4c1be0756f80bc2211721dee3b905a28436&bitrate=&channel_name=&codec_ts=1&codec_flv=1&source=118.72.255.139%3A5050&source=121.18.237.35%3A5050
-http://192.168.160.202:5050/macross/?cmd=add_channel&channel_id=&liveid=f55620cec48a8319e6e164540e05fa7920e68294&bitrate=&channel_name=&codec_ts=1&codec_flv=1&source=118.72.255.139%3A5050&source=121.18.237.35%3A5050
-http://192.168.160.202:5050/macross/?cmd=add_channel&channel_id=&liveid=e90c5e63d96569df1c161eb27b813b4678db9fa2&bitrate=&channel_name=&codec_ts=1&codec_flv=1&source=118.72.255.139%3A5050&source=121.18.237.35%3A5050
-http://192.168.160.202:5050/macross/?cmd=add_channel&channel_id=&liveid=fd5f6b86b836e38c8eed27c9e66e3e6dcf0a69b2&bitrate=&channel_name=&codec_ts=1&codec_flv=1&source=118.72.255.139%3A5050&source=121.18.237.35%3A5050
-http://192.168.160.202:5050/macross/?cmd=add_channel&channel_id=&liveid=d19424ac0814684224fe20bec16c3f1ad7ca9ca7&bitrate=&channel_name=&codec_ts=1&codec_flv=1&source=118.72.255.139%3A5050&source=121.18.237.35%3A5050
-http://192.168.160.202:5050/macross/?cmd=add_channel&channel_id=&liveid=8a61f3f455c748f373934648f650e8beeceaf2c3&bitrate=&channel_name=&codec_ts=1&codec_flv=1&source=118.72.255.139%3A5050&source=121.18.237.35%3A5050
+
+http://112.65.226.211:5050/macross/?cmd=add_channel&channel_id=&liveid=78267cf4a7864a887540cf4af3c432dca3d52050&bitrate=&channel_name=&codec_ts=1&codec_flv=1&source=118.72.255.139%3A5050&source=121.18.237.35%3A5050
+http://112.65.226.211:5050/macross/?cmd=add_channel&channel_id=&liveid=0b49884b3b85f7ccddbe4e96e4ae2eae7a6dec56&bitrate=&channel_name=&codec_ts=1&codec_flv=1&source=118.72.255.139%3A5050&source=121.18.237.35%3A5050
+http://112.65.226.211:5050/macross/?cmd=add_channel&channel_id=&liveid=d2ebd4c1be0756f80bc2211721dee3b905a28436&bitrate=&channel_name=&codec_ts=1&codec_flv=1&source=118.72.255.139%3A5050&source=121.18.237.35%3A5050
+http://112.65.226.211:5050/macross/?cmd=add_channel&channel_id=&liveid=f55620cec48a8319e6e164540e05fa7920e68294&bitrate=&channel_name=&codec_ts=1&codec_flv=1&source=118.72.255.139%3A5050&source=121.18.237.35%3A5050
+http://112.65.226.211:5050/macross/?cmd=add_channel&channel_id=&liveid=d19424ac0814684224fe20bec16c3f1ad7ca9ca7&bitrate=&channel_name=&codec_ts=1&codec_flv=1&source=118.72.255.139%3A5050&source=121.18.237.35%3A5050
+http://112.65.226.211:5050/macross/?cmd=add_channel&channel_id=&liveid=8a61f3f455c748f373934648f650e8beeceaf2c3&bitrate=&channel_name=&codec_ts=1&codec_flv=1&source=118.72.255.139%3A5050&source=121.18.237.35%3A5050
+http://112.65.226.211:5050/macross/?cmd=add_channel&channel_id=&liveid=e90c5e63d96569df1c161eb27b813b4678db9fa2&bitrate=&channel_name=&codec_ts=1&codec_flv=1&source=118.72.255.139%3A5050&source=121.18.237.35%3A5050
+http://112.65.226.211:5050/macross/?cmd=add_channel&channel_id=&liveid=f55620cec48a8319e6e164540e05fa7920e68294&bitrate=&channel_name=&codec_ts=1&codec_flv=1&source=118.72.255.139%3A5050&source=121.18.237.35%3A5050
+
+http://61.136.167.35:5050/macross/?cmd=add_channel&channel_id=&liveid=78267cf4a7864a887540cf4af3c432dca3d52050&bitrate=&channel_name=&codec_ts=1&codec_flv=1&source=183.61.240.179%3A5050&source=115.238.189.13%3A5050
+http://61.136.167.35:5050/macross/?cmd=add_channel&channel_id=&liveid=0b49884b3b85f7ccddbe4e96e4ae2eae7a6dec56&bitrate=&channel_name=&codec_ts=1&codec_flv=1&source=183.61.240.179%3A5050&source=115.238.189.13%3A5050
+http://61.136.167.35:5050/macross/?cmd=add_channel&channel_id=&liveid=d2ebd4c1be0756f80bc2211721dee3b905a28436&bitrate=&channel_name=&codec_ts=1&codec_flv=1&source=183.61.240.179%3A5050&source=115.238.189.13%3A5050
+http://61.136.167.35:5050/macross/?cmd=add_channel&channel_id=&liveid=f55620cec48a8319e6e164540e05fa7920e68294&bitrate=&channel_name=&codec_ts=1&codec_flv=1&source=183.61.240.179%3A5050&source=115.238.189.13%3A5050
+http://61.136.167.35:5050/macross/?cmd=add_channel&channel_id=&liveid=d19424ac0814684224fe20bec16c3f1ad7ca9ca7&bitrate=&channel_name=&codec_ts=1&codec_flv=1&source=183.61.240.179%3A5050&source=115.238.189.13%3A5050
+http://61.136.167.35:5050/macross/?cmd=add_channel&channel_id=&liveid=8a61f3f455c748f373934648f650e8beeceaf2c3&bitrate=&channel_name=&codec_ts=1&codec_flv=1&source=183.61.240.179%3A5050&source=115.238.189.13%3A5050
+http://61.136.167.35:5050/macross/?cmd=add_channel&channel_id=&liveid=e90c5e63d96569df1c161eb27b813b4678db9fa2&bitrate=&channel_name=&codec_ts=1&codec_flv=1&source=183.61.240.179%3A5050&source=115.238.189.13%3A5050
+http://61.136.167.35:5050/macross/?cmd=add_channel&channel_id=&liveid=f55620cec48a8319e6e164540e05fa7920e68294&bitrate=&channel_name=&codec_ts=1&codec_flv=1&source=183.61.240.179%3A5050&source=115.238.189.13%3A5050
+
+
+http://183.129.161.105:5050/macross/?cmd=add_channel&channel_id=&liveid=e90c5e63d96569df1c161eb27b813b4678db9fa2&bitrate=&channel_name=&codec_ts=1&codec_flv=1&source=183.61.240.179%3A5050&source=115.238.189.13%3A5050
+
+http://183.61.252.137:5050/macross/?cmd=add_channel&channel_id=&liveid=e90c5e63d96569df1c161eb27b813b4678db9fa2&bitrate=&channel_name=&codec_ts=1&codec_flv=1&source=183.61.240.179%3A5050&source=115.238.189.13%3A5050
+
+{
+    "success": true,
+    "data_list": [
+        {
+            "channel_id": "20",
+            "liveid": "78267cf4a7864a887540cf4af3c432dca3d52050",
+            "bitrate": "800",
+            "channel_name": "上海五星体育",
+            "fileformat": "ts",
+            "dispatch_state": "dispatched"
+        },
+        {
+            "channel_id": "21",
+            "liveid": "0b49884b3b85f7ccddbe4e96e4ae2eae7a6dec56",
+            "bitrate": "800",
+            "channel_name": "东方卫视",
+            "fileformat": "ts",
+            "dispatch_state": "dispatched"
+        },
+        {
+            "channel_id": "27",
+            "liveid": "d2ebd4c1be0756f80bc2211721dee3b905a28436",
+            "bitrate": "800",
+            "channel_name": "上海电视台娱乐频道",
+            "fileformat": "ts",
+            "dispatch_state": "dispatched"
+        },
+        {
+            "channel_id": "26",
+            "liveid": "f55620cec48a8319e6e164540e05fa7920e68294",
+            "bitrate": "800",
+            "channel_name": "劲爆体育",
+            "fileformat": "ts",
+            "dispatch_state": "dispatched"
+        },
+        {
+            "channel_id": "50",
+            "liveid": "d19424ac0814684224fe20bec16c3f1ad7ca9ca7",
+            "bitrate": "800",
+            "channel_name": "英超NBA直播信号1",
+            "fileformat": "ts",
+            "dispatch_state": "dispatched"
+        },
+        {
+            "channel_id": "52",
+            "liveid": "8a61f3f455c748f373934648f650e8beeceaf2c3",
+            "bitrate": "800",
+            "channel_name": "现场直播",
+            "fileformat": "ts",
+            "dispatch_state": "dispatched"
+        },
+        {
+            "channel_id": "60",
+            "liveid": "e90c5e63d96569df1c161eb27b813b4678db9fa2",
+            "bitrate": "256",
+            "channel_name": "五星体育广播",
+            "fileformat": "ts",
+            "dispatch_state": "dispatched"
+        },
+        {
+            "channel_id": "61",
+            "liveid": "724d25278841e0540cf616716e0a45f70eb46c56",
+            "bitrate": "800",
+            "channel_name": "延时直播",
+            "fileformat": "ts",
+            "dispatch_state": "to-dispatch"
+        }
+    ]
+}
+
+http://www.baidu.com/?distribute=1,2000;2,3000
+
+fprintf(stdout, "%s [index] [out.flv] [in.ts] [in_2.ts]\n", program_name);
+
+http://192.168.160.203:9191/auto_delete_tasks/mobile/?rooms=100000:41|20000:42&topN=500000
+http://192.168.160.203:9191/auto_distribute_tasks/mobile/?rooms=100000:41|20000:42&topN=ALL
+
+http://jobsfe.funshion.com/query/v1/mp4/0b49884b3b85f7ccddbe4e96e4ae2eae7a6dec56.json?tm=1394524420 

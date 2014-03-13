@@ -2889,7 +2889,8 @@ QTSS_Error HTTPSession::ResponseLiveM3U8()
 	}
 	else if(strcasecmp(param_type, LIVE_FLV) == 0)
 	{
-		fHttpClientSession = channelp->sessionp_flv;
+		//fHttpClientSession = channelp->sessionp_flv;
+		fHttpClientSession = channelp->sessionp_ts;
 		//memoryp = channelp->memoryp_flv;
 		fMemory = channelp->memoryp_flv;
 		statisticsp = &(channelp->statistics_flv);
@@ -2901,8 +2902,8 @@ QTSS_Error HTTPSession::ResponseLiveM3U8()
 		fMemory = channelp->memoryp_mp4;
 		statisticsp = &(channelp->statistics_mp4);
 	}
-	//if(memoryp == NULL)
-	if(fHttpClientSession == NULL)
+	if(fMemory == NULL)
+	//if(fHttpClientSession == NULL)
 	{
 		ret = ResponseError(httpNotFound);
 		return ret;
@@ -2949,7 +2950,7 @@ QTSS_Error HTTPSession::ContinueLiveM3U8()
 		return ret;
 	}
 
-	MEMORY_T* memoryp = fHttpClientSession->GetMemory();
+	MEMORY_T* memoryp = fMemory;
 	if(fLiveLen == -1)
 	{
 		fLiveLen = DEFAULT_SEGMENT_NUM;
@@ -3001,7 +3002,8 @@ QTSS_Error HTTPSession::ContinueLiveM3U8()
 	char m3u8_buffer[MAX_M3U8_CONTENT_LEN];
 	StringFormatter content(m3u8_buffer, MAX_M3U8_CONTENT_LEN);	
 	content.Put("#EXTM3U\n");
-	content.PutFmtStr("#EXT-X-TARGETDURATION:%d\n", memoryp->target_duration);
+	//content.PutFmtStr("#EXT-X-TARGETDURATION:%d\n", memoryp->target_duration);
+	content.PutFmtStr("#EXT-X-TARGETDURATION:%d\n", 10);
 	content.PutFmtStr("#EXT-X-MEDIA-SEQUENCE:%lu\n", memoryp->clips[index].sequence);
 		
 	int count2 = 0;
@@ -3027,8 +3029,9 @@ QTSS_Error HTTPSession::ContinueLiveM3U8()
 				// do nothing.
 			}
 			else
-			{
-				content.PutFmtStr("#EXT-X-BYTERANGE:%lu\n", onep->byte_range);
+			{				
+				//content.PutFmtStr("#EXT-X-BYTERANGE:%lu\n", onep->byte_range);
+				content.PutFmtStr("#EXT-X-BYTERANGE:%ld\n", onep->data.len);
 			}
 			#if 0
 			content.PutFmtStr("%s\n", onep->m3u8_relative_url);
@@ -3155,7 +3158,8 @@ QTSS_Error HTTPSession::ResponseLiveSegment()
 	}
 	else if(strcasecmp(fLiveType, LIVE_FLV) == 0)
 	{
-		fHttpClientSession = channelp->sessionp_flv;
+		//fHttpClientSession = channelp->sessionp_flv;
+		fHttpClientSession = channelp->sessionp_ts;
 		//memoryp = channelp->memoryp_flv;
 		fMemory = channelp->memoryp_flv;
 		statisticsp = &(channelp->statistics_flv);
@@ -3169,8 +3173,8 @@ QTSS_Error HTTPSession::ResponseLiveSegment()
 		statisticsp = &(channelp->statistics_mp4);
 		mime_type = CONTENT_TYPE_VIDEO_MP4;
 	}
-	//if(memoryp == NULL)
-	if(fHttpClientSession == NULL)
+	if(fMemory == NULL)
+	//if(fHttpClientSession == NULL)
 	{
 		ret = ResponseError(httpNotFound);
 		return ret;
@@ -3223,7 +3227,7 @@ QTSS_Error HTTPSession::ContinueLiveSegment()
 		mime_type = CONTENT_TYPE_VIDEO_MP4;
 	}
 	
-	MEMORY_T* memoryp = fHttpClientSession->GetMemory();
+	MEMORY_T* memoryp = fMemory;
 	CLIP_T* clipp = NULL;	
 	int index = memoryp->clip_index - 1;	
 	if(index<0)
